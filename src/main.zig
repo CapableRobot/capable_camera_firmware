@@ -4,10 +4,15 @@ const fs = std.fs;
 const mem = @import("std").mem;
 
 const led_driver = @import("led_driver.zig");
+const info = @import("info.zig");
 
 const i2c_device = "/dev/i2c-1";
 
 pub fn main() anyerror!void {
+    if (info.uptime()) |uptime| {
+        print("uptime {d} {d}\n", .{ uptime[0], uptime[1] });
+    }
+
     var fd = try fs.openFileAbsolute(i2c_device, fs.File.OpenFlags{ .read = true, .write = true });
     defer fd.close();
 
