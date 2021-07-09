@@ -3,6 +3,12 @@ const fs = std.fs;
 const mem = std.mem;
 const print = std.debug.print;
 
+const c = @cImport({
+    @cInclude("unistd.h");
+    @cInclude("sys/types.h");
+    @cInclude("sys/param.h");
+});
+
 const proce_stat_core_times = packed struct {
     user: u64 = 0,
     nice: u64 = 0,
@@ -19,9 +25,13 @@ const proce_stat_core_times = packed struct {
 // TODO : don't hard code this
 const num_cores = 4;
 
+// TODO : don't hard code this
+const jiffies = 100;
+
 const proc_stat = struct {
-    uptime: f32 = 0,
-    idletime: f32 = 0,
+    tick_per_sec: u8 = jiffies,
+    uptime: u64 = 0,
+    idletime: u64 = 0,
     cpu: proce_stat_core_times,
     cores: [num_cores]proce_stat_core_times,
 };
@@ -89,9 +99,11 @@ pub fn stat() !?proc_stat {
     }
 
     if (uptime()) |value| {
-        data.uptime = value[0];
-        data.idletime = value[1] / num_cores;
+        data.uptime = @floatToInt(u64, value[0] * jiffies);
+        data.idletime = @floatToInt(u64, value[1] * jiffies / num_cores);
     }
+
+    data.tick_per_sec = jiffies;
 
     return data;
 }
