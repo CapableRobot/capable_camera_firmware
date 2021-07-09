@@ -13,6 +13,10 @@ pub fn main() anyerror!void {
         print("uptime {d} {d}\n", .{ uptime[0], uptime[1] });
     }
 
+    if (try info.stat()) |stat| {
+        print("stat {any}\n", .{stat});
+    }
+
     var fd = try fs.openFileAbsolute(i2c_device, fs.File.OpenFlags{ .read = true, .write = true });
     defer fd.close();
 
