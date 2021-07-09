@@ -9,12 +9,14 @@ const info = @import("info.zig");
 const i2c_device = "/dev/i2c-1";
 
 pub fn main() anyerror!void {
-    if (info.uptime()) |uptime| {
-        print("uptime {d} {d}\n", .{ uptime[0], uptime[1] });
-    }
-
     if (try info.stat()) |stat| {
         print("stat {any}\n", .{stat});
+
+        const file = try std.fs.cwd().createFile("test.json", .{});
+        defer file.close();
+        try std.json.stringify(stat, std.json.StringifyOptions{
+            .whitespace = .{ .indent = .{ .Space = 2 } },
+        }, file.writer());
     }
 
     var fd = try fs.openFileAbsolute(i2c_device, fs.File.OpenFlags{ .read = true, .write = true });
