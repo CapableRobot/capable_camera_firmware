@@ -3,7 +3,7 @@ const fs = std.fs;
 const mem = std.mem;
 const print = std.debug.print;
 
-const core_times = packed struct {
+const proce_stat_core_times = packed struct {
     user: u64 = 0,
     nice: u64 = 0,
     system: u64 = 0,
@@ -19,12 +19,12 @@ const core_times = packed struct {
 // TODO : don't hard code this
 const num_cores = 4;
 
-const stats = struct {
-    cpu: core_times,
-    core: [num_cores]core_times,
+const proc_stat = struct {
+    cpu: proce_stat_core_times,
+    core: [num_cores]proce_stat_core_times,
 };
 
-fn parse_cpu_line(line: []const u8) core_times {
+fn parse_cpu_line(line: []const u8) proce_stat_core_times {
     var it = std.mem.split(line, " ");
 
     const ident = it.next() orelse @panic("stat: no core name");
@@ -34,7 +34,7 @@ fn parse_cpu_line(line: []const u8) core_times {
         _ = it.next();
     }
 
-    return core_times{
+    return proce_stat_core_times{
         .user = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core user time"), 10) catch unreachable,
         .nice = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core nice time"), 10) catch unreachable,
         .system = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core system time"), 10) catch unreachable,
@@ -48,7 +48,7 @@ fn parse_cpu_line(line: []const u8) core_times {
     };
 }
 
-pub fn stat() !?stats {
+pub fn stat() !?proc_stat {
     const path = "/proc/stat";
     var buf: [1024]u8 = undefined;
 
@@ -58,12 +58,12 @@ pub fn stat() !?stats {
     const reader = std.io.bufferedReader(fd.reader()).reader();
 
     // Fill struct with default (e.g. 0) core_time structs
-    var data: stats = undefined;
-    data.cpu = core_times{};
+    var data: proc_stat = undefined;
+    data.cpu = proce_stat_core_times{};
 
     var core_idx: usize = 0;
     while (core_idx < num_cores) {
-        data.core[core_idx] = core_times{};
+        data.core[core_idx] = proce_stat_core_times{};
         core_idx += 1;
     }
 
