@@ -17,6 +17,8 @@ pub fn build(b: *std.build.Builder) void {
         .abi = Target.Abi.musleabihf,
     });
 
+    exe.addPackagePath("zhp", "packages/zhp/src/zhp.zig");
+
     exe.setBuildMode(mode);
     exe.install();
 
