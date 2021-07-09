@@ -11,9 +11,9 @@ const proce_stat_core_times = packed struct {
     iowait: u64 = 0,
     irq: u64 = 0,
     softirq: u64 = 0,
-    steal: u64 = 0,
-    guest: u64 = 0,
-    guestnice: u64 = 0,
+    // steal: u64 = 0,
+    // guest: u64 = 0,
+    // guestnice: u64 = 0,
 };
 
 // TODO : don't hard code this
@@ -44,9 +44,9 @@ fn parse_cpu_line(line: []const u8) proce_stat_core_times {
         .iowait = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core iowait time"), 10) catch unreachable,
         .irq = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core irq time"), 10) catch unreachable,
         .softirq = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core softirq time"), 10) catch unreachable,
-        .steal = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core steal time"), 10) catch unreachable,
-        .guest = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core guest time"), 10) catch unreachable,
-        .guestnice = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core guestnice time"), 10) catch unreachable,
+        // .steal = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core steal time"), 10) catch unreachable,
+        // .guest = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core guest time"), 10) catch unreachable,
+        // .guestnice = std.fmt.parseInt(u64, it.next() orelse @panic("stat: no core guestnice time"), 10) catch unreachable,
     };
 }
 
