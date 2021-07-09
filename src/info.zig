@@ -20,8 +20,10 @@ const proce_stat_core_times = packed struct {
 const num_cores = 4;
 
 const proc_stat = struct {
+    uptime: f32 = 0,
+    idletime: f32 = 0,
     cpu: proce_stat_core_times,
-    core: [num_cores]proce_stat_core_times,
+    cores: [num_cores]proce_stat_core_times,
 };
 
 fn parse_cpu_line(line: []const u8) proce_stat_core_times {
@@ -63,7 +65,7 @@ pub fn stat() !?proc_stat {
 
     var core_idx: usize = 0;
     while (core_idx < num_cores) {
-        data.core[core_idx] = proce_stat_core_times{};
+        data.cores[core_idx] = proce_stat_core_times{};
         core_idx += 1;
     }
 
@@ -80,10 +82,15 @@ pub fn stat() !?proc_stat {
             if (ident.len == 3) {
                 data.cpu = times;
             } else {
-                data.core[core_idx] = times;
+                data.cores[core_idx] = times;
                 core_idx += 1;
             }
         }
+    }
+
+    if (uptime()) |value| {
+        data.uptime = value[0];
+        data.idletime = value[1] / num_cores;
     }
 
     return data;
