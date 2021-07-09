@@ -84,7 +84,7 @@ pub fn stat() !?proc_stat {
     while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         var it = std.mem.split(line, " ");
         const ident = it.next() orelse @panic("malformed /proc/stat");
-        print("{s}\n", .{line});
+        // print("{s}\n", .{line});
 
         if (ident.len >= 3 and mem.eql(u8, ident[0..3], "cpu")) {
             const times = parse_cpu_line(line);
