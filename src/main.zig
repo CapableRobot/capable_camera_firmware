@@ -71,6 +71,21 @@ pub fn main() anyerror!void {
 
         if (pos.get_pvt()) {
             led.set(0, [_]u8{ 0, 255, 0 });
+
+            // if (pos.last_nav_pvt_data()) |pvt| {
+            //     print("nav_packet TIME {any}\n", .{pvt.time});
+            //     print("           POS  {any}\n", .{pvt.position});
+            //     print("           VEL  {any}\n", .{pvt.velocity});
+            //     print("           SAT  {} FIX {}\n", .{ pvt.satellite_count, pvt.fix_type });
+            //     print("           FLAG {} {} {}\n", .{ pvt.flags1, pvt.flags2, pvt.flags3 });
+            //     print("           AGE  {}\n", .{std.time.milliTimestamp() - pvt.received_at});
+            // }
+
+            if (pos.last_nav_pvt()) |pvt| {
+                print("PVT {s} at ({d:.6},{d:.6}) height {d:.2}", .{ pvt.timestamp, pvt.longitude, pvt.latitude, pvt.height });
+                print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
+                print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
+            }
         } else {
             led.set(0, [_]u8{ 255, 0, 0 });
         }

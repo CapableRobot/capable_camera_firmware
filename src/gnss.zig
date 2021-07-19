@@ -173,7 +173,7 @@ const ubxPacket = extern struct {
     class_id_match: UBX_Packet_Validity = UBX_Packet_Validity.NOT_DEFINED, // Goes from NOT_DEFINED to VALID or NOT_VALID when the Class and ID match the requestedClass and requestedID
 };
 
-const TimeData = extern struct {
+const TimeData = struct {
     epoch: u32,
     year: u16,
     month: u8,
@@ -186,7 +186,7 @@ const TimeData = extern struct {
     accuracy: u32,
 };
 
-const PositionData = extern struct {
+const PositionData = struct {
     longitude: i32,
     latitude: i32,
     height_ellipsoid: i32,
@@ -194,11 +194,11 @@ const PositionData = extern struct {
     geometric_dilution: u16,
     heading: i32,
     heading_accuracy: u32,
-    declination: i16,
-    declination_accuracy: u16,
+    // declination: i16,
+    // declination_accuracy: u16,
 };
 
-const VelocityData = extern struct {
+const VelocityData = struct {
     north: i32,
     east: i32,
     down: i32,
@@ -206,7 +206,8 @@ const VelocityData = extern struct {
     speed_accuracy: u32,
 };
 
-const UBX_NAV_PVT_data = extern struct {
+const UBX_NAV_PVT_data = struct {
+    received_at: i64,
     time: TimeData,
     position: PositionData,
     velocity: VelocityData,
@@ -215,6 +216,20 @@ const UBX_NAV_PVT_data = extern struct {
     flags1: u8,
     flags2: u8,
     flags3: u8,
+};
+
+const NAV_PVT = struct {
+    age: i64,
+    timestamp: [24]u8,
+    longitude: f64,
+    latitude: f64,
+    height: f32,
+    heading: f32,
+    speed: f32,
+    velocity: [3]f32,
+    satellite_count: u8,
+    fix_type: u8,
+    flags: [3]u8,
 };
 
 pub fn init(handle: spi.SPI) GNSS {
@@ -388,6 +403,8 @@ pub const GNSS = struct {
 
     max_wait: u16 = MAX_WAIT,
     cur_wait: u16 = MAX_WAIT,
+
+    _last_nav_pvt: ?UBX_NAV_PVT_data = null,
 
     fn send_command(self: *GNSS, packet: *ubxPacket) UBX_Status {
         calc_checksum(packet);
@@ -921,8 +938,8 @@ pub const GNSS = struct {
         switch (packet.id) {
             UBX_NAV_PVT => {
                 if (packet.len == get_payload_size(packet.cls, packet.id)) {
-                    // print("PVT Payload : {s}\n", .{std.fmt.fmtSliceHexUpper(packet.payload[0..packet.len])});
                     const pvt = UBX_NAV_PVT_data{
+                        .received_at = std.time.milliTimestamp(),
                         .time = TimeData{
                             .epoch = extract(packet, u32, 0),
                             .year = extract(packet, u16, 4),
@@ -943,8 +960,8 @@ pub const GNSS = struct {
                             .geometric_dilution = extract(packet, u16, 76),
                             .heading = extract(packet, i32, 64),
                             .heading_accuracy = extract(packet, u32, 72),
-                            .declination = extract(packet, i16, 88),
-                            .declination_accuracy = extract(packet, u16, 90),
+                            // .declination = extract(packet, i16, 88),
+                            // .declination_accuracy = extract(packet, u16, 90),
                         },
                         .velocity = VelocityData{
                             .north = extract(packet, i32, 48),
@@ -959,11 +976,14 @@ pub const GNSS = struct {
                         .flags2 = extract(packet, u8, 22),
                         .flags3 = extract(packet, u8, 78),
                     };
-                    print("nav_packet TIME {any}\n", .{pvt.time});
-                    print("           POS  {any}\n", .{pvt.position});
-                    print("           VEL  {any}\n", .{pvt.velocity});
-                    print("           SAT  {} FIX {}\n", .{ pvt.satellite_count, pvt.fix_type });
-                    print("           FLAG {} {} {}\n", .{ pvt.flags1, pvt.flags2, pvt.flags3 });
+
+                    self._last_nav_pvt = pvt;
+
+                    // print("nav_packet TIME {any}\n", .{pvt.time});
+                    // print("           POS  {any}\n", .{pvt.position});
+                    // print("           VEL  {any}\n", .{pvt.velocity});
+                    // print("           SAT  {} FIX {}\n", .{ pvt.satellite_count, pvt.fix_type });
+                    // print("           FLAG {} {} {}\n", .{ pvt.flags1, pvt.flags2, pvt.flags3 });
                 } else {
                     print("nav_packet : incorrect length for PVT : {}\n", .{packet.len});
                 }
@@ -980,8 +1000,6 @@ pub const GNSS = struct {
             print("cfg_packet : measure rate {} nav rate {} time ref {}\n", .{ measure_rate, nav_rate, time_ref });
         }
     }
-
-    // fn spi_transfer(self: *GNSS, )
 
     fn send_spi_command(self: *GNSS, packet: *ubxPacket) void {
         self.write_buffer[0] = UBX_SYNCH_1;
@@ -1091,10 +1109,49 @@ pub const GNSS = struct {
         self.packet_cfg.len = 0;
         self.packet_cfg.starting_spot = 0;
 
-        print("get_pvt()\n", .{});
+        // print("get_pvt()\n", .{});
         const value = self.send_command(&self.packet_cfg);
-        print("get_pvt() -> {}\n", .{value});
+        // print("get_pvt() -> {}\n", .{value});
         return (value == UBX_Status.DATA_RECEIVED);
+    }
+
+    pub fn last_nav_pvt_data(self: *GNSS) ?UBX_NAV_PVT_data {
+        return self._last_nav_pvt;
+    }
+
+    pub fn last_nav_pvt(self: *GNSS) ?NAV_PVT {
+        if (self.last_nav_pvt_data()) |pvt| {
+            var timestamp: [24]u8 = undefined;
+            _ = std.fmt.bufPrint(&timestamp, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>6.3}Z", .{
+                pvt.time.year,
+                pvt.time.month,
+                pvt.time.day,
+                pvt.time.hour,
+                pvt.time.minute,
+                @intToFloat(f64, pvt.time.second) + @intToFloat(f64, pvt.time.nanosecond) * 1e-9,
+            }) catch unreachable;
+
+            return NAV_PVT{
+                .age = std.time.milliTimestamp() - pvt.received_at,
+                .timestamp = timestamp,
+
+                .longitude = @intToFloat(f64, pvt.position.longitude) * 1e-7,
+                .latitude = @intToFloat(f64, pvt.position.latitude) * 1e-7,
+                .height = @intToFloat(f32, pvt.position.height_sea_level) * 1e-3,
+                .heading = @intToFloat(f32, pvt.position.heading) * 1e-5,
+                .speed = @intToFloat(f32, pvt.velocity.speed) * 1e-3,
+                .velocity = [3]f32{
+                    @intToFloat(f32, pvt.velocity.north) * 1e-3,
+                    @intToFloat(f32, pvt.velocity.east) * 1e-3,
+                    @intToFloat(f32, pvt.velocity.down) * 1e-3,
+                },
+
+                .satellite_count = pvt.satellite_count,
+                .flags = [_]u8{ pvt.flags1, pvt.flags2, pvt.flags3 },
+                .fix_type = pvt.fix_type,
+            };
+        }
+        return null;
     }
 
     pub fn configure(self: *GNSS) void {
