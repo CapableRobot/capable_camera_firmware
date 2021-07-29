@@ -15,7 +15,7 @@
 const std = @import("std");
 const fs = std.fs;
 
-const i2c = @import("i2c.zig");
+const i2c = @import("bus/i2c.zig");
 
 // TODO : generate colorwheel pattern via comptime calls
 const colors = [_][3]u8{

@@ -21,13 +21,14 @@ const web = @import("zhp");
 const handlers = @import("handlers.zig");
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-
 pub const io_mode = .evented;
 
+const spi = @import("bus/spi.zig");
+
 const led_driver = @import("led_driver.zig");
-const info = @import("info.zig");
-const spi = @import("spi.zig");
 const gnss = @import("gnss.zig");
+
+const info = @import("info.zig");
 
 fn write_info_json() !void {
     if (try info.stat()) |stat| {

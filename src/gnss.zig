@@ -16,7 +16,7 @@ const std = @import("std");
 const print = std.debug.print;
 const mem = std.mem;
 
-const spi = @import("spi.zig");
+const spi = @import("bus/spi.zig");
 
 const MAX_PAYLOAD_SIZE = 256;
 const SPI_BUFFER_SIZE = 128;
