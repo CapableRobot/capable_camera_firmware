@@ -27,7 +27,7 @@ const spi = @import("bus/spi.zig");
 
 const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
-
+const threads = @import("threads.zig");
 const info = @import("info.zig");
 
 fn write_info_json() !void {
@@ -43,14 +43,20 @@ fn write_info_json() !void {
 }
 
 pub const routes = [_]web.Route{
-    web.Route.create("root", "/", handlers.MainHandler),
+    web.Route.create("", "/", handlers.MainHandler),
     web.Route.create("api", "/api", handlers.MainHandler),
-    web.Route.create("api info", "/api/info", handlers.InfoHandler),
+    web.Route.create("api/info", "/api/info", handlers.InfoHandler),
+    web.Route.create("api/gnss/pvt", "/api/gnss/pvt", handlers.GnssPvtHandler),
     web.Route.static("static", "/static/", "static/"),
 };
 
 pub fn main() anyerror!void {
-    try write_info_json();
+    defer std.debug.assert(!gpa.deinit());
+    const allocator = &gpa.allocator;
+
+    var loop: std.event.Loop = undefined;
+    try loop.initMultiThreaded();
+    defer loop.deinit();
 
     var i2c_fd = try fs.openFileAbsolute("/dev/i2c-1", fs.File.OpenFlags{ .read = true, .write = true });
     defer i2c_fd.close();
@@ -73,7 +79,11 @@ pub fn main() anyerror!void {
     led.set_brightness(0x30);
 
     led.set(0, [_]u8{ 0, 0, 0 });
-    // led.spin();
+    led.set(1, [_]u8{ 0, 0, 0 });
+    led.set(2, [_]u8{ 0, 0, 0 });
+
+    var led_ctx = threads.HeartBeatContext{ .led = led, .idx = 2 };
+    try loop.runDetached(allocator, threads.heartbeat_thread, .{led_ctx});
 
     var handle = spi.SPI{ .fd = spi01_fd };
     print("SPI configure {any}\n", .{handle.configure(0, 5500)});
@@ -81,39 +91,12 @@ pub fn main() anyerror!void {
     var pos = gnss.init(handle);
     pos.configure();
 
-    while (true) {
-        pos.set_next_timeout(1000);
-
-        if (pos.get_pvt()) {
-            led.set(0, [_]u8{ 0, 255, 0 });
-
-            // if (pos.last_nav_pvt_data()) |pvt| {
-            //     print("nav_packet TIME {any}\n", .{pvt.time});
-            //     print("           POS  {any}\n", .{pvt.position});
-            //     print("           VEL  {any}\n", .{pvt.velocity});
-            //     print("           SAT  {} FIX {}\n", .{ pvt.satellite_count, pvt.fix_type });
-            //     print("           FLAG {} {} {}\n", .{ pvt.flags1, pvt.flags2, pvt.flags3 });
-            //     print("           AGE  {}\n", .{std.time.milliTimestamp() - pvt.received_at});
-            // }
-
-            if (pos.last_nav_pvt()) |pvt| {
-                print("PVT {s} at ({d:.6},{d:.6}) height {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height });
-                print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
-                print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
-            }
-        } else {
-            led.set(0, [_]u8{ 255, 0, 0 });
-        }
-
-        std.time.sleep(500 * std.time.ns_per_ms);
-    }
-
-    defer std.debug.assert(!gpa.deinit());
-    const allocator = &gpa.allocator;
+    threads.gnss_ctx = threads.GnssContext{ .led = led, .gnss = &pos };
+    try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
     var app = web.Application.init(allocator, .{ .debug = true });
+    var app_ctx = threads.AppContext{ .app = &app };
+    try loop.runDetached(allocator, threads.app_thread, .{app_ctx});
 
-    defer app.deinit();
-    try app.listen("0.0.0.0", 5000);
-    try app.start();
+    loop.run();
 }

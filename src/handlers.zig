@@ -16,6 +16,7 @@ const std = @import("std");
 const web = @import("zhp");
 
 const info = @import("info.zig");
+const threads = @import("threads.zig");
 
 pub const MainHandler = struct {
     pub fn get(self: *MainHandler, request: *web.Request, response: *web.Response) !void {
@@ -30,6 +31,18 @@ pub const InfoHandler = struct {
 
         if (try info.stat()) |stat| {
             try std.json.stringify(stat, std.json.StringifyOptions{
+                .whitespace = .{ .indent = .{ .Space = 2 } },
+            }, response.stream);
+        }
+    }
+};
+
+pub const GnssPvtHandler = struct {
+    pub fn get(self: *GnssPvtHandler, request: *web.Request, response: *web.Response) !void {
+        try response.headers.append("Content-Type", "application/json");
+
+        if (threads.gnss_ctx.gnss.last_nav_pvt()) |pvt| {
+            try std.json.stringify(pvt, std.json.StringifyOptions{
                 .whitespace = .{ .indent = .{ .Space = 2 } },
             }, response.stream);
         }
