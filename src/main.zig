@@ -29,6 +29,7 @@ const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
 const threads = @import("threads.zig");
 const info = @import("info.zig");
+const config = @import("config.zig");
 
 fn write_info_json() !void {
     if (try info.stat()) |stat| {
@@ -53,6 +54,8 @@ pub const routes = [_]web.Route{
 pub fn main() anyerror!void {
     defer std.debug.assert(!gpa.deinit());
     const allocator = &gpa.allocator;
+
+    var cfg = config.load(allocator);
 
     var loop: std.event.Loop = undefined;
     try loop.initMultiThreaded();
@@ -95,7 +98,7 @@ pub fn main() anyerror!void {
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
     var app = web.Application.init(allocator, .{ .debug = true });
-    var app_ctx = threads.AppContext{ .app = &app };
+    var app_ctx = threads.AppContext{ .app = &app, .config = cfg.api };
     try loop.runDetached(allocator, threads.app_thread, .{app_ctx});
 
     loop.run();

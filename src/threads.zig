@@ -17,6 +17,8 @@ const print = @import("std").debug.print;
 
 const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
+const config = @import("config.zig");
+
 const web = @import("zhp");
 
 pub const GnssContext = struct {
@@ -26,6 +28,7 @@ pub const GnssContext = struct {
 };
 
 pub const AppContext = struct {
+    config: config.Api,
     app: *web.Application,
 };
 
@@ -72,9 +75,13 @@ pub fn gnss_thread(ctx: GnssContext) void {
 pub fn app_thread(ctx: AppContext) void {
     defer ctx.app.deinit();
 
-    ctx.app.listen("0.0.0.0", 5000) catch |err| {
-        print("app : could not open server port\n", .{});
-        return;
+    ctx.app.listen("0.0.0.0", ctx.config.port) catch |err| {
+        print("app : could not open server port {d}\n", .{ctx.config.port});
+
+        ctx.app.listen("0.0.0.0", 5000) catch |err_fallback| {
+            print("app : could not open fallback server port\n", .{});
+            return;
+        };
     };
 
     ctx.app.start() catch |err| {
