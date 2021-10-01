@@ -13,7 +13,6 @@
 // limitations under the License.
 
 const std = @import("std");
-const print = @import("std").debug.print;
 const fs = std.fs;
 const mem = @import("std").mem;
 
@@ -29,7 +28,7 @@ pub fn load(allocator: *mem.Allocator) Config {
     const max_size = 1024 * 1024;
 
     const input_file = std.fs.cwd().openFile("config.json", .{}) catch |err| {
-        print("config: failed to open config file\n", .{});
+        std.log.err("config: failed to open config file\n", .{});
         return Config{};
     };
 
@@ -38,11 +37,11 @@ pub fn load(allocator: *mem.Allocator) Config {
         max_size,
     ) catch |err| switch (err) {
         error.FileTooBig => {
-            print("config: file too large\n", .{});
+            std.log.err("config: file too large\n", .{});
             return Config{};
         },
         else => {
-            print("config: file read error\n", .{});
+            std.log.err("config: file read error\n", .{});
             return Config{};
         },
     };
@@ -54,7 +53,7 @@ pub fn load(allocator: *mem.Allocator) Config {
         .ignore_unknown_fields = true,
         .allow_trailing_data = true,
     }) catch |err| {
-        print("config: failed to parse config file : {any}\n", .{err});
+        std.log.err("config: failed to parse config file : {any}\n", .{err});
         return Config{};
     };
 }
