@@ -51,6 +51,20 @@ pub const RecordingContext = struct {
 pub fn recording_cleanup_thread(ctx: RecordingContext) void {
     const sleep_ns = @intCast(u64, ctx.config.cleanup_frequency) * std.time.ns_per_s;
 
+    const path = ctx.config.dir;
+
+    if (std.fs.openDirAbsolute(path, .{ .iterate = true, .no_follow = false })) |dir| {} else |err| switch (err) {
+        error.FileNotFound => {
+            std.log.info("recording directory {s} does not exists, creating folder\n", .{path});
+            if (std.fs.makeDirAbsolute(path)) {} else |mkerr| {
+                std.log.warn("[{any}] when creating recording directory {s}\n", .{ mkerr, path });
+            }
+        },
+        else => {
+            std.log.warn("[{any}] when testin recording directory {s}\n", .{ err, path });
+        },
+    }
+
     while (true) {
         const start_ms = std.time.milliTimestamp();
 
