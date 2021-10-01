@@ -20,8 +20,15 @@ pub const Api = struct {
     port: u16 = 5000,
 };
 
+pub const Recording = struct {
+    dir: []const u8 = "/tmp/recording",
+    max_size: u64 = 10000, // KB
+    cleanup_frequency: u16 = 10, // seconds
+};
+
 pub const Config = struct {
     api: Api = Api{},
+    recording: Recording = Recording{},
 };
 
 pub fn load(allocator: *mem.Allocator) Config {

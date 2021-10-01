@@ -18,6 +18,7 @@ const print = @import("std").debug.print;
 const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
 const config = @import("config.zig");
+const recording = @import("recording.zig");
 
 const web = @import("zhp");
 
@@ -41,6 +42,24 @@ pub const HeartBeatContext = struct {
     color: [3]u8 = [_]u8{ 255, 255, 255 },
     led: led_driver.LP50xx,
 };
+
+pub const RecordingContext = struct {
+    config: config.Recording,
+    allocator: *std.mem.Allocator,
+};
+
+pub fn recording_cleanup_thread(ctx: RecordingContext) void {
+    const sleep_ns = @intCast(u64, ctx.config.cleanup_frequency) * std.time.ns_per_s;
+
+    while (true) {
+        const start_ms = std.time.milliTimestamp();
+
+        recording.directory_cleanup(ctx);
+
+        const ellapsed_ns = (std.time.milliTimestamp() - start_ms) * std.time.ns_per_ms;
+        std.time.sleep(sleep_ns - @intCast(u64, ellapsed_ns));
+    }
+}
 
 pub fn heartbeat_thread(ctx: HeartBeatContext) void {
     while (true) {

@@ -97,6 +97,9 @@ pub fn main() anyerror!void {
     threads.gnss_ctx = threads.GnssContext{ .led = led, .gnss = &pos };
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
+    var recording_ctx = threads.RecordingContext{ .config = cfg.recording, .allocator = allocator };
+    try loop.runDetached(allocator, threads.recording_cleanup_thread, .{recording_ctx});
+
     var app = web.Application.init(allocator, .{ .debug = true });
     var app_ctx = threads.AppContext{ .app = &app, .config = cfg.api };
     try loop.runDetached(allocator, threads.app_thread, .{app_ctx});
