@@ -33,6 +33,8 @@ const info = @import("info.zig");
 
 const handlers = @import("handlers.zig");
 
+pub const routes = handlers.routes;
+
 fn write_info_json() !void {
     if (try info.stat()) |stat| {
         print("stat {any}\n", .{stat});
@@ -44,14 +46,6 @@ fn write_info_json() !void {
         }, file.writer());
     }
 }
-
-pub const routes = [_]web.Route{
-    web.Route.create("", "/", handlers.MainHandler),
-    web.Route.create("api", "/api", handlers.MainHandler),
-    web.Route.create("api/info", "/api/info", handlers.InfoHandler),
-    web.Route.create("api/gnss/pvt", "/api/gnss/pvt", handlers.GnssPvtHandler),
-    web.Route.static("static", "/static/", "static/"),
-};
 
 pub fn main() anyerror!void {
     defer std.debug.assert(!gpa.deinit());
