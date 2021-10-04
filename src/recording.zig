@@ -22,7 +22,8 @@ const config = @import("config.zig");
 const MAX_FILENAME_LENGTH = 64;
 
 const FileData = struct {
-    name: [MAX_FILENAME_LENGTH:0]u8 = [_:0]u8{0} ** MAX_FILENAME_LENGTH,
+    name: [MAX_FILENAME_LENGTH:0]u8,
+    name_length: usize,
     mtime: i128,
     ctime: i128,
     size: u64,
@@ -48,14 +49,17 @@ fn directory_entry(dir: std.fs.Dir, entry: std.fs.Dir.Entry) ?FileData {
         defer handle.close();
 
         if (handle.stat()) |stat| {
+            var bytes = min(usize, MAX_FILENAME_LENGTH, entry.name.len);
+
             var data = FileData{
+                .name = [_:0]u8{0} ** MAX_FILENAME_LENGTH,
                 .size = stat.size,
                 .mtime = @divTrunc(stat.mtime, std.time.ns_per_ms),
                 .ctime = @divTrunc(stat.ctime, std.time.ns_per_ms),
                 .file = true,
+                .name_length = bytes,
             };
 
-            var bytes = min(usize, MAX_FILENAME_LENGTH, entry.name.len);
             std.mem.copy(u8, data.name[0..], entry.name[0..bytes]);
 
             if (stat.kind == std.fs.File.Kind.Directory) {
@@ -89,7 +93,7 @@ fn cmp_file_listing_mtime(context: void, a: FileData, b: FileData) bool {
     return a.mtime < b.mtime;
 }
 
-fn directory_listing(allocator: *std.mem.Allocator, path: []const u8) ?FolderListing {
+pub fn directory_listing(allocator: *std.mem.Allocator, path: []const u8) ?FolderListing {
     var total_size: u64 = 0;
     var count: usize = 0;
 
@@ -163,7 +167,7 @@ pub fn directory_cleanup(ctx: threads.RecordingContext) void {
 
                 // acutally do the delete here
                 if (std.fs.openDirAbsolute(ctx.config.dir, .{ .iterate = true, .no_follow = false })) |dir| {
-                    dir.deleteFileZ(&elem.name) catch unreachable;
+                    dir.deleteFileZ(elem.name[0..]) catch unreachable;
                 } else |err| {
                     std.log.warn("[{any}] when opening recording directory to delete\n", .{err});
                 }
