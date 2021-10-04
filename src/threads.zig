@@ -43,6 +43,8 @@ pub const HeartBeatContext = struct {
     led: led_driver.LP50xx,
 };
 
+pub var rec_ctx: RecordingContext = undefined;
+
 pub const RecordingContext = struct {
     config: config.Recording,
     allocator: *std.mem.Allocator,
