@@ -17,19 +17,21 @@ const print = @import("std").debug.print;
 const fs = std.fs;
 const mem = @import("std").mem;
 
-const web = @import("zhp");
-const handlers = @import("handlers.zig");
-
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 pub const io_mode = .evented;
 
+const web = @import("zhp");
+
 const spi = @import("bus/spi.zig");
+
+const config = @import("config.zig");
+const threads = @import("threads.zig");
 
 const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
-const threads = @import("threads.zig");
 const info = @import("info.zig");
-const config = @import("config.zig");
+
+const handlers = @import("handlers.zig");
 
 fn write_info_json() !void {
     if (try info.stat()) |stat| {
