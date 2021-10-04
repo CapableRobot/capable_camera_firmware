@@ -16,6 +16,7 @@ const std = @import("std");
 const print = @import("std").debug.print;
 
 const web = @import("zhp");
+const Datetime = web.datetime.Datetime;
 
 const info = @import("info.zig");
 const threads = @import("threads.zig");
@@ -28,6 +29,7 @@ pub const routes = [_]web.Route{
     web.Route.create("api/info", "/api/info", InfoHandler),
     web.Route.create("api/gnss/pvt", "/api/gnss/pvt", GnssPvtHandler),
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
+    web.Route.create("api/recordings", "/api/recordings/(.+)", RecordingFileHandler),
     web.Route.static("static", "/static/", "static/"),
 };
 
@@ -130,5 +132,107 @@ pub const RecordingIndexHandler = struct {
                 list.deinit();
             }
         }
+    }
+};
+
+pub const RecordingFileHandler = struct {
+    file: ?std.fs.File = null,
+    start: u64 = 0,
+    end: u64 = 0,
+
+    pub fn get(self: *RecordingFileHandler, request: *web.Request, response: *web.Response) !void {
+        const allocator = response.allocator;
+        const mimetypes = &web.mimetypes.instance.?;
+
+        const ctx = threads.rec_ctx;
+        const args = request.args.?;
+
+        // Replace instances of '%20' in filename with ' ' chars, to handle URI-encoding.
+        // The new filename might be shorter (in bytes) than the original, so we use that
+        // new length when creating the full filesystem path later on.
+        const filename = try allocator.alloc(u8, args[0].?.len);
+        const spaces = std.mem.replace(u8, args[0].?, "%20", " ", filename[0..]);
+        const filename_length = filename.len - spaces * 2;
+        defer allocator.free(filename);
+
+        const full_path = try std.fs.path.join(allocator, &[_][]const u8{ ctx.config.dir, filename[0..filename_length] });
+
+        // Determine path relative to the url root
+        // const rel_path = try fs.path.relative(allocator, full_path, request.path);
+
+        const file = std.fs.cwd().openFile(full_path, .{ .read = true }) catch |err| {
+            // TODO: Handle debug page
+            std.log.warn("recording file {s} error {}", .{ full_path, err });
+            return self.renderNotFound(request, response);
+        };
+        errdefer file.close();
+
+        // Get file info
+        const stat = try file.stat();
+        var modified = Datetime.fromModifiedTime(stat.mtime);
+
+        // If the file was not modified, return 304
+        if (self.checkNotModified(request, modified)) {
+            response.status = web.responses.NOT_MODIFIED;
+            file.close();
+            return;
+        }
+
+        // Set last modified time for caching purposes
+        // NOTE: The modified result doesn't need freed since the response handles that
+        var buf = try response.allocator.alloc(u8, 32);
+        try response.headers.append("Last-Modified", try modified.formatHttpBuf(buf));
+
+        self.end = stat.size;
+        var size: u64 = stat.size;
+
+        // Try to get the content type
+        const content_type = mimetypes.getTypeFromFilename(full_path) orelse "application/octet-stream";
+        try response.headers.append("Content-Type", content_type);
+        try response.headers.append("Content-Length", try std.fmt.allocPrint(allocator, "{}", .{size}));
+        self.file = file;
+        response.send_stream = true;
+    }
+
+    // Return true if not modified and a 304 can be returned
+    pub fn checkNotModified(self: *RecordingFileHandler, request: *web.Request, mtime: Datetime) bool {
+        // Check if the file was modified since the header
+        // See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+        const v = request.headers.getDefault("If-Modified-Since", "");
+        const since = Datetime.parseModifiedSince(v) catch return false;
+        return since.gte(mtime);
+    }
+
+    // Stream the file
+    pub fn stream(self: *RecordingFileHandler, io: *web.IOStream) !u64 {
+        std.debug.assert(self.end > self.start);
+        const total_wrote = self.end - self.start;
+        var bytes_left: u64 = total_wrote;
+        if (self.file) |file| {
+            defer file.close();
+
+            // Jump to requested range
+            if (self.start > 0) {
+                try file.seekTo(self.start);
+            }
+
+            // Send it
+            var reader = file.reader();
+            try io.flush();
+            while (bytes_left > 0) {
+                // Read into buffer
+                const end = std.math.min(bytes_left, io.out_buffer.len);
+                const n = try reader.read(io.out_buffer[0..end]);
+                if (n == 0) break; // Unexpected EOF
+                bytes_left -= n;
+                try io.flushBuffered(n);
+            }
+        }
+        return total_wrote - bytes_left;
+    }
+
+    pub fn renderNotFound(self: *RecordingFileHandler, request: *web.Request, response: *web.Response) !void {
+        var handler = web.handlers.NotFoundHandler{};
+        try handler.dispatch(request, response);
     }
 };
