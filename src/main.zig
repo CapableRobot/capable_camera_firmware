@@ -93,13 +93,19 @@ pub fn main() anyerror!void {
     threads.gnss_ctx = threads.GnssContext{ .led = led, .gnss = &pos };
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
-    const address = std.net.Address.initUnix(cfg.recording.socket) catch unreachable;
-    defer std.fs.cwd().deleteFile(cfg.recording.socket) catch {};
+    // This will error if the socket doesn't exists.  We ignore that error
+    std.fs.cwd().deleteFile(cfg.recording.socket) catch {};
 
-    var server = std.net.StreamServer.init(.{ .reuse_address = false });
+    const address = std.net.Address.initUnix(cfg.recording.socket) catch |err| {
+        std.debug.panic("Error creating unix socket: {}", .{err});
+    };
+
+    var server = std.net.StreamServer.init(.{});
     defer server.deinit();
 
-    try server.listen(address);
+    server.listen(address) catch |err| {
+        std.debug.panic("Error listening to unix socket: {}", .{err});
+    };
 
     threads.rec_ctx = threads.RecordingContext{
         .config = cfg.recording,
@@ -109,9 +115,7 @@ pub fn main() anyerror!void {
     };
 
     try loop.runDetached(allocator, threads.recording_cleanup_thread, .{threads.rec_ctx});
-
     try loop.runDetached(allocator, threads.recording_server_thread, .{threads.rec_ctx});
-    std.log.info("Looking for camera data on socket path: {s}", .{cfg.recording.socket});
 
     var app = web.Application.init(allocator, .{ .debug = true });
     var app_ctx = threads.AppContext{ .app = &app, .config = cfg.api };
