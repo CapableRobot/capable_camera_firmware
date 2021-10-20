@@ -61,8 +61,9 @@ void LibcameraApp::OpenCamera()
 
 	if (!options_->post_process_file.empty())
 		post_processor_.Read(options_->post_process_file);
+	// The queue takes over ownership from the post-processor.
 	post_processor_.SetCallback(
-		[this](CompletedRequest &r) { this->msg_queue_.Post(Msg(MsgType::RequestComplete, std::move(r))); });
+		[this](CompletedRequestPtr &r) { this->msg_queue_.Post(Msg(MsgType::RequestComplete, std::move(r))); });
 }
 
 void LibcameraApp::CloseCamera()
@@ -323,15 +324,12 @@ void LibcameraApp::StopCamera()
 		}
 	}
 
-	if (camera_started_)
-	{
-		if (camera_->stop())
-			throw std::runtime_error("failed to stop camera");
-		camera_started_ = false;
-	}
-
 	if (camera_)
 		camera_->requestCompleted.disconnect(this, &LibcameraApp::requestComplete);
+
+	// An application might be holding a CompletedRequest, so queueRequest will get
+ 	// called to delete it later, but we need to know not to try and re-queue it.
+ 	known_completed_requests_.clear();
 
 	msg_queue_.Clear();
 
@@ -351,13 +349,23 @@ LibcameraApp::Msg LibcameraApp::Wait()
 	return msg_queue_.Wait();
 }
 
-void LibcameraApp::QueueRequest(CompletedRequest const &completed_request)
+void LibcameraApp::queueRequest(CompletedRequest *completed_request)
 {
+	BufferMap buffers(std::move(completed_request->buffers));
+ 	delete completed_request;
+
 	// This function may run asynchronously so needs protection from the
 	// camera stopping at the same time.
 	std::lock_guard<std::mutex> stop_lock(camera_stop_mutex_);
 	if (!camera_started_)
 		return;
+
+	// An application could be holding a CompletedRequest while it stops and re-starts
+ 	// the camera, after which we don't want to queue another request now.
+ 	auto it = known_completed_requests_.find(completed_request);
+ 	if (it == known_completed_requests_.end())
+ 		return;
+ 	known_completed_requests_.erase(it);
 
 	Request *request = nullptr;
 	{
@@ -374,7 +382,7 @@ void LibcameraApp::QueueRequest(CompletedRequest const &completed_request)
 		return;
 	}
 
-	for (auto const &p : completed_request.buffers)
+	for (auto const &p : buffers)
 	{
 		if (request->addBuffer(p.first, p.second) < 0)
 			throw std::runtime_error("failed to add buffer to request in QueueRequest");
@@ -553,7 +561,9 @@ void LibcameraApp::requestComplete(Request *request)
 	if (request->status() == Request::RequestCancelled)
 		return;
 
-	CompletedRequest payload(sequence_++, request->buffers(), request->metadata());
+	CompletedRequest *r = new CompletedRequest(sequence_++, request->buffers(), request->metadata());
+ 	CompletedRequestPtr payload(r, [this](CompletedRequest *cr) { this->queueRequest(cr); });
+ 	known_completed_requests_.insert(r);
 	{
 		request->reuse();
 		std::lock_guard<std::mutex> lock(free_requests_mutex_);
@@ -561,14 +571,14 @@ void LibcameraApp::requestComplete(Request *request)
 	}
 
 	// We calculate the instantaneous framerate in case anyone wants it.
-	uint64_t timestamp = payload.buffers.begin()->second->metadata().timestamp;
+	uint64_t timestamp = payload->buffers.begin()->second->metadata().timestamp;
 	if (last_timestamp_ == 0 || last_timestamp_ == timestamp)
-		payload.framerate = 0;
+		payload->framerate = 0;
 	else
-		payload.framerate = 1e9 / (timestamp - last_timestamp_);
+		payload->framerate = 1e9 / (timestamp - last_timestamp_);
 	last_timestamp_ = timestamp;
 
-	post_processor_.Process(payload);
+	post_processor_.Process(payload); // post-processor can re-use our shared_ptr
 }
 
 void LibcameraApp::configureDenoise(const std::string &denoise_mode)

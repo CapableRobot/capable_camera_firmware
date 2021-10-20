@@ -14,6 +14,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <set>
 #include <string>
 #include <thread>
 #include <variant>
@@ -58,7 +59,7 @@ public:
 		RequestComplete,
 		Quit
 	};
-	typedef std::variant<CompletedRequest> MsgPayload;
+	typedef std::variant<CompletedRequestPtr> MsgPayload;
 	struct Msg
 	{
 		Msg(MsgType const &t) : type(t) {}
@@ -100,7 +101,6 @@ public:
 	void StopCamera();
 
 	Msg Wait();
-	void QueueRequest(CompletedRequest const &completed_request);
 	void PostMessage(MsgType &t, MsgPayload &p);
 
 	Stream *GetStream(std::string const &name, unsigned int *w = nullptr, unsigned int *h = nullptr,
@@ -155,6 +155,7 @@ private:
 	
 	void setupCapture();
 	void makeRequests();
+	void queueRequest(CompletedRequest *completed_request);
 	void requestComplete(Request *request);
 	void configureDenoise(const std::string &denoise_mode);
 
@@ -169,6 +170,7 @@ private:
 	std::mutex free_requests_mutex_;
 	std::queue<Request *> free_requests_;
 	std::vector<std::unique_ptr<Request>> requests_;
+	std::set<CompletedRequest *> known_completed_requests_;
 	bool camera_started_ = false;
 	std::mutex camera_stop_mutex_;
 	MessageQueue<Msg> msg_queue_;

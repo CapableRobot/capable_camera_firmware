@@ -80,7 +80,8 @@ static void event_loop(LibcameraEncoder &app)
       output->Signal();
 
     if (options->verbose)
-      std::cout << "Viewfinder frame " << count << std::endl;
+      std::cout << "Frame " << count << std::endl;
+
     auto now = std::chrono::high_resolution_clock::now();
     if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)) || key == 'x' ||
       key == 'X')
@@ -90,7 +91,8 @@ static void event_loop(LibcameraEncoder &app)
       return;
     }
 
-    app.EncodeBuffer(std::get<CompletedRequest>(msg.payload), app.VideoStream());
+    CompletedRequestPtr &completed_request = std::get<CompletedRequestPtr>(msg.payload);
+    app.EncodeBuffer(completed_request, app.VideoStream());
   }
 }
 
