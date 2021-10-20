@@ -31,7 +31,7 @@ NetOutput::NetOutput(VideoOptions const *options) : Output(options)
 			throw std::runtime_error("unable to open udp socket");
 
 		saddr_ptr_ = (const sockaddr *)&saddr_; // sendto needs these for udp
-		sockaddr_in_size_ = sizeof(sockaddr_in);
+		sockaddr_in_size_ = sizeof(struct sockaddr_in);
 	}
 	else if (strcmp(protocol, "tcp") == 0)
 	{
@@ -98,17 +98,121 @@ NetOutput::~NetOutput()
 // Maximum size that sendto will accept.
 constexpr size_t MAX_UDP_SIZE = 65507;
 
+char EOL[] = {'\r', '\n'};
+
+int count_digits(int x)  
+{  
+    x = abs(x);  
+    return (x < 10 ? 1 :   
+        (x < 100 ? 2 :   
+        (x < 1000 ? 3 :   
+        (x < 10000 ? 4 :   
+        (x < 100000 ? 5 :   
+        (x < 1000000 ? 6 :   
+        (x < 10000000 ? 7 :  
+        (x < 100000000 ? 8 :  
+        (x < 1000000000 ? 9 :  
+        10)))))))));  
+}  
+
 void NetOutput::outputBuffer(void *mem, size_t size, int64_t /*timestamp_us*/, uint32_t /*flags*/)
 {
+	struct msghdr msg = {};
+	struct iovec iov[3] = {{}, {}, {}};
+	int ret = 0;
+
+	size_t max_size = saddr_ptr_ ? MAX_UDP_SIZE : size;
+
 	if (options_->verbose)
 		std::cerr << "NetOutput: output buffer " << mem << " size " << size << "\n";
-	size_t max_size = saddr_ptr_ ? MAX_UDP_SIZE : size;
-	for (uint8_t *ptr = (uint8_t *)mem; size;)
-	{
-		size_t bytes_to_send = std::min(size, max_size);
-		if (sendto(fd_, ptr, bytes_to_send, 0, saddr_ptr_, sockaddr_in_size_) < 0)
+	
+	// TODO : don't hard code the static length of the header here
+	size_t header_length = 17+count_digits(size);
+
+	// Prepare the header string with topic and number of bytes that follow the line break
+	char header[100] = "";
+	sprintf(header, "PUB frame.jpeg %d\r\n", size);
+
+	size_t bytes_to_send = std::min(size, max_size - header_length);
+	uint8_t *ptr = (uint8_t *)mem;
+
+	// First, we create a composite UDP message which combined the header with the start of the image data
+	// This is a bit more complicated than two calls to `sendto`, but reduced the number of UDP packets
+	iov[0].iov_base = &header;
+	iov[0].iov_len = header_length;
+
+	iov[1].iov_base = ptr;
+	iov[1].iov_len = bytes_to_send;
+
+	msg.msg_iovlen = 2;
+
+	// If the payload, header, and EOL butes can fit in a single message, do so (this is very unlikely)
+	if (max_size - header_length - bytes_to_send >= 2) {
+		iov[2].iov_base = &EOL;
+		iov[2].iov_len = 2;
+
+		msg.msg_iovlen = 3;
+	} 
+	
+	msg.msg_iov = &iov[0];
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
+	msg.msg_flags = 0;
+
+	// Sed the destination address and port for the UDP packet
+	msg.msg_name = &saddr_;
+	msg.msg_namelen = sockaddr_in_size_;
+	
+	// Send the composite packet containing header and start of the image data
+	if ((ret = sendmsg(fd_, &msg, 0)) < 0) {
+		std::cerr << "sendmsg err " << ret << "\n";
+		throw std::runtime_error("failed to send data on socket");
+	}
+
+	// Advance data trackign what part of the image we've sent already
+	ptr += bytes_to_send;
+	size -= bytes_to_send;
+
+	// Until the last packet, bytes_to_send will be constant 
+	bytes_to_send = std::min(size, max_size);
+
+	// Send image data until we have less than `max_size` left to send
+	while (size >= max_size) {
+		if (sendto(fd_, ptr, bytes_to_send, 0, saddr_ptr_, sockaddr_in_size_) < 0) {
 			throw std::runtime_error("failed to send data on socket");
+		}
+
 		ptr += bytes_to_send;
 		size -= bytes_to_send;
 	}
+
+	// Create the final UDP packet, which will be a composite of 
+	// - the remainder of the image data
+	// - the EOL bytes
+	iov[0].iov_base = ptr;
+	iov[0].iov_len = size;
+
+	iov[1].iov_base = &EOL;
+
+	// Check to make sure that we have two bytes available to put the EOL in
+	if (max_size - size < 2) {
+		iov[1].iov_len = 1;
+	} else {
+		iov[1].iov_len = 2;
+	}
+
+	msg.msg_iovlen = 2;
+
+	// Send the composite packet
+	if ((ret = sendmsg(fd_, &msg, 0)) < 0) {
+		std::cerr << "sendmsg err " << ret << "\n";
+		throw std::runtime_error("failed to send data on socket");
+	}
+
+	// If size + 1 happens to match max_length, then the EOL bytes will split accross two packets
+	// Here, we send the last EOL byte if that occurs
+	if (max_size - size < 2) {
+		sendto(fd_, &EOL[1], 1, 0, saddr_ptr_, sockaddr_in_size_);
+	}
+	
 }
