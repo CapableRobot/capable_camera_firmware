@@ -161,14 +161,14 @@ fn handle_connection(ctx: RecordingContext, conn: std.net.StreamServer.Connectio
                     if (std.mem.indexOf(u8, buffer[idx_topic_start .. idx_topic_start + 20], "\r\n")) |idx_eol| {
                         if (std.fmt.parseInt(usize, buffer[idx_topic_start + idx_space + 1 .. idx_topic_start + idx_eol], 10)) |value| {
                             message_size = value;
-                            std.log.info(". size {}", .{message_size});
+                            // std.log.info(". size {}", .{message_size});
 
                             // Advance read to end of PUB line (including line break)
                             read += idx_topic_start + idx_eol + 2;
 
                             if (buffer[read] == JPEG_START[0] and buffer[read + 1] == JPEG_START[1]) {
                                 idx_start = read;
-                                std.log.info(". idx_start {}", .{idx_start});
+                                // std.log.info(". idx_start {}", .{idx_start});
                                 found_start = true;
                             } else {
                                 std.log.err("REC RECV | did not find start of JPEG data at {}", .{read});
