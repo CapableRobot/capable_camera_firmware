@@ -151,9 +151,9 @@ pub fn directory_cleanup(ctx: threads.RecordingContext) void {
         std.log.info("count: {d}", .{listing.count});
         std.log.info("size: {d}", .{listing.bytes});
 
-        for (listing.items) |elem| {
-            std.log.info("node: {s}", .{elem.name});
-        }
+        // for (listing.items) |elem| {
+        //     std.log.info("node: {s}", .{elem.name});
+        // }
 
         if (ctx.config.max_size * 1024 < listing.bytes) {
             const to_delete = listing.bytes - ctx.config.max_size * 1024;
@@ -163,7 +163,7 @@ pub fn directory_cleanup(ctx: threads.RecordingContext) void {
 
             for (listing.items) |elem| {
                 deleted += elem.size;
-                std.log.info("node: {s} is {d} kB", .{ elem.name, @divTrunc(elem.size, 1024) });
+                // std.log.info("node: {s} is {d} kB", .{ elem.name, @divTrunc(elem.size, 1024) });
 
                 // acutally do the delete here
                 if (std.fs.openDirAbsolute(ctx.config.dir, .{ .iterate = true, .no_follow = false })) |dir| {
