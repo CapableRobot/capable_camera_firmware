@@ -7,16 +7,29 @@
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #include "net_output.hpp"
 
 NetOutput::NetOutput(VideoOptions const *options) : Output(options)
 {
 	char protocol[4];
+	char sock_path[20];
+	std::string address;
+
 	int start, end, a, b, c, d, port;
-	if (sscanf(options->output.c_str(), "%3s://%n%d.%d.%d.%d%n:%d", protocol, &start, &a, &b, &c, &d, &end, &port) != 6)
-		throw std::runtime_error("bad network address " + options->output);
-	std::string address = options->output.substr(start, end - start);
+	unix_socket_ = false;
+
+	sscanf(options->output.c_str(), "%3s://", protocol);
+	
+	if (strcmp(protocol, "udp") == 0 || strcmp(protocol, "tcp") == 0) {
+		if (sscanf(options->output.c_str(), "%3s://%n%d.%d.%d.%d%n:%d", protocol, &start, &a, &b, &c, &d, &end, &port) != 6)
+			throw std::runtime_error("bad network address " + options->output);
+		address = options->output.substr(start, end - start);
+	} else {
+		sscanf(options->output.c_str(), "%3s://%n%s%n", protocol, &start, sock_path, &end);
+	}
 
 	if (strcmp(protocol, "udp") == 0)
 	{
@@ -86,6 +99,22 @@ NetOutput::NetOutput(VideoOptions const *options) : Output(options)
 		saddr_ptr_ = NULL; // sendto doesn't want these for tcp
 		sockaddr_in_size_ = 0;
 	}
+	else if (strcmp(protocol, "sck") == 0)
+	{
+		unix_socket_ = true;
+		sock_ = {};
+    	sock_.sun_family = AF_UNIX;
+    	strncpy(sock_.sun_path, sock_path, end-start);
+
+    	fd_ = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (fd_ < 0) {
+			throw std::runtime_error("unable to open unix socket");
+		}
+
+		if (connect(fd_, (struct sockaddr *) &sock_, sizeof(struct sockaddr_un)) == -1) {
+      		throw std::runtime_error("unable to connect to unix socket");
+    	}
+	}
 	else
 		throw std::runtime_error("unrecognised network protocol " + options->output);
 }
@@ -115,8 +144,43 @@ int count_digits(int x)
         10)))))))));  
 }  
 
-void NetOutput::outputBuffer(void *mem, size_t size, int64_t /*timestamp_us*/, uint32_t /*flags*/)
+void NetOutput::outputUnixSocket(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
 {
+	int ret = 0;
+
+	// TODO : don't hard code the static length of the header here
+	size_t header_length = 17+count_digits(size);
+
+	// Prepare the header string with topic and number of bytes that follow the line break
+	char header[100] = "";
+	sprintf(header, "PUB frame.jpeg %d\r\n", size);
+
+	if (options_->verbose)
+		std::cerr << "NetOutput: output buffer " << mem << " size " << size << "\n";
+
+	if (write(fd_, header, header_length) < 0) {
+		throw std::runtime_error("failed to send data on unix socket");
+	}
+
+	if ((ret = write(fd_, mem, size)) < 0) {
+		throw std::runtime_error("failed to send data on unix socket");
+	}
+
+	if (write(fd_, &EOL, 2) < 0) {
+		throw std::runtime_error("failed to send data on unix socket");
+	}
+
+	if (options_->verbose)
+		std::cerr << "  wrote " << ret << "\n";
+}
+
+void NetOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
+{
+	if (unix_socket_) {
+		outputUnixSocket(mem, size, timestamp_us, 0);
+		return;
+	}
+
 	struct msghdr msg = {};
 	struct iovec iov[3] = {{}, {}, {}};
 	int ret = 0;
@@ -136,8 +200,8 @@ void NetOutput::outputBuffer(void *mem, size_t size, int64_t /*timestamp_us*/, u
 	size_t bytes_to_send = std::min(size, max_size - header_length);
 	uint8_t *ptr = (uint8_t *)mem;
 
-	// First, we create a composite UDP message which combined the header with the start of the image data
-	// This is a bit more complicated than two calls to `sendto`, but reduced the number of UDP packets
+	// First, we create a composite message which combined the header with the start of the image data
+	// This is a bit more complicated than two calls to `sendto`, but reduced the number of packets
 	iov[0].iov_base = &header;
 	iov[0].iov_len = header_length;
 
@@ -159,7 +223,7 @@ void NetOutput::outputBuffer(void *mem, size_t size, int64_t /*timestamp_us*/, u
 	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
-	// Sed the destination address and port for the UDP packet
+	// Sed the destination address and port for the packet
 	msg.msg_name = &saddr_;
 	msg.msg_namelen = sockaddr_in_size_;
 	
@@ -186,7 +250,7 @@ void NetOutput::outputBuffer(void *mem, size_t size, int64_t /*timestamp_us*/, u
 		size -= bytes_to_send;
 	}
 
-	// Create the final UDP packet, which will be a composite of 
+	// Create the final packet, which will be a composite of 
 	// - the remainder of the image data
 	// - the EOL bytes
 	iov[0].iov_base = ptr;
