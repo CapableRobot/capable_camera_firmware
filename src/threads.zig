@@ -48,7 +48,225 @@ pub var rec_ctx: RecordingContext = undefined;
 pub const RecordingContext = struct {
     config: config.Recording,
     allocator: *std.mem.Allocator,
+    server: *std.net.StreamServer,
+    stop: std.atomic.Atomic(bool),
 };
+
+const JPEG_START = [_]u8{ 0xFF, 0xD8 };
+const JPEG_END = [_]u8{ 0xFF, 0xD9 };
+const PUB = "PUB ";
+const EOL = "\r\n";
+
+fn find_som(buffer: []const u8, start: usize, end: usize) ?usize {
+    return std.mem.indexOf(u8, buffer[start..end], PUB[0..]);
+}
+
+pub fn recording_server_thread(ctx: RecordingContext) void {
+    while (true) {
+        const conn = ctx.server.accept() catch |err| {
+            std.log.err("REC | server accept | ERR {}", .{err});
+            continue;
+        };
+
+        std.log.info("REC | client connected", .{});
+        defer conn.stream.close();
+
+        var frame = async handle_connection(ctx, conn);
+        await frame;
+    }
+}
+
+fn handle_connection(ctx: RecordingContext, conn: std.net.StreamServer.Connection) void {
+    // Create large buffer for collecting image data into
+    // Should be larger than the largest image size we expect
+    var buffer: [1024 * 1024 * 4]u8 = undefined;
+    std.mem.set(u8, buffer[0..], 0);
+
+    // Buffer for incoming UDP data (should be larger than max MTU size)
+    var incoming: [100000]u8 = undefined;
+
+    // Current position within the buffer to write into
+    var head: usize = 0;
+
+    // Current position within the buffer to read from
+    var read: usize = 0;
+
+    // Positions within the image buffer where JPEG start / end bytes are
+    var idx_start: usize = 0;
+    var idx_end: usize = 0;
+
+    // Flags for JPEG SOF / EOF
+    var found_start: bool = false;
+    var found_end: bool = false;
+
+    var frame_count: usize = 20;
+
+    // Error recovery flag -- when non-null the buffers and flags will be reset
+    var reset_to: ?usize = null;
+
+    var topic_name: ?[]const u8 = null;
+    var message_size: usize = 0;
+
+    while (true) {
+        if (reset_to != null) {
+            head = reset_to.?;
+            read = 0;
+
+            frame_count += 1;
+            found_start = false;
+            found_end = false;
+
+            reset_to = null;
+        }
+
+        // std.log.info("SOCK READ SIZE {}", .{ctx.sock.getReadBufferSize()});
+
+        const data_len = conn.stream.reader().read(incoming[0..]) catch |err| {
+            std.log.err("REC RECV | ERR {}", .{err});
+            continue;
+        };
+
+        if (data_len == 0) {
+            std.log.info("REC RECV | client disconnected", .{});
+            break;
+        }
+
+        // std.log.info("head {} data_len {}", .{ head, data_len });
+
+        if (head + data_len > buffer.len) {
+            std.log.err("REC RECV | buffer will overflow. reset.", .{});
+            std.mem.set(u8, incoming[0..], 0);
+            reset_to = 0;
+            continue;
+        }
+
+        std.mem.copy(u8, buffer[head .. head + data_len], incoming[0..data_len]);
+
+        if (!found_start) {
+
+            // Using read as start of search space as PUB might be split across UDP packets
+            // and head.. might skip over start of sequence.
+
+            // if (std.mem.indexOf(u8, buffer[read..head+data_len], PUB[0..])) |idx_msg_start| {
+            if (find_som(&buffer, read, head + data_len)) |idx_msg_start| {
+                const idx_topic_start = idx_msg_start + PUB.len;
+
+                if (std.mem.indexOf(u8, buffer[idx_topic_start .. idx_topic_start + 20], " ")) |idx_space| {
+                    topic_name = buffer[idx_topic_start .. idx_topic_start + idx_space];
+
+                    // std.log.info(". idx_msg_start {}", .{idx_msg_start});
+                    // std.log.info(". idx_space {}", .{idx_space});
+                    // std.log.info(". topic {s}", .{topic_name});
+
+                    if (std.mem.indexOf(u8, buffer[idx_topic_start .. idx_topic_start + 20], "\r\n")) |idx_eol| {
+                        if (std.fmt.parseInt(usize, buffer[idx_topic_start + idx_space + 1 .. idx_topic_start + idx_eol], 10)) |value| {
+                            message_size = value;
+                            std.log.info(". size {}", .{message_size});
+
+                            // Advance read to end of PUB line (including line break)
+                            read += idx_topic_start + idx_eol + 2;
+
+                            if (buffer[read] == JPEG_START[0] and buffer[read + 1] == JPEG_START[1]) {
+                                idx_start = read;
+                                std.log.info(". idx_start {}", .{idx_start});
+                                found_start = true;
+                            } else {
+                                std.log.err("REC RECV | did not find start of JPEG data at {}", .{read});
+                                reset_to = 0;
+                                continue;
+                            }
+                        } else |err| {
+                            std.log.err("REC RECV | cannot parse message size : {s}", .{buffer[idx_topic_start + idx_space + 1 .. idx_topic_start + idx_eol]});
+                            reset_to = 0;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        // std.log.info("acculum {} to {}", .{ read, head + data_len });
+
+        if (found_start and !found_end and (head + data_len - read) >= message_size + 2) {
+            // std.log.info("buffer start {s}", .{std.fmt.fmtSliceHexUpper(buffer[0 .. read + 20])});
+            // std.log.info("buffer end {s}", .{std.fmt.fmtSliceHexUpper(buffer[read + message_size - 4 .. read + message_size + 4])});
+
+            // Check for the EOL bytes and for the valid end of a JPEG frame
+            if (buffer[read + message_size - 2] == JPEG_END[0] and
+                buffer[read + message_size - 1] == JPEG_END[1] and
+                buffer[read + message_size] == EOL[0] and
+                buffer[read + message_size + 1] == EOL[1])
+            {
+                idx_end = read + message_size;
+                // std.log.info("idx_end {}", .{idx_end});
+                found_end = true;
+            } else {
+                if (std.mem.indexOf(u8, buffer[idx_start..], PUB[0..])) |value| {
+                    std.log.info("REC RECV | NO EOL. FOUND PUB at {}", .{idx_start + value});
+
+                    const length: usize = head + data_len - (value + idx_start);
+                    std.mem.copy(u8, buffer[0..length], buffer[idx_start + value .. head + data_len]);
+                    std.mem.set(u8, buffer[length..], 0);
+
+                    reset_to = length;
+                    continue;
+                } else {
+                    std.log.info("REC RECV | NO EOL | HARD RESET", .{});
+                    std.mem.set(u8, buffer[0..], 0);
+
+                    reset_to = 0;
+                    continue;
+                }
+            }
+        }
+
+        head += data_len;
+
+        if (found_start and found_end) {
+            std.log.info("REC RECV | Frame {} is {} from {} to {}", .{ frame_count, idx_end - idx_start, idx_start, idx_end });
+
+            const filename = std.fmt.allocPrint(ctx.allocator, "{s}/frame_{d}.jpg", .{ ctx.config.dir, frame_count }) catch |err| {
+                std.log.err("REC RECV | could not create filename", .{});
+                reset_to = 0;
+                continue;
+            };
+
+            defer ctx.allocator.free(filename);
+
+            var file = std.fs.cwd().createFile(filename, .{}) catch |err| {
+                std.log.err("REC RECV | could not create file : {}", .{err});
+                reset_to = 0;
+                continue;
+            };
+
+            defer file.close();
+
+            var buf_stream = std.io.bufferedWriter(file.writer());
+            const st = buf_stream.writer();
+
+            st.writeAll(buffer[idx_start..idx_end]) catch |err| {
+                std.log.err("REC RECV | could not do buffered write : {}", .{err});
+                reset_to = 0;
+                continue;
+            };
+
+            buf_stream.flush() catch |err| {
+                std.log.err("REC RECV | could not flush stream : {}", .{err});
+                reset_to = 0;
+                continue;
+            };
+
+            // Copy any partial data we have to the start of the acculumation buffer
+            if (idx_end + 2 < head) {
+                std.log.info("REC RECV | copy tail bytes : {} {}", .{ idx_end, head });
+                std.mem.copy(u8, buffer[0 .. head - idx_end - 2], buffer[idx_end + 2 .. head]);
+                reset_to = head - idx_end - 2;
+            } else {
+                reset_to = 0;
+            }
+        }
+    }
+}
 
 pub fn recording_cleanup_thread(ctx: RecordingContext) void {
     const sleep_ns = @intCast(u64, ctx.config.cleanup_frequency) * std.time.ns_per_s;
