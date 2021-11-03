@@ -155,8 +155,8 @@ void NetOutput::outputUnixSocket(void *mem, size_t size, int64_t timestamp_us, u
 	char header[100] = "";
 	sprintf(header, "PUB frame.jpeg %d\r\n", size);
 
-	if (options_->verbose)
-		std::cerr << "NetOutput: output buffer " << mem << " size " << size << "\n";
+	// if (options_->verbose)
+	// 	std::cerr << "NetOutput: output buffer " << mem << " size " << size << "\n";
 
 	if (write(fd_, header, header_length) < 0) {
 		throw std::runtime_error("failed to send data on unix socket");
@@ -170,8 +170,8 @@ void NetOutput::outputUnixSocket(void *mem, size_t size, int64_t timestamp_us, u
 		throw std::runtime_error("failed to send data on unix socket");
 	}
 
-	if (options_->verbose)
-		std::cerr << "  wrote " << ret << "\n";
+	// if (options_->verbose)
+	// 	std::cerr << "  wrote " << ret << "\n";
 }
 
 void NetOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
