@@ -134,7 +134,7 @@ void MjpegEncoder::encodeThread(int num)
 				{
 					if (frames && options_->verbose)
 						std::cerr << "Encode " << frames << " frames, average time "
-								  << encode_time.count() * 1000 / frames << "ms" << std::endl;
+								  << encode_time.count() * 1000 / frames << std::endl;
 					jpeg_destroy_compress(&cinfo);
 					return;
 				}
