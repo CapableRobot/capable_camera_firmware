@@ -22,6 +22,7 @@ const MAX_PAYLOAD_SIZE = 256;
 const SPI_BUFFER_SIZE = 128;
 
 const MAX_WAIT = 250;
+const SLEEP = std.time.ns_per_ms * 10;
 
 //Registers
 const UBX_SYNCH_1: u8 = 0xB5;
@@ -502,7 +503,7 @@ pub const GNSS = struct {
                 return UBX_Status.CRC_FAIL;
             }
 
-            std.time.sleep(std.time.ns_per_ms);
+            std.time.sleep(SLEEP);
         }
 
         self.cur_wait = self.max_wait;
@@ -634,7 +635,7 @@ pub const GNSS = struct {
                 // then the ACK has not yet been received and we should keep waiting for it
             }
 
-            std.time.sleep(std.time.ns_per_ms);
+            std.time.sleep(SLEEP);
         }
 
         self.cur_wait = self.max_wait;
