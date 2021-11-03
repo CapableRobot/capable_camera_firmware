@@ -11,6 +11,12 @@
 #include "net_output.hpp"
 #include "output.hpp"
 
+int64_t timestamp_now() 
+{
+  auto duration = std::chrono::high_resolution_clock::now().time_since_epoch();
+  return std::chrono::duration_cast< std::chrono::milliseconds >( duration ).count();
+}
+
 Output::Output(VideoOptions const *options)
   : options_(options), state_(WAITING_KEYFRAME), fp_timestamps_(nullptr), time_offset_(0), last_timestamp_(0)
 {
@@ -19,8 +25,10 @@ Output::Output(VideoOptions const *options)
     fp_timestamps_ = fopen(options->save_pts.c_str(), "w");
     if (!fp_timestamps_)
       throw std::runtime_error("Failed to open timestamp file " + options->save_pts);
-    fprintf(fp_timestamps_, "# timecode format v2\n");
+    fprintf(fp_timestamps_, "frame,encode_ready,output_done\n");
   }
+
+  start_time_ = timestamp_now();
 
   enable_ = !options->pause;
 }
@@ -38,6 +46,8 @@ void Output::Signal()
 
 void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyframe)
 {
+  int64_t ready_time = timestamp_now();
+
   // When output is enabled, we may have to wait for the next keyframe.
   uint32_t flags = keyframe ? FLAG_KEYFRAME : FLAG_NONE;
   if (!enable_)
@@ -55,10 +65,13 @@ void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyf
   last_timestamp_ = timestamp_us - time_offset_;
 
   outputBuffer(mem, size, last_timestamp_, flags);
+  int64_t done_time = timestamp_now();
 
   // Save timestamps to a file, if that was requested.
-  if (fp_timestamps_)
-    fprintf(fp_timestamps_, "%" PRId64 ".%03" PRId64 "\n", last_timestamp_ / 1000, last_timestamp_ % 1000);
+  if (fp_timestamps_) {
+    fprintf(fp_timestamps_, "%" PRId64 ",%" PRId64 ",%" PRId64 "\n", last_timestamp_ / 1000, 
+      ready_time-start_time_, done_time-start_time_);
+  }
 }
 
 void Output::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags)

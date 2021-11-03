@@ -8,7 +8,7 @@
 #pragma once
 
 #include <cstdio>
-
+#include <chrono>
 #include <atomic>
 
 #include "core/video_options.hpp"
@@ -45,4 +45,5 @@ private:
   FILE *fp_timestamps_;
   int64_t time_offset_;
   int64_t last_timestamp_;
+  int64_t start_time_;
 };
