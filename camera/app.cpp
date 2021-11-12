@@ -11,6 +11,8 @@
 #include <sys/signalfd.h>
 #include <sys/stat.h>
 
+#include <iomanip>
+
 #include "core/libcamera_encoder.hpp"
 #include "output/output.hpp"
 
@@ -61,12 +63,14 @@ static void event_loop(LibcameraEncoder &app)
   app.OpenCamera();
   app.ConfigureVideo();
   app.StartCamera();
-  auto start_time = std::chrono::high_resolution_clock::now();
 
   // Monitoring for keypresses and signals.
   signal(SIGUSR1, default_signal_handler);
   signal(SIGUSR2, default_signal_handler);
   pollfd p[1] = { { STDIN_FILENO, POLLIN, 0 } };
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+  auto last_time = std::chrono::high_resolution_clock::now();
 
   for (unsigned int count = 0; ; count++)
   {
@@ -79,8 +83,12 @@ static void event_loop(LibcameraEncoder &app)
     if (key == '\n')
       output->Signal();
 
-    if (options->verbose)
-      std::cout << "Frame " << count << std::endl;
+    auto this_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = this_time - last_time;
+    std::chrono::duration<double> elapsed = this_time - start_time;
+
+    std::cout << "Frame " << std::setw(6) << count << " delta " << diff.count() << std::endl;
+    last_time = this_time;
 
     auto now = std::chrono::high_resolution_clock::now();
     if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)) || key == 'x' ||
