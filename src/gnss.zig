@@ -871,20 +871,20 @@ pub const GNSS = struct {
                 // If this is an ACK then let's check if the class and ID match the requestedClass and requestedID
                 else if ((packet.cls == UBX_CLASS_ACK) and (packet.id == UBX_ACK_ACK) and (packet.payload[0] == requested_class) and (packet.payload[1] == requested_id)) {
                     packet.class_id_match = UBX_Packet_Validity.VALID;
-                    print("process_ubx :  ACK | Class {} ID {}\n", .{ packet.payload[0], packet.payload[1] });
+                    print("gnss process_ubx :  ACK | Class {} ID {}\n", .{ packet.payload[0], packet.payload[1] });
                 }
 
                 // If this is an NACK then let's check if the class and ID match the requestedClass and requestedID
                 else if ((packet.cls == UBX_CLASS_ACK) and (packet.id == UBX_ACK_NACK) and (packet.payload[0] == requested_class) and (packet.payload[1] == requested_id)) {
                     packet.class_id_match = UBX_Packet_Validity.NOT_ACKNOWLEDGED;
-                    print("process_ubx : NACK | Class {} ID {}\n", .{ packet.payload[0], packet.payload[1] });
+                    print("gnss process_ubx : NACK | Class {} ID {}\n", .{ packet.payload[0], packet.payload[1] });
                 }
 
                 // This is not an ACK and we do not have a complete class and ID match
                 // So let's check for an "automatic" message arriving
                 else if (self.check_automatic(packet.cls, packet.id)) {
                     // This isn't the message we are looking for...
-                    print("process_ubx : automatic | Class {} ID {}\n", .{ packet.cls, packet.id });
+                    print("gnss process_ubx : automatic | Class {} ID {}\n", .{ packet.cls, packet.id });
                 }
 
                 if (self.ignore_payload == false) {
@@ -896,7 +896,7 @@ pub const GNSS = struct {
                 packet.valid = UBX_Packet_Validity.NOT_VALID;
                 packet.class_id_match = UBX_Packet_Validity.NOT_VALID;
 
-                print("process_ubx : checksum failed | {} {} vs {} {}\n", .{ packet.checksum_a, packet.checksum_b, self.cur_checksum_a, self.cur_checksum_b });
+                print("gnss process_ubx : checksum failed | {} {} vs {} {}\n", .{ packet.checksum_a, packet.checksum_b, self.cur_checksum_a, self.cur_checksum_b });
             }
         } else {
             // Load this byte into the payload array
@@ -922,7 +922,7 @@ pub const GNSS = struct {
 
         if (overrun or (packet.counter == max_payload_size + 6) and self.ignore_payload == false) {
             self.message_type = SentenceTypes.NONE;
-            print("process_ubx : overrun | buffer {} size {}\n", .{ self.active_buffer, max_payload_size });
+            print("gnss process_ubx : overrun | buffer {} size {}\n", .{ self.active_buffer, max_payload_size });
         }
 
         // if (incoming < 16) {
@@ -945,7 +945,7 @@ pub const GNSS = struct {
             // UBX_CLASS_TIM => self.process_tim_packet(packet),
             // UBX_CLASS_ESF => self.process_esf_packet(packet),
             // UBX_CLASS_HNR => self.process_hnr_packet(packet),
-            else => print("process_packet : unknown class {}\n", .{packet.cls}),
+            else => print("gnss process_packet : unknown class {}\n", .{packet.cls}),
         }
     }
 
@@ -1000,10 +1000,10 @@ pub const GNSS = struct {
                     // print("           SAT  {} FIX {}\n", .{ pvt.satellite_count, pvt.fix_type });
                     // print("           FLAG {} {} {}\n", .{ pvt.flags1, pvt.flags2, pvt.flags3 });
                 } else {
-                    print("nav_packet : incorrect length for PVT : {}\n", .{packet.len});
+                    print("gnss nav_packet : incorrect length for PVT : {}\n", .{packet.len});
                 }
             },
-            else => print("process_nav_packet : unknown id {}\n", .{packet.id}),
+            else => print("gnss process_nav_packet : unknown id {}\n", .{packet.id}),
         }
     }
 
@@ -1012,7 +1012,7 @@ pub const GNSS = struct {
             const measure_rate = extract(packet, u16, 0);
             const nav_rate = extract(packet, u16, 2);
             const time_ref = extract(packet, u16, 4);
-            print("cfg_packet : measure rate {} nav rate {} time ref {}\n", .{ measure_rate, nav_rate, time_ref });
+            print("gnss cfg_packet : measure rate {} nav rate {} time ref {}\n", .{ measure_rate, nav_rate, time_ref });
         }
     }
 
@@ -1094,11 +1094,11 @@ pub const GNSS = struct {
         self.packet_cfg.payload[1] = UBX_NAV_PVT;
         self.packet_cfg.payload[2] = rate; // rate relative to navigation freq.
 
-        print("set_auto_pvt_rate({})\n", .{rate});
+        print("gnss set_auto_pvt_rate({})\n", .{rate});
         const value = self.send_command(&self.packet_cfg);
 
         if (value == UBX_Status.DATA_SENT) {
-            print("  ack\n", .{});
+            print("gnss ack\n", .{});
         }
     }
 
@@ -1178,15 +1178,14 @@ pub const GNSS = struct {
         // Get setting for port 4 (e.g. SPI)
         self.packet_cfg.payload[0] = 4;
 
-        print("configure()\n", .{});
         var value = self.send_command(&self.packet_cfg);
-        print("configure() -> {}\n", .{value});
+        print("gnss configure() -> {}\n", .{value});
 
         self.packet_cfg.len = 20;
 
         // Enable only UBX messages (e.g. bit 1 is set)
         self.packet_cfg.payload[14] = 1;
         value = self.send_command(&self.packet_cfg);
-        print("configure() -> {}\n", .{value});
+        print("gnss configure() -> {}\n", .{value});
     }
 };
