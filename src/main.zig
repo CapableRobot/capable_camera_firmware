@@ -26,6 +26,7 @@ const spi = @import("bus/spi.zig");
 
 const config = @import("config.zig");
 const threads = @import("threads.zig");
+const camera = @import("camera.zig");
 
 const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
@@ -116,6 +117,14 @@ pub fn main() anyerror!void {
 
     try loop.runDetached(allocator, threads.recording_cleanup_thread, .{threads.rec_ctx});
     try loop.runDetached(allocator, threads.recording_server_thread, .{threads.rec_ctx});
+
+    threads.camera_ctx = threads.CameraContext{
+        .config = cfg.camera,
+        .allocator = allocator,
+        .socket = threads.rec_ctx.config.socket,
+    };
+
+    // try loop.runDetached(allocator, camera.bridge_thread, .{threads.camera_ctx});
 
     var app = web.Application.init(allocator, .{ .debug = true });
     var app_ctx = threads.AppContext{ .app = &app, .config = cfg.api };

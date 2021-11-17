@@ -52,6 +52,14 @@ pub const RecordingContext = struct {
     stop: std.atomic.Atomic(bool),
 };
 
+pub const CameraContext = struct {
+    config: config.Camera,
+    socket: []const u8,
+    allocator: *std.mem.Allocator,
+};
+
+pub var camera_ctx: CameraContext = undefined;
+
 const JPEG_START = [_]u8{ 0xFF, 0xD8 };
 const JPEG_END = [_]u8{ 0xFF, 0xD9 };
 const PUB = "PUB ";

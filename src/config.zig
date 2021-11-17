@@ -27,9 +27,20 @@ pub const Recording = struct {
     socket: []const u8 = "/tmp/bridge.sock",
 };
 
+pub const Codec = enum { mjpeg, h264 };
+
+pub const Camera = struct {
+    fps: u8 = 10,
+    width: u16 = 4056,
+    height: u16 = 2016,
+    quality: u8 = 50,
+    codec: Codec = Codec.mjpeg,
+};
+
 pub const Config = struct {
     api: Api = Api{},
     recording: Recording = Recording{},
+    camera: Camera = Camera{},
 };
 
 pub fn load(allocator: *mem.Allocator) Config {
