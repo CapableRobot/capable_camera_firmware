@@ -1188,4 +1188,27 @@ pub const GNSS = struct {
         value = self.send_command(&self.packet_cfg);
         print("gnss configure() -> {}\n", .{value});
     }
+
+    pub fn set_rate(self: *GNSS, rate: u16) void {
+        self.packet_cfg.cls = UBX_CLASS_CFG;
+        self.packet_cfg.id = UBX_CFG_RATE;
+        self.packet_cfg.len = 0;
+        self.packet_cfg.starting_spot = 0;
+
+        var value = self.send_command(&self.packet_cfg);
+
+        self.packet_cfg.len = 6;
+        self.packet_cfg.payload[0] = @truncate(u8, rate);
+        self.packet_cfg.payload[1] = @truncate(u8, rate >> 8);
+
+        print("gnss set_rate({})\n", .{rate});
+        value = self.send_command(&self.packet_cfg);
+
+        self.packet_cfg.payload[0] = 0;
+        self.packet_cfg.payload[1] = 0;
+
+        // Do read back
+        self.packet_cfg.len = 0;
+        value = self.send_command(&self.packet_cfg);
+    }
 };
