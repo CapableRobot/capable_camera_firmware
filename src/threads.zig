@@ -25,7 +25,7 @@ const web = @import("zhp");
 pub const GnssContext = struct {
     gnss: *gnss.GNSS,
     led: led_driver.LP50xx,
-    timeout: u16 = 1000,
+    rate: u16 = 1000,
 };
 
 pub const AppContext = struct {
@@ -314,8 +314,10 @@ pub fn heartbeat_thread(ctx: HeartBeatContext) void {
 }
 
 pub fn gnss_thread(ctx: GnssContext) void {
+    ctx.gnss.set_timeout(ctx.rate + 50);
+
     while (true) {
-        ctx.gnss.set_next_timeout(ctx.timeout);
+        // ctx.gnss.set_next_timeout(ctx.rate * 2);
 
         if (ctx.gnss.get_pvt()) {
             ctx.led.set(0, [_]u8{ 0, 255, 0 });
@@ -329,7 +331,7 @@ pub fn gnss_thread(ctx: GnssContext) void {
             ctx.led.set(0, [_]u8{ 255, 0, 0 });
         }
 
-        std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.timeout / 2));
+        // std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.rate / 4));
     }
 }
 
