@@ -50,6 +50,7 @@ pub const RecordingContext = struct {
     allocator: *std.mem.Allocator,
     server: *std.net.StreamServer,
     stop: std.atomic.Atomic(bool),
+    last_frame: usize = 0,
 };
 
 pub const CameraContext = struct {
@@ -69,7 +70,7 @@ fn find_som(buffer: []const u8, start: usize, end: usize) ?usize {
     return std.mem.indexOf(u8, buffer[start..end], PUB[0..]);
 }
 
-pub fn recording_server_thread(ctx: RecordingContext) void {
+pub fn recording_server_thread(ctx: *RecordingContext) void {
     while (true) {
         const conn = ctx.server.accept() catch |err| {
             std.log.err("REC | server accept | ERR {}", .{err});
@@ -84,7 +85,7 @@ pub fn recording_server_thread(ctx: RecordingContext) void {
     }
 }
 
-fn handle_connection(ctx: RecordingContext, conn: std.net.StreamServer.Connection) void {
+fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connection) void {
     // Create large buffer for collecting image data into
     // Should be larger than the largest image size we expect
     var buffer: [1024 * 1024 * 4]u8 = undefined;
@@ -264,6 +265,8 @@ fn handle_connection(ctx: RecordingContext, conn: std.net.StreamServer.Connectio
                 reset_to = 0;
                 continue;
             };
+
+            ctx.last_frame = frame_count;
 
             // Copy any partial data we have to the start of the acculumation buffer
             if (idx_end + 2 < head) {

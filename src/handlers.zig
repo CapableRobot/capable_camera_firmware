@@ -29,6 +29,7 @@ pub const routes = [_]web.Route{
     web.Route.create("api/info", "/api/info", InfoHandler),
     web.Route.create("api/gnss/pvt", "/api/gnss/pvt", GnssPvtHandler),
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
+    web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),
     web.Route.create("api/recordings", "/api/recordings/(.+)", RecordingFileHandler),
     web.Route.static("static", "/static/", "static/"),
 };
@@ -135,13 +136,29 @@ pub const RecordingIndexHandler = struct {
     }
 };
 
+pub const RecordingLastHandler = struct {
+    handler: FileHandler = undefined,
+
+    pub fn get(self: *RecordingLastHandler, request: *web.Request, response: *web.Response) !void {
+        const allocator = response.allocator;
+        const ctx = threads.rec_ctx;
+
+        const path = try std.fmt.allocPrint(allocator, "{s}/frame_{d}.jpg", .{ ctx.config.dir, ctx.last_frame });
+
+        self.handler = FileHandler{ .path = path };
+        return self.handler.dispatch(request, response);
+    }
+
+    pub fn stream(self: *RecordingLastHandler, io: *web.IOStream) !u64 {
+        return self.handler.stream(io);
+    }
+};
+
 pub const RecordingFileHandler = struct {
     handler: FileHandler = undefined,
 
     pub fn get(self: *RecordingFileHandler, request: *web.Request, response: *web.Response) !void {
         const allocator = response.allocator;
-        const mimetypes = &web.mimetypes.instance.?;
-
         const ctx = threads.rec_ctx;
         const args = request.args.?;
 
