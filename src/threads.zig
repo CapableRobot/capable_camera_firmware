@@ -107,7 +107,8 @@ fn handle_connection(ctx: RecordingContext, conn: std.net.StreamServer.Connectio
     var found_start: bool = false;
     var found_end: bool = false;
 
-    var frame_count: usize = 20;
+    // TODO : detect last frame count on disk and start above that number
+    var frame_count: usize = 0;
 
     // Error recovery flag -- when non-null the buffers and flags will be reset
     var reset_to: ?usize = null;
