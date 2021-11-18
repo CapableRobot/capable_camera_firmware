@@ -61,8 +61,9 @@ pub const CameraContext = struct {
 
 pub var camera_ctx: CameraContext = undefined;
 
-const JPEG_START = [_]u8{ 0xFF, 0xD8 };
-const JPEG_END = [_]u8{ 0xFF, 0xD9 };
+const JPEG_SOI = [_]u8{ 0xFF, 0xD8 };
+const JPEG_EOI = [_]u8{ 0xFF, 0xD9 };
+
 const PUB = "PUB ";
 const EOL = "\r\n";
 
@@ -176,7 +177,7 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
                             // Advance read to end of PUB line (including line break)
                             read += idx_topic_start + idx_eol + 2;
 
-                            if (buffer[read] == JPEG_START[0] and buffer[read + 1] == JPEG_START[1]) {
+                            if (buffer[read] == JPEG_SOI[0] and buffer[read + 1] == JPEG_SOI[1]) {
                                 idx_start = read;
                                 // std.log.info(". idx_start {}", .{idx_start});
                                 found_start = true;
@@ -202,8 +203,8 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
             // std.log.info("buffer end {s}", .{std.fmt.fmtSliceHexUpper(buffer[read + message_size - 4 .. read + message_size + 4])});
 
             // Check for the EOL bytes and for the valid end of a JPEG frame
-            if (buffer[read + message_size - 2] == JPEG_END[0] and
-                buffer[read + message_size - 1] == JPEG_END[1] and
+            if (buffer[read + message_size - 2] == JPEG_EOI[0] and
+                buffer[read + message_size - 1] == JPEG_EOI[1] and
                 buffer[read + message_size] == EOL[0] and
                 buffer[read + message_size + 1] == EOL[1])
             {
