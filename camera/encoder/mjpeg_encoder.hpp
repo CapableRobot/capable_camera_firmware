@@ -12,6 +12,8 @@
 #include <queue>
 #include <thread>
 
+#include <libcamera/controls.h>
+
 #include "encoder.hpp"
 
 struct jpeg_compress_struct;
@@ -23,7 +25,7 @@ public:
 	~MjpegEncoder();
 	// Encode the given buffer.
 	void EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height, unsigned int stride,
-					  int64_t timestamp_us) override;
+					  int64_t timestamp_us, libcamera::ControlList const &metadata) override;
 
 private:
 	// How many threads to use. Whichever thread is idle will pick up the next frame.
@@ -48,6 +50,7 @@ private:
 		unsigned int stride;
 		int64_t timestamp_us;
 		uint64_t index;
+		libcamera::ControlList metadata;
 	};
 	std::queue<EncodeItem> encode_queue_;
 	std::mutex encode_mutex_;
@@ -61,6 +64,7 @@ private:
 		size_t bytes_used;
 		int64_t timestamp_us;
 		uint64_t index;
+		libcamera::ControlList metadata;
 	};
 	std::queue<OutputItem> output_queue_[NUM_ENC_THREADS];
 	std::mutex output_mutex_;

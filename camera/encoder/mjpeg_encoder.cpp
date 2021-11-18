@@ -39,10 +39,10 @@ MjpegEncoder::~MjpegEncoder()
 }
 
 void MjpegEncoder::EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height,
-								unsigned int stride, int64_t timestamp_us)
+								unsigned int stride, int64_t timestamp_us, libcamera::ControlList const &metadata)
 {
 	std::lock_guard<std::mutex> lock(encode_mutex_);
-	EncodeItem item = { mem, width, height, stride, timestamp_us, index_++ };
+	EncodeItem item = { mem, width, height, stride, timestamp_us, index_++, metadata };
 	encode_queue_.push(item);
 	encode_cond_var_.notify_all();
 }
@@ -162,7 +162,7 @@ void MjpegEncoder::encodeThread(int num)
 		// We push this encoded buffer to another thread so that our
 		// application can take its time with the data without blocking the
 		// encode process.
-		OutputItem output_item = { encoded_buffer, buffer_len, encode_item.timestamp_us, encode_item.index };
+		OutputItem output_item = { encoded_buffer, buffer_len, encode_item.timestamp_us, encode_item.index, encode_item.metadata };
 		std::lock_guard<std::mutex> lock(output_mutex_);
 		output_queue_[num].push(output_item);
 		output_cond_var_.notify_one();
@@ -199,7 +199,7 @@ void MjpegEncoder::outputThread()
 	got_item:
 		input_done_callback_(nullptr);
 
-		output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true);
+		output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true, item.metadata);
 		free(item.mem);
 		index++;
 	}

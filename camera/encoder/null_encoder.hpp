@@ -12,6 +12,8 @@
 #include <queue>
 #include <thread>
 
+#include <libcamera/controls.h>
+
 #include "core/video_options.hpp"
 #include "encoder.hpp"
 
@@ -21,7 +23,7 @@ public:
 	NullEncoder(VideoOptions const *options);
 	~NullEncoder();
 	void EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height, unsigned int stride,
-					  int64_t timestamp_us) override;
+					  int64_t timestamp_us, libcamera::ControlList const &metadata) override;
 
 private:
 	void outputThread();

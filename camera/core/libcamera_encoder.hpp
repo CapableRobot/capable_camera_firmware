@@ -9,7 +9,7 @@
 #include "core/video_options.hpp"
 #include "encoder/encoder.hpp"
 
-typedef std::function<void(void *, size_t, int64_t, bool)> EncodeOutputReadyCallback;
+typedef std::function<void(void *, size_t, int64_t, bool, libcamera::ControlList const &)> EncodeOutputReadyCallback;
 
 class LibcameraEncoder : public LibcameraApp
 {
@@ -42,7 +42,7 @@ public:
 			std::lock_guard<std::mutex> lock(encode_buffer_queue_mutex_);
 			encode_buffer_queue_.push(completed_request); // creates a new reference
 		}
-		encoder_->EncodeBuffer(buffer->planes()[0].fd.fd(), span.size(), mem, w, h, stride, timestamp_ns / 1000);
+		encoder_->EncodeBuffer(buffer->planes()[0].fd.fd(), span.size(), mem, w, h, stride, timestamp_ns / 1000, completed_request->metadata);
 	}
 	VideoOptions *GetOptions() const { return static_cast<VideoOptions *>(options_.get()); }
 	void StopEncoder() { encoder_.reset(); }

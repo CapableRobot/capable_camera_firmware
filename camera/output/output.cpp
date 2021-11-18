@@ -44,7 +44,7 @@ void Output::Signal()
   enable_ = !enable_;
 }
 
-void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyframe)
+void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyframe, libcamera::ControlList const &metadata)
 {
   int64_t ready_time = timestamp_now();
 
@@ -64,7 +64,7 @@ void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyf
     time_offset_ = timestamp_us - last_timestamp_;
   last_timestamp_ = timestamp_us - time_offset_;
 
-  outputBuffer(mem, size, last_timestamp_, flags);
+  outputBuffer(mem, size, last_timestamp_, flags, metadata);
   int64_t done_time = timestamp_now();
 
   // Save timestamps to a file, if that was requested.
@@ -74,7 +74,7 @@ void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyf
   }
 }
 
-void Output::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags)
+void Output::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags, libcamera::ControlList const &metadata)
 {
   // Supply this so that a vanilla Output gives you an object that outputs no buffers.
 }

@@ -194,7 +194,7 @@ H264Encoder::~H264Encoder()
 }
 
 void H264Encoder::EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height,
-							   unsigned int stride, int64_t timestamp_us)
+							   unsigned int stride, int64_t timestamp_us, libcamera::ControlList const &metadata)
 {
 	int index;
 	{
@@ -307,7 +307,7 @@ void H264Encoder::outputThread()
 			}
 		}
 
-		output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, item.keyframe);
+		output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, item.keyframe, libcamera::ControlList());
 		v4l2_buffer buf = {};
 		v4l2_plane planes[VIDEO_MAX_PLANES] = {};
 		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
