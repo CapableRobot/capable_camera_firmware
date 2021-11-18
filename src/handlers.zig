@@ -136,9 +136,7 @@ pub const RecordingIndexHandler = struct {
 };
 
 pub const RecordingFileHandler = struct {
-    file: ?std.fs.File = null,
-    start: u64 = 0,
-    end: u64 = 0,
+    handler: FileHandler = undefined,
 
     pub fn get(self: *RecordingFileHandler, request: *web.Request, response: *web.Response) !void {
         const allocator = response.allocator;
@@ -157,12 +155,28 @@ pub const RecordingFileHandler = struct {
 
         const full_path = try std.fs.path.join(allocator, &[_][]const u8{ ctx.config.dir, filename[0..filename_length] });
 
-        // Determine path relative to the url root
-        // const rel_path = try fs.path.relative(allocator, full_path, request.path);
+        self.handler = FileHandler{ .path = full_path };
+        return self.handler.dispatch(request, response);
+    }
 
-        const file = std.fs.cwd().openFile(full_path, .{ .read = true }) catch |err| {
+    pub fn stream(self: *RecordingFileHandler, io: *web.IOStream) !u64 {
+        return self.handler.stream(io);
+    }
+};
+
+pub const FileHandler = struct {
+    file: ?std.fs.File = null,
+    start: u64 = 0,
+    end: u64 = 0,
+    path: []const u8,
+
+    pub fn dispatch(self: *FileHandler, request: *web.Request, response: *web.Response) !void {
+        const allocator = response.allocator;
+        const mimetypes = &web.mimetypes.instance.?;
+
+        const file = std.fs.cwd().openFile(self.path, .{ .read = true }) catch |err| {
             // TODO: Handle debug page
-            std.log.warn("recording file {s} error {}", .{ full_path, err });
+            std.log.warn("recording file {s} error {}", .{ self.path, err });
             return self.renderNotFound(request, response);
         };
         errdefer file.close();
@@ -187,7 +201,7 @@ pub const RecordingFileHandler = struct {
         var size: u64 = stat.size;
 
         // Try to get the content type
-        const content_type = mimetypes.getTypeFromFilename(full_path) orelse "application/octet-stream";
+        const content_type = mimetypes.getTypeFromFilename(self.path) orelse "application/octet-stream";
         try response.headers.append("Content-Type", content_type);
         try response.headers.append("Content-Length", try std.fmt.allocPrint(allocator, "{}", .{size}));
         self.file = file;
@@ -195,7 +209,7 @@ pub const RecordingFileHandler = struct {
     }
 
     // Return true if not modified and a 304 can be returned
-    pub fn checkNotModified(self: *RecordingFileHandler, request: *web.Request, mtime: Datetime) bool {
+    pub fn checkNotModified(self: *FileHandler, request: *web.Request, mtime: Datetime) bool {
         // Check if the file was modified since the header
         // See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
         const v = request.headers.getDefault("If-Modified-Since", "");
@@ -204,7 +218,7 @@ pub const RecordingFileHandler = struct {
     }
 
     // Stream the file
-    pub fn stream(self: *RecordingFileHandler, io: *web.IOStream) !u64 {
+    pub fn stream(self: *FileHandler, io: *web.IOStream) !u64 {
         std.debug.assert(self.end > self.start);
         const total_wrote = self.end - self.start;
         var bytes_left: u64 = total_wrote;
@@ -231,7 +245,7 @@ pub const RecordingFileHandler = struct {
         return total_wrote - bytes_left;
     }
 
-    pub fn renderNotFound(self: *RecordingFileHandler, request: *web.Request, response: *web.Response) !void {
+    pub fn renderNotFound(self: *FileHandler, request: *web.Request, response: *web.Response) !void {
         var handler = web.handlers.NotFoundHandler{};
         try handler.dispatch(request, response);
     }
