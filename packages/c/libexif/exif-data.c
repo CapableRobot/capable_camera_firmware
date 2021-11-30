@@ -30,12 +30,6 @@
 #include <libexif/i18n.h>
 #include <libexif/exif-system.h>
 
-#include <libexif/apple/exif-mnote-data-apple.h>
-#include <libexif/canon/exif-mnote-data-canon.h>
-#include <libexif/fuji/exif-mnote-data-fuji.h>
-#include <libexif/olympus/exif-mnote-data-olympus.h>
-#include <libexif/pentax/exif-mnote-data-pentax.h>
-
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -795,33 +789,6 @@ interpret_maker_note(ExifData *data, const unsigned char *d, unsigned int ds)
 	ExifEntry* e = exif_data_get_entry (data, EXIF_TAG_MAKER_NOTE);
 	if (!e)
 		return;
-	
-	if ((mnoteid = exif_mnote_data_olympus_identify (data, e)) != 0) {
-		exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG,
-			"ExifData", "Olympus MakerNote variant type %d", mnoteid);
-		data->priv->md = exif_mnote_data_olympus_new (data->priv->mem);
-
-	} else if ((mnoteid = exif_mnote_data_canon_identify (data, e)) != 0) {
-		exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG,
-			"ExifData", "Canon MakerNote variant type %d", mnoteid);
-		data->priv->md = exif_mnote_data_canon_new (data->priv->mem, data->priv->options);
-
-	} else if ((mnoteid = exif_mnote_data_fuji_identify (data, e)) != 0) {
-		exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG,
-			"ExifData", "Fuji MakerNote variant type %d", mnoteid);
-		data->priv->md = exif_mnote_data_fuji_new (data->priv->mem);
-
-	/* NOTE: Must do Pentax detection last because some of the
-	 * heuristics are pretty general. */
-	} else if ((mnoteid = exif_mnote_data_pentax_identify (data, e)) != 0) {
-		exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG,
-			"ExifData", "Pentax MakerNote variant type %d", mnoteid);
-		data->priv->md = exif_mnote_data_pentax_new (data->priv->mem);
-	} else if ((mnoteid = exif_mnote_data_apple_identify (data, e)) != 0) {
-		exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG,
-			"ExifData", "Apple MakerNote variant type %d", mnoteid);
-		data->priv->md = exif_mnote_data_apple_new (data->priv->mem);
-	}
 
 	/* 
 	 * If we are able to interpret the maker note, do so.
