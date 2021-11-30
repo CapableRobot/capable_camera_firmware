@@ -233,9 +233,10 @@ const UBX_NAV_PVT_data = struct {
     flags3: u8,
 };
 
-const NAV_PVT = struct {
+pub const NAV_PVT = struct {
     age: i64,
     timestamp: [24]u8,
+    time: TimeData,
     longitude: f64,
     latitude: f64,
     height: f32,
@@ -1134,6 +1135,8 @@ pub const GNSS = struct {
         return self._last_nav_pvt;
     }
 
+    // TODO : cache creation of the NAV_PVT struct, except for the age field --
+    // that should always be updated when the method is called
     pub fn last_nav_pvt(self: *GNSS) ?NAV_PVT {
         if (self.last_nav_pvt_data()) |pvt| {
             var timestamp: [24]u8 = undefined;
@@ -1149,6 +1152,7 @@ pub const GNSS = struct {
             return NAV_PVT{
                 .age = std.time.milliTimestamp() - pvt.received_at,
                 .timestamp = timestamp,
+                .time = pvt.time,
 
                 .longitude = @intToFloat(f64, pvt.position.longitude) * 1e-7,
                 .latitude = @intToFloat(f64, pvt.position.latitude) * 1e-7,
