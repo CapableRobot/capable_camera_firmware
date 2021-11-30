@@ -224,9 +224,6 @@ pub const Exif = struct {
             const track_scale: u8 = 100;
             entry = exif_create_tag(exif, ifd_gps, @ptrCast(c.ExifTag, c.ExifTag.EXIF_TAG_GPS_TRACK));
             c.exif_set_rational(entry.*.data, self.byte_order, exif_rational(@floatToInt(u32, @round(nav_pvt.heading * @intToFloat(f32, track_scale))), track_scale));
-
-            // TODO : embed heading
-            // TODO : embed velocity
         }
 
         // Get a pointer to the EXIF data block we just created
