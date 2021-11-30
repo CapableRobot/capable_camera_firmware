@@ -23,16 +23,6 @@
 
 #include "config.h"
 
-#ifdef ENABLE_NLS
-#  include <libintl.h>
-#  undef _
-#  define _(String) dgettext (GETTEXT_PACKAGE, String)
-#  ifdef gettext_noop
-#    define N_(String) gettext_noop (String)
-#  else
-#    define N_(String) (String)
-#  endif
-#else
 #  define textdomain(String) (String)
 #  define gettext(String) (String)
 #  define ngettext(String1,String2,Count) (Count==1?String1:String2)
@@ -47,6 +37,5 @@
 #endif
 #  define _(String) (String)
 #  define N_(String) (String)
-#endif
 
 #endif /* !defined(LIBEXIF_I18N_H) */

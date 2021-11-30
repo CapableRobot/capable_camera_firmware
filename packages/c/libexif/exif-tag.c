@@ -1075,7 +1075,7 @@ exif_tag_get_title_in_ifd (ExifTag tag, ExifIfd ifd)
 		} else
 			return NULL; /* Recorded tag not found in the table */
 	}
-	(void) bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
+	
 	return _(ExifTagTable[i].title);
 }
 
@@ -1103,13 +1103,6 @@ exif_tag_get_description_in_ifd (ExifTag tag, ExifIfd ifd)
 	if (!ExifTagTable[i].description || !*ExifTagTable[i].description)
 		return "";
 
-	/* libexif should use the default system locale.
-	 * If an application specifically requires UTF-8, then we
-	 * must give the application a way to tell libexif that.
-	 * 
-	 * bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
-	 */
-	(void) bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
 	return _(ExifTagTable[i].description);
 }
 
