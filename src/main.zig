@@ -90,6 +90,7 @@ pub fn main() anyerror!void {
 
     var pos = gnss.init(handle);
     var gnss_rate = @divFloor(1000, @intCast(u16, cfg.camera.fps));
+    // var gnss_rate: u16 = 10000;
 
     pos.configure();
     pos.set_rate(gnss_rate);
@@ -116,10 +117,12 @@ pub fn main() anyerror!void {
         .allocator = allocator,
         .server = &server,
         .stop = std.atomic.Atomic(bool).init(false),
+        .last_frame = 0,
+        .gnss = threads.gnss_ctx,
     };
 
     try loop.runDetached(allocator, threads.recording_cleanup_thread, .{threads.rec_ctx});
-    try loop.runDetached(allocator, threads.recording_server_thread, .{threads.rec_ctx});
+    try loop.runDetached(allocator, threads.recording_server_thread, .{&threads.rec_ctx});
 
     threads.camera_ctx = threads.CameraContext{
         .config = cfg.camera,

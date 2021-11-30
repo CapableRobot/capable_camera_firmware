@@ -19,6 +19,7 @@ const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
 const config = @import("config.zig");
 const recording = @import("recording.zig");
+const exif = @import("exif.zig");
 
 const web = @import("zhp");
 
@@ -51,6 +52,7 @@ pub const RecordingContext = struct {
     server: *std.net.StreamServer,
     stop: std.atomic.Atomic(bool),
     last_frame: usize = 0,
+    gnss: GnssContext,
 };
 
 pub const CameraContext = struct {
@@ -252,17 +254,8 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
 
             defer file.close();
 
-            var buf_stream = std.io.bufferedWriter(file.writer());
-            const st = buf_stream.writer();
-
-            st.writeAll(buffer[idx_start..idx_end]) catch |err| {
-                std.log.err("REC RECV | could not do buffered write : {}", .{err});
-                reset_to = 0;
-                continue;
-            };
-
-            buf_stream.flush() catch |err| {
-                std.log.err("REC RECV | could not flush stream : {}", .{err});
+            write_image(ctx, file, buffer[idx_start..idx_end]) catch |err| {
+                std.log.err("REC RECV | could write image : {}", .{err});
                 reset_to = 0;
                 continue;
             };
@@ -279,6 +272,41 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
             }
         }
     }
+}
+
+fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8) !void {
+    var buf_stream = std.io.bufferedWriter(file.writer());
+    const st = buf_stream.writer();
+
+    var exif_tags = exif.init();
+
+    if (ctx.gnss.gnss.last_nav_pvt()) |pvt| {
+        exif_tags.set_gnss(pvt);
+    }
+
+    if (exif_tags.bytes()) |exif_array| {
+        const exif_len = exif_array.len + 2;
+        const exif_buffer = exif_array.constSlice();
+
+        // std.log.info("EXIF | [{d}]     {s}", .{ exif_buffer.len, std.fmt.fmtSliceHexUpper(exif_buffer) });
+
+        try st.writeAll(JPEG_SOI[0..]);
+        try st.writeAll(exif.APP0_HEADER[0..]);
+        try st.writeAll(exif.MARK_APP1[0..]);
+
+        try st.writeByte(@truncate(u8, exif_len >> 8));
+        try st.writeByte(@truncate(u8, exif_len));
+
+        try st.writeAll(exif_buffer);
+
+        try st.writeAll(buffer[exif.image_offset..]);
+    } else {
+        // No EXIF data, so just write out the image part of the buffer -- it is valid JPEG data.
+        std.log.info("EXIF embedding failed", .{});
+        try st.writeAll(buffer[0..]);
+    }
+
+    try buf_stream.flush();
 }
 
 pub fn recording_cleanup_thread(ctx: RecordingContext) void {
