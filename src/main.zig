@@ -83,9 +83,10 @@ pub fn main() anyerror!void {
     led.enable();
     led.set_brightness(0x30);
 
+    // Set PWR led to green, others off
     led.set(0, [_]u8{ 0, 0, 0 });
     led.set(1, [_]u8{ 0, 0, 0 });
-    led.set(2, [_]u8{ 0, 0, 0 });
+    led.set(2, [_]u8{ 0, 255, 0 });
 
     var led_ctx = threads.HeartBeatContext{ .led = led, .idx = 2 };
     try loop.runDetached(allocator, threads.heartbeat_thread, .{led_ctx});
