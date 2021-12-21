@@ -338,10 +338,10 @@ pub fn recording_cleanup_thread(ctx: RecordingContext) void {
 
 pub fn heartbeat_thread(ctx: HeartBeatContext) void {
     while (true) {
-        ctx.led.set(ctx.idx, ctx.color);
+        // ctx.led.set(ctx.idx, ctx.color);
         std.time.sleep(ctx.on * std.time.ns_per_ms);
 
-        ctx.led.set(ctx.idx, [_]u8{ 0, 0, 0 });
+        // ctx.led.set(ctx.idx, [_]u8{ 0, 0, 0 });
         std.time.sleep(ctx.off * std.time.ns_per_ms);
     }
 }
@@ -353,15 +353,22 @@ pub fn gnss_thread(ctx: GnssContext) void {
         // ctx.gnss.set_next_timeout(ctx.rate * 2);
 
         if (ctx.gnss.get_pvt()) {
-            ctx.led.set(0, [_]u8{ 0, 255, 0 });
-
             if (ctx.gnss.last_nav_pvt()) |pvt| {
+                if (pvt.fix_type == 0) {
+                    // If no position fix, color LED orange
+                    ctx.led.set(1, [_]u8{ 255, 127, 0 });
+                } else {
+                    // If there is a fix, color LED green
+                    ctx.led.set(1, [_]u8{ 0, 255, 0 });
+                }
+
                 print("PVT {s} at ({d:.6},{d:.6}) height {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height });
                 print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
                 print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
             }
         } else {
-            ctx.led.set(0, [_]u8{ 255, 0, 0 });
+            // If no communications, color LED red
+            ctx.led.set(1, [_]u8{ 255, 0, 0 });
         }
 
         // std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.rate / 4));
