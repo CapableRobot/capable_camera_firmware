@@ -155,8 +155,8 @@ pub fn directory_cleanup(ctx: threads.RecordingContext) void {
         //     std.log.info("node: {s}", .{elem.name});
         // }
 
-        if (ctx.config.max_size * 1024 < listing.bytes) {
-            const to_delete = listing.bytes - ctx.config.max_size * 1024;
+        if (ctx.config.max_size * 1024 * 1024 < listing.bytes) {
+            const to_delete = listing.bytes - ctx.config.max_size * 1024 * 1024;
             var deleted: u64 = 0;
 
             std.log.info("recordings will be trimmed by at least {d} kB", .{@divTrunc(to_delete, 1024)});
@@ -189,7 +189,7 @@ test "recording directory cleanup" {
     var dir_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
     const dir_path = try std.os.getFdPath(tmp.dir.fd, &dir_buffer);
 
-    const max_size = 1000; // KB
+    const max_size = 1; // MB
     var cfg = config.Recording{ .max_size = max_size, .dir = dir_path };
     var ctx = threads.RecordingContext{ .config = cfg, .allocator = alloc };
 
@@ -230,7 +230,7 @@ test "recording directory cleanup" {
     if (directory_listing(ctx.allocator, ctx.config.dir)) |listing| {
         defer alloc.free(listing.items);
         try std.testing.expect(listing.count < file_suffixes.len);
-        try std.testing.expectEqual(listing.count, @divTrunc(max_size * 1024, file_size));
-        try std.testing.expect(listing.bytes < 1024 * max_size);
+        try std.testing.expectEqual(listing.count, @divTrunc(max_size * 1024 * 1024, file_size));
+        try std.testing.expect(listing.bytes < 1024 * 1024 * max_size);
     }
 }
