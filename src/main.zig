@@ -15,6 +15,7 @@
 const std = @import("std");
 const print = @import("std").debug.print;
 const fs = std.fs;
+const os = std.os;
 const mem = @import("std").mem;
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -36,6 +37,8 @@ const handlers = @import("handlers.zig");
 
 pub const routes = handlers.routes;
 
+var led: led_driver.LP50xx = undefined;
+
 fn write_info_json() !void {
     if (try info.stat()) |stat| {
         print("stat {any}\n", .{stat});
@@ -49,6 +52,8 @@ fn write_info_json() !void {
 }
 
 pub fn main() anyerror!void {
+    attachSegfaultHandler();
+
     defer std.debug.assert(!gpa.deinit());
     const allocator = &gpa.allocator;
 
@@ -64,7 +69,7 @@ pub fn main() anyerror!void {
     var spi01_fd = try fs.openFileAbsolute("/dev/spidev0.1", fs.File.OpenFlags{ .read = true, .write = true });
     defer spi01_fd.close();
 
-    const led = led_driver.LP50xx{ .fd = i2c_fd };
+    led = led_driver.LP50xx{ .fd = i2c_fd };
 
     if (led.read_register(0x00, 1)) |value| {
         print("CONFIG0 = 0x{s}\n", .{std.fmt.fmtSliceHexUpper(value)});
@@ -137,4 +142,57 @@ pub fn main() anyerror!void {
     try loop.runDetached(allocator, threads.app_thread, .{app_ctx});
 
     loop.run();
+}
+
+fn resetSegfaultHandler() void {
+    var act = os.Sigaction{
+        .handler = .{ .sigaction = os.SIG_DFL },
+        .mask = os.empty_sigset,
+        .flags = 0,
+    };
+
+    os.sigaction(os.SIGSEGV, &act, null);
+    os.sigaction(os.SIGILL, &act, null);
+    os.sigaction(os.SIGBUS, &act, null);
+}
+
+fn handleSignal(sig: i32, sig_info: *const os.siginfo_t, ctx_ptr: ?*const c_void) callconv(.C) noreturn {
+    // Reset to the default handler so that if a segfault happens in this handler it will crash
+    // the process. Also when this handler returns, the original instruction will be repeated
+    // and the resulting segfault will crash the process rather than continually dump stack traces.
+    resetSegfaultHandler();
+
+    led.off();
+
+    const addr = @ptrToInt(sig_info.fields.sigfault.addr);
+
+    // Don't use std.debug.print() as stderr_mutex may still be locked.
+    nosuspend {
+        const stderr = std.io.getStdErr().writer();
+        _ = switch (sig) {
+            os.SIGSEGV => stderr.print("Segmentation fault at address 0x{x}\n", .{addr}),
+            os.SIGILL => stderr.print("Illegal instruction at address 0x{x}\n", .{addr}),
+            os.SIGBUS => stderr.print("Bus error at address 0x{x}\n", .{addr}),
+            os.SIGINT => stderr.print("Exit due to CTRL-C\n", .{}),
+            else => stderr.print("Exit due to signal {}\n", .{sig}),
+        } catch os.abort();
+    }
+
+    os.abort();
+}
+
+/// Attaches a global SIGSEGV handler
+pub fn attachSegfaultHandler() void {
+    var act = os.Sigaction{
+        .handler = .{ .sigaction = handleSignal },
+        .mask = os.empty_sigset,
+        .flags = (os.SA_SIGINFO | os.SA_RESTART | os.SA_RESETHAND),
+    };
+
+    os.sigaction(os.SIGINT, &act, null);
+    os.sigaction(os.SIGQUIT, &act, null);
+    os.sigaction(os.SIGILL, &act, null);
+    os.sigaction(os.SIGTRAP, &act, null);
+    os.sigaction(os.SIGABRT, &act, null);
+    os.sigaction(os.SIGBUS, &act, null);
 }
