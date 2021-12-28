@@ -26,7 +26,7 @@ pub const routes = [_]web.Route{
     web.Route.create("", "/", MainHandler),
     web.Route.create("api", "/api", MainHandler),
     web.Route.create("api", "/api/", MainHandler),
-    web.Route.create("api/status", "/api/status", StatusHandler),
+    web.Route.create("api/status", "/api/status", status.Handler),
     web.Route.create("api/gnss/pvt", "/api/gnss/pvt", GnssPvtHandler),
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
     web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),
@@ -38,18 +38,6 @@ pub const MainHandler = struct {
     pub fn get(self: *MainHandler, request: *web.Request, response: *web.Response) !void {
         try response.headers.append("Content-Type", "text/plain");
         try response.stream.writeAll("");
-    }
-};
-
-pub const StatusHandler = struct {
-    pub fn get(self: *StatusHandler, request: *web.Request, response: *web.Response) !void {
-        try response.headers.append("Content-Type", "application/json");
-
-        if (try status.stat()) |stat| {
-            try std.json.stringify(stat, std.json.StringifyOptions{
-                .whitespace = .{ .indent = .{ .Space = 2 } },
-            }, response.stream);
-        }
     }
 };
 
