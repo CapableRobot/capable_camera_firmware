@@ -18,7 +18,7 @@ const print = @import("std").debug.print;
 const web = @import("zhp");
 const Datetime = web.datetime.Datetime;
 
-const info = @import("info.zig");
+const status = @import("handlers/status.zig");
 const threads = @import("threads.zig");
 const recording = @import("recording.zig");
 
@@ -26,7 +26,7 @@ pub const routes = [_]web.Route{
     web.Route.create("", "/", MainHandler),
     web.Route.create("api", "/api", MainHandler),
     web.Route.create("api", "/api/", MainHandler),
-    web.Route.create("api/info", "/api/info", InfoHandler),
+    web.Route.create("api/status", "/api/status", StatusHandler),
     web.Route.create("api/gnss/pvt", "/api/gnss/pvt", GnssPvtHandler),
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
     web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),
@@ -41,11 +41,11 @@ pub const MainHandler = struct {
     }
 };
 
-pub const InfoHandler = struct {
-    pub fn get(self: *InfoHandler, request: *web.Request, response: *web.Response) !void {
+pub const StatusHandler = struct {
+    pub fn get(self: *StatusHandler, request: *web.Request, response: *web.Response) !void {
         try response.headers.append("Content-Type", "application/json");
 
-        if (try info.stat()) |stat| {
+        if (try status.stat()) |stat| {
             try std.json.stringify(stat, std.json.StringifyOptions{
                 .whitespace = .{ .indent = .{ .Space = 2 } },
             }, response.stream);
