@@ -19,6 +19,7 @@ const web = @import("zhp");
 const Datetime = web.datetime.Datetime;
 
 const status = @import("handlers/status.zig");
+const info = @import("handlers/info.zig");
 const threads = @import("threads.zig");
 const recording = @import("recording.zig");
 
@@ -27,6 +28,7 @@ pub const routes = [_]web.Route{
     web.Route.create("api", "/api", MainHandler),
     web.Route.create("api", "/api/", MainHandler),
     web.Route.create("api/status", "/api/status", status.Handler),
+    web.Route.create("api/info", "/api/info", info.Handler),
     web.Route.create("api/gnss/pvt", "/api/gnss/pvt", GnssPvtHandler),
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
     web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),
