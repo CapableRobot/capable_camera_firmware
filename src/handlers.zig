@@ -189,7 +189,15 @@ pub const FileHandler = struct {
         errdefer file.close();
 
         // Get file info
-        const stat = try file.stat();
+        var stat = try file.stat();
+
+        // File handle is on disk, but it does not have contents yet.
+        // We need to wait, otherwise assertion at start of stream function will fail.
+        while (stat.size == 0) {
+            std.time.sleep(std.time.ns_per_ms * 10);
+            stat = try file.stat();
+        }
+
         var modified = Datetime.fromModifiedTime(stat.mtime);
 
         // If the file was not modified, return 304
