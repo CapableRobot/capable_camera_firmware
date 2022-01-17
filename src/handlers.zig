@@ -143,7 +143,7 @@ pub const RecordingLastHandler = struct {
         const allocator = response.allocator;
         const ctx = threads.rec_ctx;
 
-        const path = try std.fmt.allocPrint(allocator, "{s}/frame_{d}.jpg", .{ ctx.config.dir, ctx.last_frame });
+        const path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ ctx.config.dir, ctx.last_file });
 
         self.handler = FileHandler{ .path = path };
         return self.handler.dispatch(request, response);

@@ -123,7 +123,6 @@ pub fn main() anyerror!void {
         .allocator = allocator,
         .server = &server,
         .stop = std.atomic.Atomic(bool).init(false),
-        .last_frame = 0,
         .gnss = threads.gnss_ctx,
     };
 

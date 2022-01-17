@@ -51,7 +51,7 @@ pub const RecordingContext = struct {
     allocator: *std.mem.Allocator,
     server: *std.net.StreamServer,
     stop: std.atomic.Atomic(bool),
-    last_frame: usize = 0,
+    last_file: [28]u8 = [_]u8{'0'} ** 28,
     gnss: GnssContext,
 };
 
@@ -238,7 +238,9 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
         if (found_start and found_end) {
             std.log.info("REC RECV | Frame {} is {} from {} to {}", .{ frame_count, idx_end - idx_start, idx_start, idx_end });
 
-            const filename = std.fmt.allocPrint(ctx.allocator, "{s}/frame_{d}.jpg", .{ ctx.config.dir, frame_count }) catch |err| {
+            var pvt = ctx.gnss.gnss.last_nav_pvt();
+
+            var filename = alloc_filename(ctx, pvt) catch |err| {
                 std.log.err("REC RECV | could not create filename", .{});
                 reset_to = 0;
                 continue;
@@ -254,13 +256,13 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
 
             defer file.close();
 
-            write_image(ctx, file, buffer[idx_start..idx_end]) catch |err| {
+            write_image(ctx, file, buffer[idx_start..idx_end], pvt) catch |err| {
                 std.log.err("REC RECV | could write image : {}", .{err});
                 reset_to = 0;
                 continue;
             };
 
-            ctx.last_frame = frame_count;
+            std.mem.copy(u8, ctx.last_file[0..], filename[filename.len - 28 ..]);
 
             // Copy any partial data we have to the start of the acculumation buffer
             if (idx_end + 2 < head) {
@@ -274,14 +276,27 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
     }
 }
 
-fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8) !void {
+fn alloc_filename(ctx: *RecordingContext, pvt: ?gnss.NAV_PVT) ![]u8 {
+    if (pvt) |value| {
+        const temp = try std.fmt.allocPrint(ctx.allocator, "{s}/{s}.jpg", .{ ctx.config.dir, value.timestamp });
+        defer ctx.allocator.free(temp);
+
+        const filename = try ctx.allocator.alloc(u8, temp.len);
+        _ = std.mem.replace(u8, temp, ":", "-", filename[0..]);
+        return filename;
+    } else {
+        return std.fmt.allocPrint(ctx.allocator, "{s}/1970-01-01T00-00-00.000Z.jpg", .{ctx.config.dir});
+    }
+}
+
+fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8, pvt: ?gnss.NAV_PVT) !void {
     var buf_stream = std.io.bufferedWriter(file.writer());
     const st = buf_stream.writer();
 
     var exif_tags = exif.init();
 
-    if (ctx.gnss.gnss.last_nav_pvt()) |pvt| {
-        exif_tags.set_gnss(pvt);
+    if (pvt) |value| {
+        exif_tags.set_gnss(value);
     }
 
     if (exif_tags.bytes()) |exif_array| {
