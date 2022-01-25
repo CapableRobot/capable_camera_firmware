@@ -110,10 +110,10 @@ fn exif_set_string(entry: [*c]c.ExifEntry, s: []const u8) void {
 pub const Exif = struct {
     image_x: usize = 0,
     image_y: usize = 0,
-    gnss_nav_pvt: ?gnss.NAV_PVT = null,
+    gnss_nav_pvt: ?gnss.PVT = null,
     byte_order: c.ExifByteOrder = c.ExifByteOrder.EXIF_BYTE_ORDER_MOTOROLA,
 
-    pub fn set_gnss(self: *Exif, nav_pvt: gnss.NAV_PVT) void {
+    pub fn set_gnss(self: *Exif, nav_pvt: gnss.PVT) void {
         self.gnss_nav_pvt = nav_pvt;
     }
 

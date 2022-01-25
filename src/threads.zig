@@ -276,7 +276,7 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
     }
 }
 
-fn alloc_filename(ctx: *RecordingContext, pvt: ?gnss.NAV_PVT) ![]u8 {
+fn alloc_filename(ctx: *RecordingContext, pvt: ?gnss.PVT) ![]u8 {
     if (pvt) |value| {
         const temp = try std.fmt.allocPrint(ctx.allocator, "{s}/{s}.jpg", .{ ctx.config.dir, value.timestamp });
         defer ctx.allocator.free(temp);
@@ -289,7 +289,7 @@ fn alloc_filename(ctx: *RecordingContext, pvt: ?gnss.NAV_PVT) ![]u8 {
     }
 }
 
-fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8, pvt: ?gnss.NAV_PVT) !void {
+fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8, pvt: ?gnss.PVT) !void {
     var buf_stream = std.io.bufferedWriter(file.writer());
     const st = buf_stream.writer();
 
@@ -367,7 +367,11 @@ pub fn gnss_thread(ctx: GnssContext) void {
     while (true) {
         // ctx.gnss.set_next_timeout(ctx.rate * 2);
 
-        if (ctx.gnss.get_pvt()) {
+        ctx.gnss.get_mon_rf();
+        ctx.gnss.get_mon_span();
+        ctx.gnss.get_nav_sat();
+
+        if (ctx.gnss.poll_pvt()) {
             if (ctx.gnss.last_nav_pvt()) |pvt| {
                 if (pvt.fix_type == 0) {
                     // If no position fix, color LED orange
@@ -377,7 +381,7 @@ pub fn gnss_thread(ctx: GnssContext) void {
                     ctx.led.set(1, [_]u8{ 0, 255, 0 });
                 }
 
-                print("PVT {s} at ({d:.6},{d:.6}) height {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height });
+                print("PVT {s} at ({d:.6},{d:.6}) height {d:.2} dop {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height, pvt.dop });
                 print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
                 print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
             }

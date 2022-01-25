@@ -98,6 +98,7 @@ pub fn main() anyerror!void {
     var gnss_rate = @divFloor(1000, @intCast(u16, cfg.camera.fps));
     // var gnss_rate: u16 = 10000;
 
+    pos.reset(null);
     pos.configure();
     pos.set_rate(gnss_rate);
 
