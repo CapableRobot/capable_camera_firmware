@@ -191,6 +191,7 @@ pub fn attachSegfaultHandler() void {
     };
 
     os.sigaction(os.SIGINT, &act, null);
+    os.sigaction(os.SIGTERM, &act, null);
     os.sigaction(os.SIGQUIT, &act, null);
     os.sigaction(os.SIGILL, &act, null);
     os.sigaction(os.SIGTRAP, &act, null);
