@@ -236,33 +236,23 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
         head += data_len;
 
         if (found_start and found_end) {
-            std.log.info("REC RECV | Frame {} is {} from {} to {}", .{ frame_count, idx_end - idx_start, idx_start, idx_end });
-
             var pvt = ctx.gnss.gnss.last_nav_pvt();
 
-            var filename = alloc_filename(ctx, pvt) catch |err| {
-                std.log.err("REC RECV | could not create filename", .{});
-                reset_to = 0;
-                continue;
-            };
+            if (pvt) |value| {
+                if (value.fix_type > 0) {
+                    std.log.info("REC RECV | Frame {} is {}", .{ frame_count, idx_end - idx_start });
+                    ctx.gnss.led.set(0, [_]u8{ 0, 255, 0 }); // TODO : better access method for recording LED
 
-            defer ctx.allocator.free(filename);
-
-            var file = std.fs.cwd().createFile(filename, .{}) catch |err| {
-                std.log.err("REC RECV | could not create file : {}", .{err});
-                reset_to = 0;
-                continue;
-            };
-
-            defer file.close();
-
-            write_image(ctx, file, buffer[idx_start..idx_end], pvt) catch |err| {
-                std.log.err("REC RECV | could write image : {}", .{err});
-                reset_to = 0;
-                continue;
-            };
-
-            std.mem.copy(u8, ctx.last_file[0..], filename[filename.len - 28 ..]);
+                    write_image(ctx, buffer[idx_start..idx_end], value) catch |err| {
+                        std.log.err("REC RECV | could not write image : {}", .{err});
+                        reset_to = 0;
+                        continue;
+                    };
+                } else {
+                    std.log.info("REC SKIP | Frame {} is {}", .{ frame_count, idx_end - idx_start });
+                    ctx.gnss.led.set(0, [_]u8{ 255, 127, 0 }); // TODO : better access method for recording LED
+                }
+            }
 
             // Copy any partial data we have to the start of the acculumation buffer
             if (idx_end + 2 < head) {
@@ -289,15 +279,18 @@ fn alloc_filename(ctx: *RecordingContext, pvt: ?gnss.PVT) ![]u8 {
     }
 }
 
-fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8, pvt: ?gnss.PVT) !void {
+fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT) !void {
+    var filename = try alloc_filename(ctx, pvt);
+    defer ctx.allocator.free(filename);
+
+    var file = try std.fs.cwd().createFile(filename, .{});
+    defer file.close();
+
     var buf_stream = std.io.bufferedWriter(file.writer());
     const st = buf_stream.writer();
 
     var exif_tags = exif.init();
-
-    if (pvt) |value| {
-        exif_tags.set_gnss(value);
-    }
+    exif_tags.set_gnss(pvt);
 
     if (exif_tags.bytes()) |exif_array| {
         const exif_len = exif_array.len + 2;
@@ -322,6 +315,10 @@ fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8, pv
     }
 
     try buf_stream.flush();
+
+    // Save the last filename so the web API can serve that data
+    // TODO : don't use fs here and instead keep frame in memory for use by the web API -- this will remove disk flush issues
+    std.mem.copy(u8, ctx.last_file[0..], filename[filename.len - 28 ..]);
 }
 
 pub fn recording_cleanup_thread(ctx: RecordingContext) void {
