@@ -95,14 +95,14 @@ pub fn main() anyerror!void {
     print("SPI configure {any}\n", .{handle.configure(0, 5500)});
 
     var pos = gnss.init(handle);
-    var gnss_rate = @divFloor(1000, @intCast(u16, cfg.camera.fps));
+    var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
     // var gnss_rate: u16 = 10000;
 
     pos.reset(null);
     pos.configure();
-    pos.set_rate(gnss_rate);
+    pos.set_interval(gnss_interval);
 
-    threads.gnss_ctx = threads.GnssContext{ .led = led, .gnss = &pos, .rate = gnss_rate };
+    threads.gnss_ctx = threads.GnssContext{ .led = led, .gnss = &pos, .interval = gnss_interval };
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
     // This will error if the socket doesn't exists.  We ignore that error

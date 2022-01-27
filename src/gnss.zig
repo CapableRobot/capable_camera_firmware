@@ -1448,7 +1448,7 @@ pub const GNSS = struct {
         // print("gnss cfg_valset({any}) -> {}\n", .{ payload, value });
     }
 
-    pub fn set_rate(self: *GNSS, rate: u16) void {
+    pub fn set_interval(self: *GNSS, rate: u16) void {
         self.packet_cfg.cls = UBX_CLASS_CFG;
         self.packet_cfg.id = UBX_CFG_RATE;
         self.packet_cfg.len = 0;
@@ -1460,7 +1460,7 @@ pub const GNSS = struct {
         self.packet_cfg.payload[0] = @truncate(u8, rate);
         self.packet_cfg.payload[1] = @truncate(u8, rate >> 8);
 
-        print("gnss set_rate({})\n", .{rate});
+        print("gnss set_interval({})\n", .{rate});
         value = self.send_command(&self.packet_cfg);
 
         self.packet_cfg.payload[0] = 0;
