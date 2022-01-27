@@ -363,12 +363,28 @@ pub fn heartbeat_thread(ctx: HeartBeatContext) void {
 pub fn gnss_thread(ctx: GnssContext) void {
     ctx.gnss.set_timeout(ctx.interval + 50);
 
-    while (true) {
-        // ctx.gnss.set_next_timeout(ctx.interval * 2);
+    var last_debug_ms = std.time.milliTimestamp();
+    var last_debug: i8 = -1;
+    const debug_interval: u16 = 2000;
 
-        ctx.gnss.get_mon_rf();
-        ctx.gnss.get_mon_span();
-        ctx.gnss.get_nav_sat();
+    while (true) {
+        const this_ms = std.time.milliTimestamp();
+
+        if (this_ms - last_debug_ms > debug_interval) {
+            last_debug += 1;
+            ctx.gnss.set_next_timeout(2000);
+
+            if (last_debug == 0) {
+                ctx.gnss.get_mon_rf();
+            } else if (last_debug == 1) {
+                ctx.gnss.get_mon_span();
+            } else if (last_debug == 2) {
+                ctx.gnss.get_nav_sat();
+                last_debug = -1;
+            }
+
+            last_debug_ms = this_ms;
+        }
 
         if (ctx.gnss.poll_pvt()) {
             if (ctx.gnss.last_nav_pvt()) |pvt| {
