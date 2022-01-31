@@ -85,6 +85,9 @@ const UBX_CFG_VALSET: u8 = 0x8A; //Used for config of higher version u-blox modu
 
 // Note that key values here are in little endian order, as that is how they should be sent over the wire
 const CFG_NAVSPG_SIGATTCOMP: [4]u8 = [_]u8{ 0xd6, 0x00, 0x11, 0x20 }; // Permanently attenuated signal compensation mode
+const CFG_NAVSPG_DYNMODEL: [4]u8 = [_]u8{ 0x21, 0x00, 0x11, 0x20 };
+
+const CFG_NAVSPG_DYNMODEL_MODE = enum { PORT, STAT, RED, AUTOMOT, SEA, AIR1, AIR2 };
 
 const CFG_RST_MODE = enum(u8) {
     HARDWARE = 0x00,
@@ -949,7 +952,7 @@ pub const GNSS = struct {
                 // If this is an ACK then let's check if the class and ID match the requestedClass and requestedID
                 else if ((packet.cls == UBX_CLASS_ACK) and (packet.id == UBX_ACK_ACK) and (packet.payload[0] == requested_class) and (packet.payload[1] == requested_id)) {
                     packet.class_id_match = UBX_Packet_Validity.VALID;
-                    print("gnss process_ubx :  ACK | Class {} ID {}\n", .{ packet.payload[0], packet.payload[1] });
+                    // print("gnss process_ubx :  ACK | Class {} ID {}\n", .{ packet.payload[0], packet.payload[1] });
                 }
 
                 // If this is an NACK then let's check if the class and ID match the requestedClass and requestedID
@@ -1155,7 +1158,7 @@ pub const GNSS = struct {
             const measure_rate = extract(packet, u16, 0);
             const nav_rate = extract(packet, u16, 2);
             const time_ref = extract(packet, u16, 4);
-            print("gnss cfg_packet : measure rate {} nav rate {} time ref {}\n", .{ measure_rate, nav_rate, time_ref });
+            print("gnss CFG_RATE : measure_rate {} nav_rate {} time_ref {}\n", .{ measure_rate, nav_rate, time_ref });
         }
     }
 
@@ -1417,22 +1420,25 @@ pub const GNSS = struct {
         self.packet_cfg.payload[0] = 4;
 
         var value = self.send_command(&self.packet_cfg);
-        print("gnss configure() -> {}\n", .{value});
+        print("gnss CFG_PRT(SPI) GET -> {}\n", .{value});
 
         self.packet_cfg.len = 20;
 
         // Enable only UBX messages (e.g. bit 1 is set)
         self.packet_cfg.payload[14] = 1;
         value = self.send_command(&self.packet_cfg);
-        print("gnss configure() -> {}\n", .{value});
+        print("gnss CFG_PRT(SPI) SET {any} -> {}\n", .{ self.packet_cfg.payload[0..self.packet_cfg.len], value });
 
         // Configure signal attenuation compensation
         // 0   -> disables signal attenuation compensation
         // 255 -> automatic signal attenuation compensation
         // 1..63 -> maximum expected C/NO level is this dB value
         const sig_att_comp: u8 = 0;
-        const payload: [5]u8 = CFG_NAVSPG_SIGATTCOMP ++ [_]u8{sig_att_comp};
+        const dynmodel: u8 = @enumToInt(CFG_NAVSPG_DYNMODEL_MODE.AUTOMOT);
+
+        const payload: [10]u8 = CFG_NAVSPG_SIGATTCOMP ++ [_]u8{sig_att_comp} ++ CFG_NAVSPG_DYNMODEL ++ [_]u8{dynmodel};
         print("gnss CFG_NAVSPG_SIGATTCOMP : {}\n", .{sig_att_comp});
+        print("gnss CFG_NAVSPG_DYNMODEL : {}\n", .{dynmodel});
 
         self.packet_cfg.cls = UBX_CLASS_CFG;
         self.packet_cfg.id = UBX_CFG_VALSET;
@@ -1445,7 +1451,7 @@ pub const GNSS = struct {
         std.mem.copy(u8, self.packet_cfg.payload[4..], payload[0..]);
 
         value = self.send_command(&self.packet_cfg);
-        // print("gnss cfg_valset({any}) -> {}\n", .{ payload, value });
+        print("gnss CFG_VALSET {any} -> {}\n", .{ payload, value });
     }
 
     pub fn set_interval(self: *GNSS, rate: u16) void {
@@ -1460,8 +1466,8 @@ pub const GNSS = struct {
         self.packet_cfg.payload[0] = @truncate(u8, rate);
         self.packet_cfg.payload[1] = @truncate(u8, rate >> 8);
 
-        print("gnss set_interval({})\n", .{rate});
         value = self.send_command(&self.packet_cfg);
+        print("gnss set_interval({}) -> {}\n", .{ rate, value });
 
         self.packet_cfg.payload[0] = 0;
         self.packet_cfg.payload[1] = 0;
