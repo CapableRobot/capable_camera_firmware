@@ -96,7 +96,6 @@ pub fn main() anyerror!void {
 
     var pos = gnss.init(handle);
     var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
-    // var gnss_rate: u16 = 10000;
 
     pos.reset(null);
     pos.configure();
