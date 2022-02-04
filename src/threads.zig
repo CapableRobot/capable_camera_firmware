@@ -20,13 +20,14 @@ const gnss = @import("gnss.zig");
 const config = @import("config.zig");
 const recording = @import("recording.zig");
 const exif = @import("exif.zig");
+const datetime = @import("datetime.zig");
 
 const web = @import("zhp");
 
 pub const GnssContext = struct {
     gnss: *gnss.GNSS,
     led: led_driver.LP50xx,
-    rate: u16 = 1000,
+    interval: u16 = 1000,
 };
 
 pub const AppContext = struct {
@@ -51,7 +52,7 @@ pub const RecordingContext = struct {
     allocator: *std.mem.Allocator,
     server: *std.net.StreamServer,
     stop: std.atomic.Atomic(bool),
-    last_frame: usize = 0,
+    last_file: [28]u8 = [_]u8{'0'} ** 28,
     gnss: GnssContext,
 };
 
@@ -236,31 +237,23 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
         head += data_len;
 
         if (found_start and found_end) {
-            std.log.info("REC RECV | Frame {} is {} from {} to {}", .{ frame_count, idx_end - idx_start, idx_start, idx_end });
+            var pvt = ctx.gnss.gnss.last_nav_pvt();
 
-            const filename = std.fmt.allocPrint(ctx.allocator, "{s}/frame_{d}.jpg", .{ ctx.config.dir, frame_count }) catch |err| {
-                std.log.err("REC RECV | could not create filename", .{});
-                reset_to = 0;
-                continue;
-            };
+            if (pvt) |value| {
+                if (value.fix_type > 0) {
+                    // std.log.info("REC RECV | Frame {} is {}", .{ frame_count, idx_end - idx_start });
+                    ctx.gnss.led.set(0, [_]u8{ 0, 255, 0 }); // TODO : better access method for recording LED
 
-            defer ctx.allocator.free(filename);
-
-            var file = std.fs.cwd().createFile(filename, .{}) catch |err| {
-                std.log.err("REC RECV | could not create file : {}", .{err});
-                reset_to = 0;
-                continue;
-            };
-
-            defer file.close();
-
-            write_image(ctx, file, buffer[idx_start..idx_end]) catch |err| {
-                std.log.err("REC RECV | could write image : {}", .{err});
-                reset_to = 0;
-                continue;
-            };
-
-            ctx.last_frame = frame_count;
+                    write_image(ctx, buffer[idx_start..idx_end], value) catch |err| {
+                        std.log.err("REC RECV | could not write image : {}", .{err});
+                        reset_to = 0;
+                        continue;
+                    };
+                } else {
+                    std.log.info("REC SKIP | Frame {} is {}", .{ frame_count, idx_end - idx_start });
+                    ctx.gnss.led.set(0, [_]u8{ 255, 127, 0 }); // TODO : better access method for recording LED
+                }
+            }
 
             // Copy any partial data we have to the start of the acculumation buffer
             if (idx_end + 2 < head) {
@@ -274,15 +267,76 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
     }
 }
 
-fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8) !void {
+fn alloc_filename(ctx: *RecordingContext, timestamp: ?[24]u8) ![]u8 {
+    const temp = try std.fmt.allocPrint(ctx.allocator, "{s}/{s}.jpg", .{ ctx.config.dir, timestamp });
+    defer ctx.allocator.free(temp);
+
+    const filename = try ctx.allocator.alloc(u8, temp.len);
+    _ = std.mem.replace(u8, temp, ":", "-", filename[0..]);
+    return filename;
+}
+
+fn determine_frametime(pvt: gnss.PVT) [24]u8 {
+    var timestamp: [24]u8 = undefined;
+    const default = "1970-01-01T00-00-00.000Z";
+    std.mem.copy(u8, timestamp[0..], default[0..]);
+
+    const t = pvt.time;
+    const age_sec: i64 = @divFloor(pvt.age, 1000);
+    const age_nsec: i64 = (pvt.age - age_sec * 1000) * std.time.ns_per_ms;
+
+    // U-Blox module can report negative nanoseconds (e.g. times just before a second boundary)
+    //
+    // The datetime library can't handle this, so we just set nanoseconds to zero when it occurs.
+    // The alternative would be to add 1 sec to 'nanosecond' and subtract 1 sec from 'seconds', but
+    // there is the slight change that this would occur on the 0th second of a minute, which would
+    // cause a cascading rollback on the minute field, etc.
+    //
+    // Rounding up to zero is acceptable due to the small time scales here.  An instance of this occuring:
+    // t.second = 13, t.nanosecond = -116172 => 12.999883828 seconds
+    // When this value is rounded to 3 decimal places (for the filename), it would be 13.000
+    var t_nanosecond = t.nanosecond;
+    if (t_nanosecond < 0) {
+        t_nanosecond = 0;
+    }
+
+    var stamp = datetime.Datetime.create(t.year, t.month, t.day, t.hour, t.minute, @intCast(u32, t.second), @intCast(u32, t_nanosecond)) catch |err| {
+        std.log.info("REC RECV | Error creating datetime", .{});
+        return timestamp;
+    };
+
+    stamp = stamp.shift(datetime.Datetime.Delta{ .seconds = age_sec, .nanoseconds = @intCast(i32, age_nsec) });
+
+    _ = std.fmt.bufPrint(&timestamp, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>6.3}Z", .{
+        stamp.date.year,
+        stamp.date.month,
+        stamp.date.day,
+        stamp.time.hour,
+        stamp.time.minute,
+        @intToFloat(f64, stamp.time.second) + @intToFloat(f64, stamp.time.nanosecond) * 1e-9,
+    }) catch |err| {};
+
+    return timestamp;
+}
+
+fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT) !void {
+    const timestamp = determine_frametime(pvt);
+
+    // std.log.info("FNAME | GNSS {s} + {d:.3} -> {s}", .{ pvt.timestamp, @intToFloat(f64, pvt.age) / 1000.0, timestamp });
+    std.log.info("REC RECV | Frame {s} is {} bytes", .{ timestamp, buffer.len });
+
+    var filename = try alloc_filename(ctx, timestamp);
+    defer ctx.allocator.free(filename);
+
+    var file = try std.fs.cwd().createFile(filename, .{});
+    defer file.close();
+
     var buf_stream = std.io.bufferedWriter(file.writer());
     const st = buf_stream.writer();
 
     var exif_tags = exif.init();
-
-    if (ctx.gnss.gnss.last_nav_pvt()) |pvt| {
-        exif_tags.set_gnss(pvt);
-    }
+    exif_tags.set_gnss(pvt);
+    exif_tags.set_frametime(timestamp);
 
     if (exif_tags.bytes()) |exif_array| {
         const exif_len = exif_array.len + 2;
@@ -307,6 +361,10 @@ fn write_image(ctx: *RecordingContext, file: std.fs.File, buffer: []const u8) !v
     }
 
     try buf_stream.flush();
+
+    // Save the last filename so the web API can serve that data
+    // TODO : don't use fs here and instead keep frame in memory for use by the web API -- this will remove disk flush issues
+    std.mem.copy(u8, ctx.last_file[0..], filename[filename.len - 28 ..]);
 }
 
 pub fn recording_cleanup_thread(ctx: RecordingContext) void {
@@ -327,12 +385,14 @@ pub fn recording_cleanup_thread(ctx: RecordingContext) void {
     }
 
     while (true) {
-        const start_ms = std.time.milliTimestamp();
-
         recording.directory_cleanup(ctx);
 
-        const ellapsed_ns = (std.time.milliTimestamp() - start_ms) * std.time.ns_per_ms;
-        std.time.sleep(sleep_ns - @intCast(u64, ellapsed_ns));
+        // Over time we'll drift behind desired cleanup_frequency, due to time it takes
+        // to do the cleanup -- but that is fine.  And, it's possible that the recording
+        // directory has so many files that the it takes longer than 1/cleanup_frequency
+        // to scan and cleanup.  In that case, we still want to wait 1/cleanup_frequency
+        // before the next scan -- not start a new scan immediately.
+        std.time.sleep(sleep_ns);
     }
 }
 
@@ -347,12 +407,32 @@ pub fn heartbeat_thread(ctx: HeartBeatContext) void {
 }
 
 pub fn gnss_thread(ctx: GnssContext) void {
-    ctx.gnss.set_timeout(ctx.rate + 50);
+    ctx.gnss.set_timeout(ctx.interval + 50);
+
+    var last_debug_ms = std.time.milliTimestamp();
+    var last_debug: i8 = -1;
+    const debug_interval: u16 = 2000;
 
     while (true) {
-        // ctx.gnss.set_next_timeout(ctx.rate * 2);
+        const this_ms = std.time.milliTimestamp();
 
-        if (ctx.gnss.get_pvt()) {
+        if (this_ms - last_debug_ms > debug_interval) {
+            last_debug += 1;
+            ctx.gnss.set_next_timeout(2000);
+
+            if (last_debug == 0) {
+                ctx.gnss.get_mon_rf();
+            } else if (last_debug == 1) {
+                ctx.gnss.get_mon_span();
+            } else if (last_debug == 2) {
+                ctx.gnss.get_nav_sat();
+                last_debug = -1;
+            }
+
+            last_debug_ms = this_ms;
+        }
+
+        if (ctx.gnss.poll_pvt()) {
             if (ctx.gnss.last_nav_pvt()) |pvt| {
                 if (pvt.fix_type == 0) {
                     // If no position fix, color LED orange
@@ -362,7 +442,7 @@ pub fn gnss_thread(ctx: GnssContext) void {
                     ctx.led.set(1, [_]u8{ 0, 255, 0 });
                 }
 
-                print("PVT {s} at ({d:.6},{d:.6}) height {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height });
+                print("PVT {s} at ({d:.6},{d:.6}) height {d:.2} dop {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height, pvt.dop });
                 print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
                 print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
             }
@@ -371,7 +451,7 @@ pub fn gnss_thread(ctx: GnssContext) void {
             ctx.led.set(1, [_]u8{ 255, 0, 0 });
         }
 
-        // std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.rate / 4));
+        // std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.interval / 4));
     }
 }
 
