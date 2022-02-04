@@ -19,7 +19,7 @@ const mem = std.mem;
 const spi = @import("bus/spi.zig");
 const bounded_array = @import("bounded_array.zig");
 
-const MAX_PAYLOAD_SIZE = 256 * 2;
+const MAX_PAYLOAD_SIZE = 512 * 2;
 const SPI_BUFFER_SIZE = 128;
 
 const MAX_WAIT = 250;
