@@ -12,8 +12,6 @@ const ascii = std.ascii;
 const Allocator = std.mem.Allocator;
 const Order = std.math.Order;
 
-pub const timezones = @import("timezones.zig");
-
 const testing = std.testing;
 const assert = std.debug.assert;
 
@@ -793,21 +791,6 @@ test "date-isocalendar" {
     }
 }
 
-pub const Timezone = struct {
-    offset: i16, // In minutes
-    name: []const u8,
-
-    // Auto register timezones
-    pub fn create(name: []const u8, offset: i16) Timezone {
-        const self = Timezone{ .offset = offset, .name = name };
-        return self;
-    }
-
-    pub fn offsetSeconds(self: Timezone) i32 {
-        return @as(i32, self.offset) * time.s_per_min;
-    }
-};
-
 pub const Time = struct {
     hour: u8 = 0, // 0 to 23
     minute: u8 = 0, // 0 to 59
@@ -1056,7 +1039,6 @@ test "time-write-iso-hms" {
 pub const Datetime = struct {
     date: Date,
     time: Time,
-    zone: *const Timezone,
 
     // An absolute or relative delta
     // if years is defined a date is date
@@ -1134,11 +1116,10 @@ pub const Datetime = struct {
         return Datetime.fromTimestamp(time.milliTimestamp());
     }
 
-    pub fn create(year: u32, month: u32, day: u32, hour: u32, minute: u32, second: u32, nanosecond: u32, zone: ?*const Timezone) !Datetime {
+    pub fn create(year: u32, month: u32, day: u32, hour: u32, minute: u32, second: u32, nanosecond: u32) !Datetime {
         return Datetime{
             .date = try Date.create(year, month, day),
             .time = try Time.create(hour, minute, second, nanosecond),
-            .zone = zone orelse &timezones.UTC,
         };
     }
 
@@ -1147,7 +1128,6 @@ pub const Datetime = struct {
         return Datetime{
             .date = try self.date.copy(),
             .time = try self.time.copy(),
-            .zone = self.zone,
         };
     }
 
@@ -1155,7 +1135,6 @@ pub const Datetime = struct {
         return Datetime{
             .date = try Date.create(year, month, day),
             .time = try Time.create(0, 0, 0, 0),
-            .zone = &timezones.UTC,
         };
     }
 
@@ -1164,7 +1143,6 @@ pub const Datetime = struct {
         return Datetime{
             .date = Date.fromSeconds(seconds),
             .time = Time.fromSeconds(seconds),
-            .zone = &timezones.UTC,
         };
     }
 
@@ -1182,7 +1160,6 @@ pub const Datetime = struct {
         return Datetime{
             .date = Date.fromOrdinal(@intCast(u32, days)),
             .time = Time.fromTimestamp(timestamp - @intCast(i64, d) * time.ns_per_day),
-            .zone = &timezones.UTC,
         };
     }
 
@@ -1196,8 +1173,7 @@ pub const Datetime = struct {
     pub fn toTimestamp(self: Datetime) i128 {
         const ds = self.date.toTimestamp();
         const ts = self.time.toTimestamp();
-        const zs = self.zone.offsetSeconds() * time.ms_per_s;
-        return ds + ts - zs;
+        return ds + ts;
     }
 
     // -----------------------------------------------------------------------
@@ -1207,21 +1183,10 @@ pub const Datetime = struct {
         return self.cmp(other) == .eq;
     }
 
-    pub fn cmpSameTimezone(self: Datetime, other: Datetime) Order {
-        assert(self.zone.offset == other.zone.offset);
+    pub fn cpm(self: Datetime, other: Datetime) Order {
         const r = self.date.cmp(other.date);
         if (r != .eq) return r;
         return self.time.cmp(other.time);
-    }
-
-    pub fn cmp(self: Datetime, other: Datetime) Order {
-        if (self.zone.offset == other.zone.offset) {
-            return self.cmpSameTimezone(other);
-        }
-        // Shift both to utc
-        const a = self.shiftTimezone(&timezones.UTC);
-        const b = other.shiftTimezone(&timezones.UTC);
-        return a.cmpSameTimezone(b);
     }
 
     pub fn gt(self: Datetime, other: Datetime) bool {
@@ -1250,10 +1215,6 @@ pub const Datetime = struct {
     pub fn sub(self: Datetime, other: Datetime) Delta {
         const days = @intCast(i32, self.date.toOrdinal()) - @intCast(i32, other.date.toOrdinal());
         var seconds = self.time.totalSeconds() - other.time.totalSeconds();
-        if (self.zone.offset != other.zone.offset) {
-            const mins = (self.zone.offset - other.zone.offset);
-            seconds += mins * time.s_per_min;
-        }
         const ns = @intCast(i32, self.time.nanosecond) - @intCast(i32, other.time.nanosecond);
         return Delta{ .days = days, .seconds = seconds, .nanoseconds = ns };
     }
@@ -1276,17 +1237,6 @@ pub const Datetime = struct {
     // Create a Datetime shifted by the given number of minutes
     pub fn shiftMinutes(self: Datetime, minutes: i32) Datetime {
         return self.shift(Delta{ .seconds = minutes * time.s_per_min });
-    }
-
-    // Convert to the given timeszone
-    pub fn shiftTimezone(self: Datetime, zone: *const Timezone) Datetime {
-        var dt =
-            if (self.zone.offset == zone.offset)
-            (self.copy() catch unreachable)
-        else
-            self.shiftMinutes(zone.offset - self.zone.offset);
-        dt.zone = zone;
-        return dt;
     }
 
     // Create a Datetime shifted by the given number of seconds
@@ -1336,7 +1286,6 @@ pub const Datetime = struct {
         return Datetime{
             .date = self.date.shift(Date.Delta{ .years = delta.years, .days = days }),
             .time = Time.create(hour, minute, second, nanosecond) catch unreachable, // Error here would mean a bug
-            .zone = self.zone,
         };
     }
 
@@ -1347,7 +1296,7 @@ pub const Datetime = struct {
     // Formats a timestamp in the format used by HTTP.
     // eg "Tue, 15 Nov 1994 08:12:31 GMT"
     pub fn formatHttp(self: Datetime, allocator: Allocator) ![]const u8 {
-        return try std.fmt.allocPrint(allocator, "{s}, {d} {s} {d} {d:0>2}:{d:0>2}:{d:0>2} {s}", .{
+        return try std.fmt.allocPrint(allocator, "{s}, {d} {s} {d} {d:0>2}:{d:0>2}:{d:0>2} UTC", .{
             self.date.weekdayName()[0..3],
             self.date.day,
             self.date.monthName()[0..3],
@@ -1355,12 +1304,11 @@ pub const Datetime = struct {
             self.time.hour,
             self.time.minute,
             self.time.second,
-            self.zone.name, // TODO: Should be GMT
         });
     }
 
     pub fn formatHttpBuf(self: Datetime, buf: []u8) ![]const u8 {
-        return try std.fmt.bufPrint(buf, "{s}, {d} {s} {d} {d:0>2}:{d:0>2}:{d:0>2} {s}", .{
+        return try std.fmt.bufPrint(buf, "{s}, {d} {s} {d} {d:0>2}:{d:0>2}:{d:0>2} UTC", .{
             self.date.weekdayName()[0..3],
             self.date.day,
             self.date.monthName()[0..3],
@@ -1368,7 +1316,6 @@ pub const Datetime = struct {
             self.time.hour,
             self.time.minute,
             self.time.second,
-            self.zone.name, // TODO: Should be GMT
         });
     }
 
@@ -1400,7 +1347,7 @@ pub const Datetime = struct {
         const hour = std.fmt.parseInt(u8, value[17..19], 10) catch return error.InvalidFormat;
         const minute = std.fmt.parseInt(u8, value[20..22], 10) catch return error.InvalidFormat;
         const second = std.fmt.parseInt(u8, value[23..25], 10) catch return error.InvalidFormat;
-        return Datetime.create(year, month, day, hour, minute, second, 0, &timezones.GMT);
+        return Datetime.create(year, month, day, hour, minute, second, 0);
     }
 };
 
@@ -1414,7 +1361,6 @@ test "datetime-create-timestamp" {
     const t = Datetime.fromTimestamp(ts);
     try testing.expect(t.date.eql(try Date.create(2019, 11, 28)));
     try testing.expect(t.time.eql(try Time.create(2, 36, 26, 928000000)));
-    try testing.expectEqualSlices(u8, t.zone.name, "UTC");
     try testing.expectEqual(t.toTimestamp(), ts);
 }
 
@@ -1427,32 +1373,6 @@ test "datetime-from-seconds" {
     try testing.expectEqual(t.date, try Date.create(2020, 6, 17));
     try testing.expectEqual(t.time, try Time.create(18, 12, 1, 932644400));
     try testing.expectEqual(t.toSeconds(), ts);
-}
-
-test "datetime-shift-timezones" {
-    const ts = 1574908586928;
-    const utc = Datetime.fromTimestamp(ts);
-    var t = utc.shiftTimezone(&timezones.America.New_York);
-
-    try testing.expect(t.date.eql(try Date.create(2019, 11, 27)));
-    try testing.expectEqual(t.time.hour, 21);
-    try testing.expectEqual(t.time.minute, 36);
-    try testing.expectEqual(t.time.second, 26);
-    try testing.expectEqual(t.time.nanosecond, 928000000);
-    try testing.expectEqualSlices(u8, t.zone.name, "America/New_York");
-    try testing.expectEqual(t.toTimestamp(), ts);
-
-    // Shifting to same timezone has no effect
-    const same = t.shiftTimezone(&timezones.America.New_York);
-    try testing.expectEqual(t, same);
-
-    // Shift back works
-    const original = t.shiftTimezone(&timezones.UTC);
-    //std.log.warn("\nutc={}\n", .{utc});
-    //std.log.warn("original={}\n", .{original});
-    try testing.expect(utc.date.eql(original.date));
-    try testing.expect(utc.time.eql(original.time));
-    try testing.expect(utc.eql(original));
 }
 
 test "datetime-shift" {
@@ -1487,30 +1407,6 @@ test "datetime-shift" {
     try testing.expect(t.time.eql(dt.time));
 }
 
-test "datetime-shift-seconds" {
-    // Issue 1
-    const midnight_utc = try Datetime.create(2020, 12, 17, 0, 0, 0, 0, null);
-    const midnight_copenhagen = try Datetime.create(2020, 12, 17, 1, 0, 0, 0, &timezones.Europe.Copenhagen);
-    try testing.expect(midnight_utc.eql(midnight_copenhagen));
-
-    // Check rollover issues
-    var hour: u8 = 0;
-    while (hour < 24) : (hour += 1) {
-        var minute: u8 = 0;
-        while (minute < 60) : (minute += 1) {
-            var sec: u8 = 0;
-            while (sec < 60) : (sec += 1) {
-                const dt_utc = try Datetime.create(2020, 12, 17, hour, minute, sec, 0, null);
-                const dt_cop = dt_utc.shiftTimezone(&timezones.Europe.Copenhagen);
-                const dt_nyc = dt_utc.shiftTimezone(&timezones.America.New_York);
-                try testing.expect(dt_utc.eql(dt_cop));
-                try testing.expect(dt_utc.eql(dt_nyc));
-                try testing.expect(dt_nyc.eql(dt_cop));
-            }
-        }
-    }
-}
-
 test "datetime-compare" {
     var dt1 = try Datetime.create(2019, 12, 2, 11, 51, 13, 466545, null);
     var dt2 = try Datetime.fromDate(2016, 12, 2);
@@ -1521,9 +1417,6 @@ test "datetime-compare" {
 
     var dt4 = try dt3.copy();
     try testing.expect(dt3.eql(dt4));
-
-    var dt5 = dt1.shiftTimezone(&timezones.America.Louisville);
-    try testing.expect(dt5.eql(dt1));
 }
 
 test "datetime-subtract" {
@@ -1543,7 +1436,7 @@ test "datetime-subtract" {
 
 test "datetime-parse-modified-since" {
     const str = " Wed, 21 Oct 2015 07:28:00 GMT ";
-    try testing.expectEqual(try Datetime.parseModifiedSince(str), try Datetime.create(2015, 10, 21, 7, 28, 0, 0, &timezones.GMT));
+    try testing.expectEqual(try Datetime.parseModifiedSince(str), try Datetime.create(2015, 10, 21, 7, 28, 0, 0));
 
     try testing.expectError(error.InvalidFormat, Datetime.parseModifiedSince("21/10/2015"));
 }
