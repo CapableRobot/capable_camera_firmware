@@ -336,6 +336,7 @@ fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT) !void 
 
     var exif_tags = exif.init();
     exif_tags.set_gnss(pvt);
+    exif_tags.set_frametime(timestamp);
 
     if (exif_tags.bytes()) |exif_array| {
         const exif_len = exif_array.len + 2;

@@ -111,10 +111,15 @@ pub const Exif = struct {
     image_x: usize = 0,
     image_y: usize = 0,
     gnss_nav_pvt: ?gnss.PVT = null,
+    capture_timestamp: ?[24]u8 = null,
     byte_order: c.ExifByteOrder = c.ExifByteOrder.EXIF_BYTE_ORDER_MOTOROLA,
 
     pub fn set_gnss(self: *Exif, nav_pvt: gnss.PVT) void {
         self.gnss_nav_pvt = nav_pvt;
+    }
+
+    pub fn set_frametime(self: *Exif, timestamp: [24]u8) void {
+        self.capture_timestamp = timestamp;
     }
 
     pub fn bytes(self: *Exif) ?bounded_array.BoundedArray(u8, MAX_SIZE) {
@@ -228,6 +233,21 @@ pub const Exif = struct {
             const dop_scale: u8 = 100;
             entry = exif_create_tag(exif, ifd_gps, @ptrCast(c.ExifTag, c.ExifTag.EXIF_TAG_GPS_DOP));
             c.exif_set_rational(entry.*.data, self.byte_order, exif_rational(@floatToInt(u32, @round(nav_pvt.dop * @intToFloat(f32, dop_scale))), dop_scale));
+        }
+
+        if (self.capture_timestamp) |timestamp| {
+            var datetime: [19]u8 = undefined;
+            var subseconds: [3]u8 = undefined;
+
+            _ = std.fmt.bufPrint(&datetime, "{s} {s}", .{ timestamp[0..10], timestamp[11..19] }) catch unreachable;
+            _ = std.fmt.bufPrint(&subseconds, "{s}", .{timestamp[20..23]}) catch unreachable;
+            std.log.info("EXIF | datetime : {s} {s} {s}", .{ timestamp, datetime, subseconds });
+
+            entry = exif_create_tag(exif, ifd_exif, @ptrCast(c.ExifTag, c.ExifTag.EXIF_TAG_DATE_TIME_ORIGINAL));
+            exif_set_string(entry, datetime[0..]);
+
+            entry = exif_create_tag(exif, ifd_exif, @ptrCast(c.ExifTag, c.ExifTag.EXIF_TAG_SUB_SEC_TIME_ORIGINAL));
+            exif_set_string(entry, subseconds[0..]);
         }
 
         // Get a pointer to the EXIF data block we just created
