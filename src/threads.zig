@@ -267,56 +267,65 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
     }
 }
 
-fn alloc_filename(ctx: *RecordingContext, pvtdata: ?gnss.PVT, bytes: usize) ![]u8 {
-    if (pvtdata) |pvt| {
-        const t = pvt.time;
-        const age_sec: i64 = @divFloor(pvt.age, 1000);
-        const age_nsec: i64 = (pvt.age - age_sec * 1000) * std.time.ns_per_ms;
+fn alloc_filename(ctx: *RecordingContext, timestamp: ?[24]u8) ![]u8 {
+    const temp = try std.fmt.allocPrint(ctx.allocator, "{s}/{s}.jpg", .{ ctx.config.dir, timestamp });
+    defer ctx.allocator.free(temp);
 
-        // U-Blox module can report negative nanoseconds (e.g. times just before a second boundary)
-        //
-        // The datetime library can't handle this, so we just set nanoseconds to zero when it occurs.
-        // The alternative would be to add 1 sec to 'nanosecond' and subtract 1 sec from 'seconds', but
-        // there is the slight change that this would occur on the 0th second of a minute, which would
-        // cause a cascading rollback on the minute field, etc.
-        //
-        // Rounding up to zero is acceptable due to the small time scales here.  An instance of this occuring:
-        // t.second = 13, t.nanosecond = -116172 => 12.999883828 seconds
-        // When this value is rounded to 3 decimal places (for the filename), it would be 13.000
-        var t_nanosecond = t.nanosecond;
-        if (t_nanosecond < 0) {
-            t_nanosecond = 0;
-        }
+    const filename = try ctx.allocator.alloc(u8, temp.len);
+    _ = std.mem.replace(u8, temp, ":", "-", filename[0..]);
+    return filename;
+}
 
-        var stamp = try datetime.Datetime.create(t.year, t.month, t.day, t.hour, t.minute, @intCast(u32, t.second), @intCast(u32, t_nanosecond));
-        stamp = stamp.shift(datetime.Datetime.Delta{ .seconds = age_sec, .nanoseconds = @intCast(i32, age_nsec) });
+fn determine_frametime(pvt: gnss.PVT) [24]u8 {
+    var timestamp: [24]u8 = undefined;
+    const default = "1970-01-01T00-00-00.000Z";
+    std.mem.copy(u8, timestamp[0..], default[0..]);
 
-        var timestamp: [24]u8 = undefined;
-        _ = std.fmt.bufPrint(&timestamp, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>6.3}Z", .{
-            stamp.date.year,
-            stamp.date.month,
-            stamp.date.day,
-            stamp.time.hour,
-            stamp.time.minute,
-            @intToFloat(f64, stamp.time.second) + @intToFloat(f64, stamp.time.nanosecond) * 1e-9,
-        }) catch unreachable;
+    const t = pvt.time;
+    const age_sec: i64 = @divFloor(pvt.age, 1000);
+    const age_nsec: i64 = (pvt.age - age_sec * 1000) * std.time.ns_per_ms;
 
-        // std.log.info("FNAME | GNSS {s} + {d:.3} -> {s}", .{ pvt.timestamp, @intToFloat(f64, pvt.age) / 1000.0, timestamp });
-        std.log.info("REC RECV | Frame {s} is {} bytes", .{ timestamp, bytes });
-
-        const temp = try std.fmt.allocPrint(ctx.allocator, "{s}/{s}.jpg", .{ ctx.config.dir, timestamp });
-        defer ctx.allocator.free(temp);
-
-        const filename = try ctx.allocator.alloc(u8, temp.len);
-        _ = std.mem.replace(u8, temp, ":", "-", filename[0..]);
-        return filename;
-    } else {
-        return std.fmt.allocPrint(ctx.allocator, "{s}/1970-01-01T00-00-00.000Z.jpg", .{ctx.config.dir});
+    // U-Blox module can report negative nanoseconds (e.g. times just before a second boundary)
+    //
+    // The datetime library can't handle this, so we just set nanoseconds to zero when it occurs.
+    // The alternative would be to add 1 sec to 'nanosecond' and subtract 1 sec from 'seconds', but
+    // there is the slight change that this would occur on the 0th second of a minute, which would
+    // cause a cascading rollback on the minute field, etc.
+    //
+    // Rounding up to zero is acceptable due to the small time scales here.  An instance of this occuring:
+    // t.second = 13, t.nanosecond = -116172 => 12.999883828 seconds
+    // When this value is rounded to 3 decimal places (for the filename), it would be 13.000
+    var t_nanosecond = t.nanosecond;
+    if (t_nanosecond < 0) {
+        t_nanosecond = 0;
     }
+
+    var stamp = datetime.Datetime.create(t.year, t.month, t.day, t.hour, t.minute, @intCast(u32, t.second), @intCast(u32, t_nanosecond)) catch |err| {
+        std.log.info("REC RECV | Error creating datetime", .{});
+        return timestamp;
+    };
+
+    stamp = stamp.shift(datetime.Datetime.Delta{ .seconds = age_sec, .nanoseconds = @intCast(i32, age_nsec) });
+
+    _ = std.fmt.bufPrint(&timestamp, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>6.3}Z", .{
+        stamp.date.year,
+        stamp.date.month,
+        stamp.date.day,
+        stamp.time.hour,
+        stamp.time.minute,
+        @intToFloat(f64, stamp.time.second) + @intToFloat(f64, stamp.time.nanosecond) * 1e-9,
+    }) catch |err| {};
+
+    return timestamp;
 }
 
 fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT) !void {
-    var filename = try alloc_filename(ctx, pvt, buffer.len);
+    const timestamp = determine_frametime(pvt);
+
+    // std.log.info("FNAME | GNSS {s} + {d:.3} -> {s}", .{ pvt.timestamp, @intToFloat(f64, pvt.age) / 1000.0, timestamp });
+    std.log.info("REC RECV | Frame {s} is {} bytes", .{ timestamp, buffer.len });
+
+    var filename = try alloc_filename(ctx, timestamp);
     defer ctx.allocator.free(filename);
 
     var file = try std.fs.cwd().createFile(filename, .{});
