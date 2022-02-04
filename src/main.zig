@@ -136,7 +136,7 @@ pub fn main() anyerror!void {
         .socket = threads.rec_ctx.config.socket,
     };
 
-    try loop.runDetached(allocator, camera.bridge_thread, .{threads.camera_ctx});
+    //try loop.runDetached(allocator, camera.bridge_thread, .{threads.camera_ctx});
 
     var app = web.Application.init(allocator, .{ .debug = true });
     var app_ctx = threads.AppContext{ .app = &app, .config = cfg.api };

@@ -16,6 +16,9 @@ const std = @import("std");
 const fs = std.fs;
 const mem = @import("std").mem;
 
+const camParamBase = @import("cfg/camParamBase.zig");
+const imgCfg = @import("cfg/mutImgCfg.zig");
+
 pub const Api = struct {
     port: u16 = 5000,
 };
@@ -30,9 +33,9 @@ pub const Recording = struct {
 pub const Codec = enum { mjpeg, h264 };
 
 pub const Camera = struct {
-    fps: u8 = 10,
-    width: u16 = 4056,
-    height: u16 = 2016,
+    fps: u8 = imgCfg.mutableImgCfg.fps, //10,
+    width: u16 = imgCfg.mutableImgCfg.hpx, //4056,
+    height: u16 = imgCfg.mutableImgCfg.vpx, //2016,
     quality: u8 = 50,
     codec: Codec = Codec.mjpeg,
 };
@@ -42,6 +45,15 @@ pub const Config = struct {
     recording: Recording = Recording{},
     camera: Camera = Camera{},
 };
+
+pub fn writeCfg(camera: Camera) void {
+    var newCfgParam : imgCfg.MutableImgCfg;
+    newCfgParam.hpx = camera.width;
+    newCfgParam.vpx = camera.height;
+    newCfgParam.fps = camera.fps;
+    camParamBase.write_out_cam(camParamBase.fullFilePath,
+                               newCfgParam);
+}
 
 pub fn load(allocator: *mem.Allocator) Config {
     const max_size = 1024 * 1024;
