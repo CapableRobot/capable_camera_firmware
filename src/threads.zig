@@ -28,6 +28,7 @@ pub const GnssContext = struct {
     gnss: *gnss.GNSS,
     led: led_driver.LP50xx,
     interval: u16 = 1000,
+    config: config.Gnss,
 };
 
 pub const AppContext = struct {
@@ -411,12 +412,12 @@ pub fn gnss_thread(ctx: GnssContext) void {
 
     var last_debug_ms = std.time.milliTimestamp();
     var last_debug: i8 = -1;
-    const debug_interval: u16 = 2000;
+    const debug_interval: usize = ctx.config.debug_period * 1000;
 
     while (true) {
         const this_ms = std.time.milliTimestamp();
 
-        if (this_ms - last_debug_ms > debug_interval) {
+        if (debug_interval > 0 and this_ms - last_debug_ms > debug_interval) {
             last_debug += 1;
             ctx.gnss.set_next_timeout(2000);
 

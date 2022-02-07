@@ -97,11 +97,20 @@ pub fn main() anyerror!void {
     var pos = gnss.init(handle);
     var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
 
-    pos.reset(null);
+    if (cfg.gnss.reset_on_start) {
+        pos.reset(null);
+    }
+
     pos.configure();
     pos.set_interval(gnss_interval);
 
-    threads.gnss_ctx = threads.GnssContext{ .led = led, .gnss = &pos, .interval = gnss_interval };
+    threads.gnss_ctx = threads.GnssContext{
+        .led = led,
+        .gnss = &pos,
+        .interval = gnss_interval,
+        .config = cfg.gnss,
+    };
+
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
     // This will error if the socket doesn't exists.  We ignore that error
