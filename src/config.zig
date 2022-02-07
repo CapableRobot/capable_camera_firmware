@@ -28,7 +28,7 @@ pub const Gnss = struct {
 pub const Recording = struct {
     dir: []const u8 = "/tmp/recording",
     max_size: u64 = 100, // MB
-    cleanup_frequency: u16 = 10, // seconds
+    cleanup_period: u16 = 10, // seconds
     socket: []const u8 = "/tmp/bridge.sock",
 };
 
