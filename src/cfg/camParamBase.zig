@@ -16,9 +16,9 @@ const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
 
-const imgCfg = @import("MutImgCfg.zig");
+const imgCfg = @import("mutImgCfg.zig");
 
-const fullFilePath: []const u8 = "src/cfg/MutImgCfg.zig";
+pub const fullFilePath: []const u8 = "src/cfg/mutImgCfg.zig";
 
 const imgCfgStctQuineStr: []const u8 = 
 \\pub const MutableImgCfg = struct {
@@ -46,7 +46,7 @@ const imgCfgVarQuineClose: []const u8 =
 ;
 
 pub fn write_out_cam(cfg_filename: []const u8,
-                     cfg_params:   MutableImgCfg)
+                     cfg_params:   imgCfg.MutableImgCfg)
                 anyerror!void{                 
     
     const output_file = try std.fs.cwd().createFile(
