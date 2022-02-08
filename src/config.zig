@@ -55,6 +55,17 @@ pub fn writeCfg(camera: Camera) void {
                                newCfgParam);
 }
 
+//add update here, call update launch file
+//options.cpp camera core options
+// for exposure controls - exposure time alone for now
+// white balance setting, gain, libcamera egc
+// download libcamera source for rasp-pi
+// src/ipa/raspberry-pi - most algorithms in controller/rpi
+// AWB, AGC, contrast, black-level
+// find out how to expose in libcamera apps
+// frame duration limits - usec min and max frame limits
+
+
 pub fn load(allocator: *mem.Allocator) Config {
     const max_size = 1024 * 1024;
 
