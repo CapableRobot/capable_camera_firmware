@@ -23,10 +23,15 @@ pub const Api = struct {
     port: u16 = 5000,
 };
 
+pub const Gnss = struct {
+    debug_period: u16 = 0,
+    reset_on_start: bool = true,
+};
+
 pub const Recording = struct {
     dir: []const u8 = "/tmp/recording",
     max_size: u64 = 100, // MB
-    cleanup_frequency: u16 = 10, // seconds
+    cleanup_period: u16 = 10, // seconds
     socket: []const u8 = "/tmp/bridge.sock",
 };
 
@@ -44,6 +49,7 @@ pub const Config = struct {
     api: Api = Api{},
     recording: Recording = Recording{},
     camera: Camera = Camera{},
+    gnss: Gnss = Gnss{},
 };
 
 pub fn writeCfg(camera: Camera) void {

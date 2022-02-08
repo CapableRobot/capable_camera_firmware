@@ -28,6 +28,7 @@ pub const GnssContext = struct {
     gnss: *gnss.GNSS,
     led: led_driver.LP50xx,
     interval: u16 = 1000,
+    config: config.Gnss,
 };
 
 pub const AppContext = struct {
@@ -368,7 +369,7 @@ fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT) !void 
 }
 
 pub fn recording_cleanup_thread(ctx: RecordingContext) void {
-    const sleep_ns = @intCast(u64, ctx.config.cleanup_frequency) * std.time.ns_per_s;
+    const sleep_ns = @intCast(u64, ctx.config.cleanup_period) * std.time.ns_per_s;
 
     const path = ctx.config.dir;
 
@@ -387,10 +388,10 @@ pub fn recording_cleanup_thread(ctx: RecordingContext) void {
     while (true) {
         recording.directory_cleanup(ctx);
 
-        // Over time we'll drift behind desired cleanup_frequency, due to time it takes
+        // Over time we'll drift behind desired cleanup_period, due to time it takes
         // to do the cleanup -- but that is fine.  And, it's possible that the recording
-        // directory has so many files that the it takes longer than 1/cleanup_frequency
-        // to scan and cleanup.  In that case, we still want to wait 1/cleanup_frequency
+        // directory has so many files that the it takes longer than cleanup_period
+        // to scan and cleanup.  In that case, we still want to wait cleanup_period
         // before the next scan -- not start a new scan immediately.
         std.time.sleep(sleep_ns);
     }
@@ -411,12 +412,12 @@ pub fn gnss_thread(ctx: GnssContext) void {
 
     var last_debug_ms = std.time.milliTimestamp();
     var last_debug: i8 = -1;
-    const debug_interval: u16 = 2000;
+    const debug_interval: usize = ctx.config.debug_period * 1000;
 
     while (true) {
         const this_ms = std.time.milliTimestamp();
 
-        if (this_ms - last_debug_ms > debug_interval) {
+        if (debug_interval > 0 and this_ms - last_debug_ms > debug_interval) {
             last_debug += 1;
             ctx.gnss.set_next_timeout(2000);
 
