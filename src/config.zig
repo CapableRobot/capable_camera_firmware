@@ -112,10 +112,11 @@ pub fn load(allocator: *mem.Allocator) Config {
             return Config{};
         },
     };
+    defer allocator.free(input);
 
     var tokens = std.json.TokenStream.init(input);
 
-    return std.json.parse(Config, &tokens, std.json.ParseOptions{
+    var config = std.json.parse(Config, &tokens, std.json.ParseOptions{
         .allocator = allocator,
         .ignore_unknown_fields = true,
         .allow_trailing_data = true,
@@ -123,6 +124,119 @@ pub fn load(allocator: *mem.Allocator) Config {
         std.log.err("config: failed to parse config file : {any}\n", .{err});
         return Config{};
     };
+
+    std.log.info("config: {any}", .{config});
+
+    // Code below allows a second config.json file inside the recording directory to be detected
+    // and used to update the configuration object before software starts.
+    //
+    // Configuration hierarchy is therefore:
+    //
+    // - Defaults values in structs (above) can be update by:
+    // - Contents of config.json delievered alongside firmware, which can be update by:
+    // - Contents of config.json inside the target recording folder
+
+    const patch_path = std.fs.path.join(allocator, &[_][]const u8{ config.recording.dir, "config.json" }) catch |err| {
+        std.log.info("config: could not create overrider file path\n", .{});
+        return config;
+    };
+
+    const patch_file = fs.openFileAbsolute(patch_path, .{ .read = true }) catch |err| {
+        std.log.info("config: no override file found\n", .{});
+        return config;
+    };
+
+    var parser = std.json.Parser.init(allocator, false);
+    defer parser.deinit();
+
+    const patch_input = patch_file.readToEndAlloc(
+        allocator,
+        max_size,
+    ) catch |err| switch (err) {
+        error.FileTooBig => {
+            std.log.err("config: file too large\n", .{});
+            return Config{};
+        },
+        else => {
+            std.log.err("config: file read error\n", .{});
+            return Config{};
+        },
+    };
+    defer allocator.free(patch_input);
+
+    var tree = parser.parse(patch_input) catch |err| {
+        std.log.info("config: error parsing override file, returning config\n", .{});
+        return config;
+    };
+    defer tree.deinit();
+
+    // NOTE : implementation below supports the current hierarchy of configuration "group: { key: value }"
+    // If the configuration tree goes deeper than the current parent.child nesting, this code will have to
+    // be refactored to support additional nesting depth.
+
+    // inline required for this is unrolled at compliation time
+    inline for (@typeInfo(Config).Struct.fields) |root_field| {
+
+        // Check if override config file has root keys which match valid config fields
+        if (tree.root.Object.get(root_field.name)) |root_node| {
+
+            // Get the config field which we are updating
+            var object = @field(config, root_field.name);
+
+            // inline required for this is unrolled at compliation time
+            inline for (@typeInfo(@TypeOf(object)).Struct.fields) |child_field| {
+
+                // Get the child field which we are updating
+                if (root_node.Object.get(child_field.name)) |child_node| {
+
+                    // Based on the type of the child field, we need to change how the
+                    // JSON value union is acesses, and we may need to cast from the
+                    // JSON numeric types (i64, f64) to smaller numeric types used in the
+                    // configuration structs.  These nested switch cases handle checking
+                    // that the JSON value type and the struct type match.
+                    //
+                    // Once the child field has been updated, that update object has to
+                    // be reassigned back to appropiate field of the parent/root config variable.
+                    //
+                    // TODO : support string / const u8 values
+                    switch (child_field.field_type) {
+                        bool => {
+                            switch (child_node) {
+                                .Bool => {
+                                    @field(object, child_field.name) = child_node.Bool;
+                                    @field(config, root_field.name) = object;
+                                },
+                                else => std.log.warn("config: expected bool for {s}", .{child_field.name}),
+                            }
+                        },
+                        u8, u16, u32, u64 => {
+                            switch (child_node) {
+                                .Integer => {
+                                    @field(object, child_field.name) = @intCast(child_field.field_type, child_node.Integer);
+                                    @field(config, root_field.name) = object;
+                                },
+                                else => std.log.warn("config: expected integer for {s}", .{child_field.name}),
+                            }
+                        },
+                        f32, f64 => {
+                            switch (child_node) {
+                                .Integer => {
+                                    @field(object, child_field.name) = @floatCast(child_field.field_type, child_node.Float);
+                                    @field(config, root_field.name) = object;
+                                },
+                                else => std.log.warn("config: expected float for {s}", .{child_field.name}),
+                            }
+                        },
+                        else => std.log.warn("config: override failed for {s} type {any}", .{ child_field.name, child_field.field_type }),
+                    }
+                }
+            }
+        }
+    }
+
+    std.log.info("config: {any}", .{config});
+
+    return config;
 }
 
 pub fn writeJsonCfg(allocator: *mem.Allocator) Config {
