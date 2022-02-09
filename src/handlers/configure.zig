@@ -19,8 +19,7 @@ const print = std.debug.print;
 
 const web = @import("zhp");
 
-const camParamBase = @import("../cfg/camParamBase.zig");
-const imgCfg = @import("../cfg/mutImgCfg.zig");
+const cfg = @import("../config.zig");
 
 const updateStr: []const u8 = 
 \\Updated Imager Parameters:
@@ -33,19 +32,7 @@ const failStr: []const u8 =
 \\Failed to update!
 ;
 
-pub fn validate(cfg_params: imgCfg.MutableImgCfg) bool{
-    var isGood: bool = true;
-    if (cfg_params.hpx == 0){ isGood = false; }
-    if (cfg_params.vpx == 0){ isGood = false; }
-    if (cfg_params.fps == 0){ isGood = false; }
-    if (cfg_params.hpx > 4096){ isGood = false; }
-    if (cfg_params.vpx > 2160){ isGood = false; }
-    if (cfg_params.fps >   30){ isGood = false; }    
-    
-    return isGood;
-}
-
-pub const Handler = struct {
+pub const ImgCfgHandler = struct {
     
     pub fn post(self: *Handler, 
                 request: *web.Request, 
@@ -54,9 +41,7 @@ pub const Handler = struct {
         
        var respBuff: [256]u8 = undefined;
        const outputSlice = respBuff[0..];
-       var cfg_params = imgCfg.MutableImgCfg {.hpx = 0, 
-                                              .vpx = 0,
-                                              .fps = 0};
+       var cfg_params = cfg.Camera {};
        var goodInput: bool = true;
      
        var content_type = request.headers.getDefault("Content-Type", "");
@@ -73,22 +58,14 @@ pub const Handler = struct {
                // TODO: Parsing should use a stream
              },
              .Buffer => {
-               var reqContent = content.data.buffer;
-               var contentStream = std.json.TokenStream.init(reqContent);
-               cfg_params = try std.json.parse(imgCfg.MutableImgCfg,
-                                               &contentStream, .{});
-               goodInput = validate(cfg_params);
-               if(goodInput){
-                 try camParamBase.write_out_cam(camParamBase.fullFilePath, 
-                                                cfg_params);
-               }
+                goodInput = cfg.updateCamCfg(content.data.buffer, &cfg_params);
              }
            }
-         }           
+         }     
        }
        if (goodInput){
            const outputStr = try std.fmt.bufPrint(outputSlice, updateStr, 
-            .{cfg_params.hpx, cfg_params.vpx, cfg_params.fps});
+            .{cfg_params.width, cfg_params.height, cfg_params.fps});
            try response.stream.writeAll(outputStr);
        } else {
            const outputStr = try std.fmt.bufPrint(outputSlice, failStr, .{});

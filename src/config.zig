@@ -16,8 +16,7 @@ const std = @import("std");
 const fs = std.fs;
 const mem = @import("std").mem;
 
-const camParamBase = @import("cfg/camParamBase.zig");
-const imgCfg = @import("cfg/mutImgCfg.zig");
+const imgCfg = @import("cfg/camParamBase.zig");
 
 pub const Api = struct {
     port: u16 = 5000,
@@ -38,9 +37,9 @@ pub const Recording = struct {
 pub const Codec = enum { mjpeg, h264 };
 
 pub const Camera = struct {
-    fps: u8 = imgCfg.mutableImgCfg.fps, //10,
-    width: u16 = imgCfg.mutableImgCfg.hpx, //4056,
-    height: u16 = imgCfg.mutableImgCfg.vpx, //2016,
+    fps: u8 = 10,
+    width: u16 = 4056,
+    height: u16 = 2016,
     quality: u8 = 50,
     codec: Codec = Codec.mjpeg,
 };
@@ -52,15 +51,6 @@ pub const Config = struct {
     gnss: Gnss = Gnss{},
 };
 
-pub fn writeCfg(camera: Camera) void {
-    var newCfgParam : imgCfg.MutableImgCfg;
-    newCfgParam.hpx = camera.width;
-    newCfgParam.vpx = camera.height;
-    newCfgParam.fps = camera.fps;
-    camParamBase.write_out_cam(camParamBase.fullFilePath,
-                               newCfgParam);
-}
-
 //add update here, call update launch file
 //options.cpp camera core options
 // for exposure controls - exposure time alone for now
@@ -71,6 +61,35 @@ pub fn writeCfg(camera: Camera) void {
 // find out how to expose in libcamera apps
 // frame duration limits - usec min and max frame limits
 
+pub fn validateCamCfg(cfg_params: Camera) bool{
+    var isGood: bool = true;
+    if (cfg_params.width  == 0){ isGood = false; }
+    if (cfg_params.height == 0){ isGood = false; }
+    if (cfg_params.fps    == 0){ isGood = false; }
+    if (cfg_params.width  > 4096){ isGood = false; }
+    if (cfg_params.height > 2048){ isGood = false; }
+    if (cfg_params.fps    >   30){ isGood = false; }    
+    
+    return isGood;
+}
+
+pub fn updateCamCfg(reqContent: u8[],
+                    cfg_params: &Camera) bool {
+    var goodInput = false;
+	var contentStream = std.json.TokenStream.init(reqContent);
+    cfg_params = try std.json.parse(Camera, &contentStream, .{});
+    goodInput = validate(cfg_params);
+    if(goodInput){
+        try imgCfg.update_script(camParamBase.fullFilePath,
+		                         cfg_params.width,
+								 cfg_params.height,
+								 cfg_params.fps);
+		try writeJsonCfg(fullFilePath,
+		                 Recording,
+		                 cfg_params);
+    }
+	return goodInput;
+}
 
 pub fn load(allocator: *mem.Allocator) Config {
     const max_size = 1024 * 1024;
@@ -104,4 +123,16 @@ pub fn load(allocator: *mem.Allocator) Config {
         std.log.err("config: failed to parse config file : {any}\n", .{err});
         return Config{};
     };
+}
+
+pub fn writeJsonCfg(allocator: *mem.Allocator) Config {
+    const max_size = 1024 * 1024;
+	
+	const output_file = std.fs.cwd().createFile("config.json", .{.read = true}) catch |err| {
+        std.log.err("config: failed to open config file\n", .{});
+        return Config{};
+    };
+	defer output_file.close();
+	
+	
 }
