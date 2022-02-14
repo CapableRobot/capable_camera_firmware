@@ -45,8 +45,8 @@ const execLine =
 
 pub fn update_script(cfg_filename: []const u8,
                      hpx:          u16,
-					 vpx:          u16,
-					 fps:          u8)
+                     vpx:          u16,
+                     fps:          u8)
                      anyerror!void{                 
     
     const output_file = try std.fs.cwd().createFile(
@@ -63,3 +63,4 @@ pub fn update_script(cfg_filename: []const u8,
     try output_file.writeAll(filledStr);   
     return;
 }
+                  

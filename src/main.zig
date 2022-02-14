@@ -58,6 +58,7 @@ pub fn main() anyerror!void {
     const allocator = &gpa.allocator;
 
     var cfg = config.load(allocator);
+    config.setPrimaryCfg(cfg);
 
     var loop: std.event.Loop = undefined;
     try loop.initMultiThreaded();

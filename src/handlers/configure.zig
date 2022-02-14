@@ -34,7 +34,7 @@ const failStr: []const u8 =
 
 pub const ImgCfgHandler = struct {
     
-    pub fn post(self: *Handler, 
+    pub fn post(self: *ImgCfgHandler, 
                 request: *web.Request, 
                 response: *web.Response) !void {
        try response.headers.append("Content-Type", "text/plain");
@@ -58,7 +58,7 @@ pub const ImgCfgHandler = struct {
                // TODO: Parsing should use a stream
              },
              .Buffer => {
-                goodInput = cfg.updateCamCfg(content.data.buffer, &cfg_params);
+                goodInput = try cfg.updateCamCfg(content.data.buffer) catch false;
              }
            }
          }     

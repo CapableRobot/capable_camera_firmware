@@ -18,6 +18,8 @@ const mem = @import("std").mem;
 
 const imgCfg = @import("cfg/camParamBase.zig");
 
+var mainCfg = Config {}; 
+
 pub const Api = struct {
     port: u16 = 5000,
 };
@@ -51,44 +53,8 @@ pub const Config = struct {
     gnss: Gnss = Gnss{},
 };
 
-//add update here, call update launch file
-//options.cpp camera core options
-// for exposure controls - exposure time alone for now
-// white balance setting, gain, libcamera egc
-// download libcamera source for rasp-pi
-// src/ipa/raspberry-pi - most algorithms in controller/rpi
-// AWB, AGC, contrast, black-level
-// find out how to expose in libcamera apps
-// frame duration limits - usec min and max frame limits
-
-pub fn validateCamCfg(cfg_params: Camera) bool{
-    var isGood: bool = true;
-    if (cfg_params.width  == 0){ isGood = false; }
-    if (cfg_params.height == 0){ isGood = false; }
-    if (cfg_params.fps    == 0){ isGood = false; }
-    if (cfg_params.width  > 4096){ isGood = false; }
-    if (cfg_params.height > 2048){ isGood = false; }
-    if (cfg_params.fps    >   30){ isGood = false; }    
-    
-    return isGood;
-}
-
-pub fn updateCamCfg(reqContent: u8[],
-                    cfg_params: &Camera) bool {
-    var goodInput = false;
-	var contentStream = std.json.TokenStream.init(reqContent);
-    cfg_params = try std.json.parse(Camera, &contentStream, .{});
-    goodInput = validate(cfg_params);
-    if(goodInput){
-        try imgCfg.update_script(camParamBase.fullFilePath,
-		                         cfg_params.width,
-								 cfg_params.height,
-								 cfg_params.fps);
-		try writeJsonCfg(fullFilePath,
-		                 Recording,
-		                 cfg_params);
-    }
-	return goodInput;
+pub fn setPrimaryCfg(config: Config) void {
+    mainCfg = config;
 }
 
 pub fn load(allocator: *mem.Allocator) Config {
@@ -239,14 +205,46 @@ pub fn load(allocator: *mem.Allocator) Config {
     return config;
 }
 
-pub fn writeJsonCfg(allocator: *mem.Allocator) Config {
-    const max_size = 1024 * 1024;
-	
-	const output_file = std.fs.cwd().createFile("config.json", .{.read = true}) catch |err| {
+pub fn writeJsonCfg() !void {
+    var buffer: [1024 * 1024]u8 = undefined;
+    const allocator = try std.heap.FixedBufferAllocator.init(&buffer).allocator();
+    const output_file = std.fs.cwd().createFile("config.json", .{.read = true}) catch |err| {
+        
         std.log.err("config: failed to open config file\n", .{});
-        return Config{};
+        return err;
     };
-	defer output_file.close();
-	
-	
+    defer output_file.close();
+    var output_str = std.ArrayList(u8).init(allocator);
+    defer output_str.deinit();
+    try std.json.stringify(mutableImgCfg, .{}, output_str.writer());
+    try output_file.writeAll(output_str.items);
+}
+
+pub fn validateCamCfg(cfg_params: Camera) bool{
+    var isGood: bool = true;
+    if (cfg_params.width  == 0){ isGood = false; }
+    if (cfg_params.height == 0){ isGood = false; }
+    if (cfg_params.fps    == 0){ isGood = false; }
+    if (cfg_params.width  > 4096){ isGood = false; }
+    if (cfg_params.height > 2048){ isGood = false; }
+    if (cfg_params.fps    >   30){ isGood = false; }    
+    
+    return isGood;
+}
+
+pub fn updateCamCfg(reqContent: []const u8) !bool {
+    var goodInput = false;
+    var contentStream = std.json.TokenStream.init(reqContent);
+    var new_params = Camera {};
+    new_params = try std.json.parse(Camera, &contentStream, .{});
+    goodInput = validateCamCfg(new_params);
+    if(goodInput){
+        try imgCfg.update_script(imgCfg.fullFilePath,
+                                 new_params.width,
+                                 new_params.height,
+                                 new_params.fps);
+        mainCfg.camera = new_params;
+        try writeJsonCfg();
+    }
+    return goodInput;
 }
