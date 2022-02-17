@@ -16,7 +16,7 @@ const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
 
-pub const fullFilePath: []const u8 = "camera/bridge-start.sh";
+pub const fullFilePath: []const u8 = "camera/bridge.sh";
 
 const scriptLines = 
 \\#!/bin/bash
