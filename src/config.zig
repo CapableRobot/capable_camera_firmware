@@ -18,8 +18,6 @@ const mem = @import("std").mem;
 
 const imgCfg = @import("cfg/camParamBase.zig");
 
-var mainCfg = Config {}; 
-
 pub const Api = struct {
     port: u16 = 5000,
 };
@@ -36,215 +34,230 @@ pub const Recording = struct {
     socket: []const u8 = "/tmp/bridge.sock",
 };
 
-pub const Codec = enum { mjpeg, h264 };
+//Note that the JSON parser currently doesn't support
+//processing enums by their string value, although this
+//is an open issue that may be integrated in the future:
+//see https://github.com/ziglang/zig/issues/9451
+pub const Codec_enum = enum { mjpeg, h264 };
 
 pub const Camera = struct {
     fps: u8 = 10,
     width: u16 = 4056,
     height: u16 = 2016,
     quality: u8 = 50,
-    codec: Codec = Codec.mjpeg,
+    //codec: Codec = Codec.mjpeg,
+    codec: []const u8 = "mjpeg",
 };
 
-pub const Config = struct {
+pub const Context = struct {
     api: Api = Api{},
     recording: Recording = Recording{},
     camera: Camera = Camera{},
     gnss: Gnss = Gnss{},
 };
 
-pub fn setPrimaryCfg(config: Config) void {
-    mainCfg = config;
-}
+pub const Config = struct {
 
-pub fn load(allocator: *mem.Allocator) Config {
-    const max_size = 1024 * 1024;
+    ctx: Context = Context{},
+    allocator: *std.mem.Allocator,
 
-    const input_file = std.fs.cwd().openFile("config.json", .{}) catch |err| {
-        std.log.err("config: failed to open config file\n", .{});
-        return Config{};
-    };
 
-    const input = input_file.readToEndAlloc(
-        allocator,
-        max_size,
-    ) catch |err| switch (err) {
-        error.FileTooBig => {
-            std.log.err("config: file too large\n", .{});
-            return Config{};
-        },
-        else => {
-            std.log.err("config: file read error\n", .{});
-            return Config{};
-        },
-    };
-    defer allocator.free(input);
+    pub fn load(allocator: *mem.Allocator) Config {
+        const max_size = 1024 * 1024;
 
-    var tokens = std.json.TokenStream.init(input);
+        const input_file = std.fs.cwd().openFile("config.json", .{}) catch |err| {
+          std.log.err("config: failed to open config file\n", .{});
+          return Config{.ctx = Context{}, .allocator = allocator};
+        };
 
-    var config = std.json.parse(Config, &tokens, std.json.ParseOptions{
-        .allocator = allocator,
-        .ignore_unknown_fields = true,
-        .allow_trailing_data = true,
-    }) catch |err| {
-        std.log.err("config: failed to parse config file : {any}\n", .{err});
-        return Config{};
-    };
+        const input = input_file.readToEndAlloc(
+            allocator,
+            max_size,
+        ) catch |err| switch (err) {
+            error.FileTooBig => {
+                std.log.err("config: file too large\n", .{});
+                return Config{.ctx = Context{}, .allocator = allocator};
+            },
+            else => {
+                std.log.err("config: file read error\n", .{});
+                return Config{.ctx = Context{}, .allocator = allocator};
+            },
+        };
+        defer allocator.free(input);
 
-    std.log.info("config: {any}", .{config});
+        var tokens = std.json.TokenStream.init(input);
 
-    // Code below allows a second config.json file inside the recording directory to be detected
-    // and used to update the configuration object before software starts.
-    //
-    // Configuration hierarchy is therefore:
-    //
-    // - Defaults values in structs (above) can be update by:
-    // - Contents of config.json delievered alongside firmware, which can be update by:
-    // - Contents of config.json inside the target recording folder
+        var new_ctx = std.json.parse(Context, &tokens, std.json.ParseOptions{
+            .allocator = allocator,
+            .ignore_unknown_fields = true,
+            .allow_trailing_data = true,
+        }) catch |err| {
+            std.log.err("config: failed to parse config file : {any}\n", .{err});
+            return Config{.ctx = Context{}, .allocator = allocator};
+        };
 
-    const patch_path = std.fs.path.join(allocator, &[_][]const u8{ config.recording.dir, "config.json" }) catch |err| {
-        std.log.info("config: could not create overrider file path\n", .{});
-        return config;
-    };
+        std.log.info("config: {any}", .{new_ctx});
 
-    const patch_file = fs.openFileAbsolute(patch_path, .{ .read = true }) catch |err| {
-        std.log.info("config: no override file found\n", .{});
-        return config;
-    };
+        // Code below allows a second config.json file inside the recording directory to be detected
+        // and used to update the configuration object before software starts.
+        //
+        // Configuration hierarchy is therefore:
+        //
+        // - Defaults values in structs (above) can be update by:
+        // - Contents of config.json delievered alongside firmware, which can be update by:
+        // - Contents of config.json inside the target recording folder
 
-    var parser = std.json.Parser.init(allocator, false);
-    defer parser.deinit();
+        const patch_path = std.fs.path.join(allocator, &[_][]const u8{ new_ctx.recording.dir, "config.json" }) catch |err| {
+            std.log.info("config: could not create overrider file path\n", .{});
+            return Config{.ctx = new_ctx, .allocator = allocator};
+        };
 
-    const patch_input = patch_file.readToEndAlloc(
-        allocator,
-        max_size,
-    ) catch |err| switch (err) {
-        error.FileTooBig => {
-            std.log.err("config: file too large\n", .{});
-            return Config{};
-        },
-        else => {
-            std.log.err("config: file read error\n", .{});
-            return Config{};
-        },
-    };
-    defer allocator.free(patch_input);
+        const patch_file = fs.openFileAbsolute(patch_path, .{ .read = true }) catch |err| {
+            std.log.info("config: no override file found\n", .{});
+            return Config{.ctx = new_ctx, .allocator = allocator};
+        };
 
-    var tree = parser.parse(patch_input) catch |err| {
-        std.log.info("config: error parsing override file, returning config\n", .{});
-        return config;
-    };
-    defer tree.deinit();
+        var parser = std.json.Parser.init(allocator, false);
+        defer parser.deinit();
+    
+        const patch_input = patch_file.readToEndAlloc(
+            allocator,
+            max_size,
+        ) catch |err| switch (err) {
+            error.FileTooBig => {
+                std.log.err("config: file too large\n", .{});
+                return Config{.ctx = Context{}, .allocator = allocator};
+            },
+            else => {
+                std.log.err("config: file read error\n", .{});
+                return Config{.ctx = Context{}, .allocator = allocator};
+            },
+        };
+        defer allocator.free(patch_input);
+    
 
-    // NOTE : implementation below supports the current hierarchy of configuration "group: { key: value }"
-    // If the configuration tree goes deeper than the current parent.child nesting, this code will have to
-    // be refactored to support additional nesting depth.
+        var tree = parser.parse(patch_input) catch |err| {
+            std.log.info("config: error parsing override file, returning config\n", .{});
+            return Config{.ctx = new_ctx, .allocator = allocator};
+        };
+        defer tree.deinit();
 
-    // inline required for this is unrolled at compliation time
-    inline for (@typeInfo(Config).Struct.fields) |root_field| {
+        // NOTE : implementation below supports the current hierarchy of configuration "group: { key: value }"
+        // If the configuration tree goes deeper than the current parent.child nesting, this code will have to
+        // be refactored to support additional nesting depth.
 
-        // Check if override config file has root keys which match valid config fields
-        if (tree.root.Object.get(root_field.name)) |root_node| {
+        // inline required for this is unrolled at compliation time
+        inline for (@typeInfo(Context).Struct.fields) |root_field| {
 
-            // Get the config field which we are updating
-            var object = @field(config, root_field.name);
+            // Check if override config file has root keys which match valid config fields
+            if (tree.root.Object.get(root_field.name)) |root_node| {
+    
+                // Get the config field which we are updating
+                var object = @field(new_ctx, root_field.name);
 
-            // inline required for this is unrolled at compliation time
-            inline for (@typeInfo(@TypeOf(object)).Struct.fields) |child_field| {
+                // inline required for this is unrolled at compliation time
+                inline for (@typeInfo(@TypeOf(object)).Struct.fields) |child_field| {
 
-                // Get the child field which we are updating
-                if (root_node.Object.get(child_field.name)) |child_node| {
+                    // Get the child field which we are updating
+                    if (root_node.Object.get(child_field.name)) |child_node| {
 
-                    // Based on the type of the child field, we need to change how the
-                    // JSON value union is acesses, and we may need to cast from the
-                    // JSON numeric types (i64, f64) to smaller numeric types used in the
-                    // configuration structs.  These nested switch cases handle checking
-                    // that the JSON value type and the struct type match.
-                    //
-                    // Once the child field has been updated, that update object has to
-                    // be reassigned back to appropiate field of the parent/root config variable.
-                    //
-                    // TODO : support string / const u8 values
-                    switch (child_field.field_type) {
-                        bool => {
-                            switch (child_node) {
-                                .Bool => {
-                                    @field(object, child_field.name) = child_node.Bool;
-                                    @field(config, root_field.name) = object;
-                                },
-                                else => std.log.warn("config: expected bool for {s}", .{child_field.name}),
-                            }
-                        },
-                        u8, u16, u32, u64 => {
-                            switch (child_node) {
-                                .Integer => {
-                                    @field(object, child_field.name) = @intCast(child_field.field_type, child_node.Integer);
-                                    @field(config, root_field.name) = object;
-                                },
-                                else => std.log.warn("config: expected integer for {s}", .{child_field.name}),
-                            }
-                        },
-                        f32, f64 => {
-                            switch (child_node) {
-                                .Integer => {
-                                    @field(object, child_field.name) = @floatCast(child_field.field_type, child_node.Float);
-                                    @field(config, root_field.name) = object;
-                                },
-                                else => std.log.warn("config: expected float for {s}", .{child_field.name}),
-                            }
-                        },
-                        else => std.log.warn("config: override failed for {s} type {any}", .{ child_field.name, child_field.field_type }),
+                        // Based on the type of the child field, we need to change how the
+                        // JSON value union is acesses, and we may need to cast from the
+                        // JSON numeric types (i64, f64) to smaller numeric types used in the
+                        // configuration structs.  These nested switch cases handle checking
+                        // that the JSON value type and the struct type match.
+                        //
+                        // Once the child field has been updated, that update object has to
+                        // be reassigned back to appropiate field of the parent/root config variable.
+                        //
+                        // TODO : support string / const u8 values
+                        switch (child_field.field_type) {
+                            bool => {
+                                switch (child_node) {
+                                    .Bool => {
+                                        @field(object, child_field.name) = child_node.Bool;
+                                        @field(new_ctx, root_field.name) = object;
+                                    },
+                                    else => std.log.warn("config: expected bool for {s}", .{child_field.name}),
+                                }
+                            },
+                            u8, u16, u32, u64 => {
+                                switch (child_node) {
+                                    .Integer => {
+                                        @field(object, child_field.name) = @intCast(child_field.field_type, child_node.Integer);
+                                        @field(new_ctx, root_field.name) = object;
+                                    },
+                                    else => std.log.warn("config: expected integer for {s}", .{child_field.name}),
+                                }
+                            },
+                            f32, f64 => {
+                                switch (child_node) {
+                                    .Integer => {
+                                        @field(object, child_field.name) = @floatCast(child_field.field_type, child_node.Float);
+                                        @field(config.ctx, root_field.name) = object;
+                                    },
+                                    else => std.log.warn("config: expected float for {s}", .{child_field.name}),
+                                }
+                            },
+                            else => std.log.warn("config: override failed for {s} type {any}", .{ child_field.name, child_field.field_type }),
+                        }
                     }
                 }
             }
         }
+
+        std.log.info("config: {any}", .{new_ctx});
+
+        return Config{.ctx = new_ctx, .allocator = allocator};
     }
 
-    std.log.info("config: {any}", .{config});
-
-    return config;
-}
-
-pub fn writeJsonCfg() !void {
-    var buffer: [1024 * 1024]u8 = undefined;
-    const allocator = try std.heap.FixedBufferAllocator.init(&buffer).allocator();
-    const output_file = std.fs.cwd().createFile("config.json", .{.read = true}) catch |err| {
-        
-        std.log.err("config: failed to open config file\n", .{});
-        return err;
-    };
-    defer output_file.close();
-    var output_str = std.ArrayList(u8).init(allocator);
-    defer output_str.deinit();
-    try std.json.stringify(mutableImgCfg, .{}, output_str.writer());
-    try output_file.writeAll(output_str.items);
-}
-
-pub fn validateCamCfg(cfg_params: Camera) bool{
-    var isGood: bool = true;
-    if (cfg_params.width  == 0){ isGood = false; }
-    if (cfg_params.height == 0){ isGood = false; }
-    if (cfg_params.fps    == 0){ isGood = false; }
-    if (cfg_params.width  > 4096){ isGood = false; }
-    if (cfg_params.height > 2048){ isGood = false; }
-    if (cfg_params.fps    >   30){ isGood = false; }    
+    pub fn writeJsonCfg(self: *Config) !void {        
+        const output_file = std.fs.cwd().createFile("config.json", .{.read = true}) catch |err| {
+            std.log.err("config: failed to open config file\n", .{});
+            return err;
+        };
     
-    return isGood;
-}
-
-pub fn updateCamCfg(reqContent: []const u8) !bool {
-    var goodInput = false;
-    var contentStream = std.json.TokenStream.init(reqContent);
-    var new_params = Camera {};
-    new_params = try std.json.parse(Camera, &contentStream, .{});
-    goodInput = validateCamCfg(new_params);
-    if(goodInput){
-        try imgCfg.update_script(imgCfg.fullFilePath,
-                                 new_params.width,
-                                 new_params.height,
-                                 new_params.fps);
-        mainCfg.camera = new_params;
-        try writeJsonCfg();
+        defer output_file.close();
+        var output_str = std.ArrayList(u8).init(self.allocator);
+        defer output_str.deinit();
+        try std.json.stringify(self.ctx, .{}, output_str.writer());
+        try output_file.writeAll(output_str.items);
     }
-    return goodInput;
-}
+
+    pub fn validateCamCfg(self: *Config, camera: Camera) bool{
+        var isGood: bool = true;
+        if (camera.width  == 0){ isGood = false; }
+        if (camera.height == 0){ isGood = false; }
+        if (camera.fps    == 0){ isGood = false; }
+        if (camera.width  > 4096){ isGood = false; }
+        if (camera.height > 2048){ isGood = false; }
+        if (camera.fps    >   30){ isGood = false; }    
+    
+        if(isGood){
+            self.ctx.camera = camera;
+        }
+        return isGood;
+    }
+
+    pub fn updateCameraCfg(self: *Config, reqContent: []const u8) !bool {
+        var goodInput = false;
+        var contentStream = std.json.TokenStream.init(reqContent);
+        var cam_param = try std.json.parse(Camera, &contentStream, .{});
+        goodInput = self.validateCamCfg(cam_param);
+        if(goodInput){
+            try imgCfg.update_bridge_script(imgCfg.fullFilePath,
+                                            self.ctx.camera.width,
+                                            self.ctx.camera.height,
+                                            self.ctx.camera.fps);
+            try self.writeJsonCfg();
+        }
+        return goodInput;
+    }
+};
+
+
+
+
+
+
+

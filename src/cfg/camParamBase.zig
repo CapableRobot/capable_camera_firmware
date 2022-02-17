@@ -43,11 +43,11 @@ const execLine =
 \\setarch linux32 ./build/libcamera-bridge --codec mjpeg --segment 0 -o sck:///tmp/bridge.sock --width {} --height {} --framerate {} --tuning-file imx477.json --timeout 0
 ;
 
-pub fn update_script(cfg_filename: []const u8,
-                     hpx:          u16,
-                     vpx:          u16,
-                     fps:          u8)
-                     anyerror!void{                 
+pub fn update_bridge_script(cfg_filename: []const u8,
+                            hpx:          u16,
+                            vpx:          u16,
+                            fps:          u8)
+                            anyerror!void{                 
     
     const output_file = try std.fs.cwd().createFile(
         cfg_filename, .{ .read = true });

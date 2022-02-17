@@ -58,9 +58,8 @@ pub const RecordingContext = struct {
 };
 
 pub const CameraContext = struct {
-    config: config.Camera,
-    socket: []const u8,
-    allocator: *std.mem.Allocator,
+    ctx: config.Config,
+    socket: []const u8
 };
 
 pub var camera_ctx: CameraContext = undefined;

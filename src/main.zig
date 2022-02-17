@@ -57,8 +57,7 @@ pub fn main() anyerror!void {
     defer std.debug.assert(!gpa.deinit());
     const allocator = &gpa.allocator;
 
-    var cfg = config.load(allocator);
-    config.setPrimaryCfg(cfg);
+    var cfg = config.Config.load(allocator);
 
     var loop: std.event.Loop = undefined;
     try loop.initMultiThreaded();
@@ -96,9 +95,9 @@ pub fn main() anyerror!void {
     print("SPI configure {any}\n", .{handle.configure(0, 5500)});
 
     var pos = gnss.init(handle);
-    var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
+    var gnss_interval = @divFloor(1000, @intCast(u16, cfg.ctx.camera.fps));
 
-    if (cfg.gnss.reset_on_start) {
+    if (cfg.ctx.gnss.reset_on_start) {
         pos.reset(null);
     }
 
@@ -109,15 +108,15 @@ pub fn main() anyerror!void {
         .led = led,
         .gnss = &pos,
         .interval = gnss_interval,
-        .config = cfg.gnss,
+        .config = cfg.ctx.gnss,
     };
 
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
     // This will error if the socket doesn't exists.  We ignore that error
-    std.fs.cwd().deleteFile(cfg.recording.socket) catch {};
+    std.fs.cwd().deleteFile(cfg.ctx.recording.socket) catch {};
 
-    const address = std.net.Address.initUnix(cfg.recording.socket) catch |err| {
+    const address = std.net.Address.initUnix(cfg.ctx.recording.socket) catch |err| {
         std.debug.panic("Error creating unix socket: {}", .{err});
     };
 
@@ -129,7 +128,7 @@ pub fn main() anyerror!void {
     };
 
     threads.rec_ctx = threads.RecordingContext{
-        .config = cfg.recording,
+        .config = cfg.ctx.recording,
         .allocator = allocator,
         .server = &server,
         .stop = std.atomic.Atomic(bool).init(false),
@@ -140,15 +139,14 @@ pub fn main() anyerror!void {
     try loop.runDetached(allocator, threads.recording_server_thread, .{&threads.rec_ctx});
 
     threads.camera_ctx = threads.CameraContext{
-        .config = cfg.camera,
-        .allocator = allocator,
+        .ctx = cfg,
         .socket = threads.rec_ctx.config.socket,
     };
 
     //try loop.runDetached(allocator, camera.bridge_thread, .{threads.camera_ctx});
 
     var app = web.Application.init(allocator, .{ .debug = true });
-    var app_ctx = threads.AppContext{ .app = &app, .config = cfg.api };
+    var app_ctx = threads.AppContext{ .app = &app, .config = cfg.ctx.api };
     try loop.runDetached(allocator, threads.app_thread, .{app_ctx});
 
     loop.run();

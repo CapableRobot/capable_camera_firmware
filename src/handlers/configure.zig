@@ -19,6 +19,7 @@ const print = std.debug.print;
 
 const web = @import("zhp");
 
+const threads = @import("../threads.zig");
 const cfg = @import("../config.zig");
 
 const updateStr: []const u8 = 
@@ -41,7 +42,6 @@ pub const ImgCfgHandler = struct {
         
        var respBuff: [256]u8 = undefined;
        const outputSlice = respBuff[0..];
-       var cfg_params = cfg.Camera {};
        var goodInput: bool = true;
      
        var content_type = request.headers.getDefault("Content-Type", "");
@@ -58,17 +58,18 @@ pub const ImgCfgHandler = struct {
                // TODO: Parsing should use a stream
              },
              .Buffer => {
-                goodInput = try cfg.updateCamCfg(content.data.buffer) catch false;
+                goodInput = try threads.camera_ctx.ctx.updateCameraCfg(content.data.buffer);
              }
            }
          }     
        }
        if (goodInput){
-           const outputStr = try std.fmt.bufPrint(outputSlice, updateStr, 
+           const cfg_params = threads.camera_ctx.ctx.ctx.camera;
+           var outputStr = try std.fmt.bufPrint(outputSlice, updateStr, 
             .{cfg_params.width, cfg_params.height, cfg_params.fps});
            try response.stream.writeAll(outputStr);
        } else {
-           const outputStr = try std.fmt.bufPrint(outputSlice, failStr, .{});
+           var outputStr = try std.fmt.bufPrint(outputSlice, failStr, .{});
            try response.stream.writeAll(outputStr);       
        }
     }
