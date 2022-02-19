@@ -22,56 +22,53 @@ const web = @import("zhp");
 const threads = @import("../threads.zig");
 const cfg = @import("../config.zig");
 
-const updateStr: []const u8 = 
-\\Updated Imager Parameters:
-\\Width  = {},
-\\Height = {},
-\\FPS    = {}
+const updateStr: []const u8 =
+    \\Updated Imager Parameters:
+    \\Width  = {},
+    \\Height = {},
+    \\FPS    = {}
 ;
 
 const failStr: []const u8 =
-\\Failed to update!
+    \\Failed to update!
 ;
 
 pub const ImgCfgHandler = struct {
-    
-    pub fn post(self: *ImgCfgHandler, 
-                request: *web.Request, 
-                response: *web.Response) !void {
-       try response.headers.append("Content-Type", "text/plain");
-        
-       var respBuff: [256]u8 = undefined;
-       const outputSlice = respBuff[0..];
-       var goodInput: bool = true;
-     
-       var content_type = request.headers.getDefault("Content-Type", "");
-       if (std.mem.startsWith(u8, content_type, "application/json")) {
-         if (!request.read_finished) {
-           if (request.stream) |stream| {
-             try request.readBody(stream);
-           }
-         }
-         if (request.content) |content| {
-           switch (content.type) {
-             .TempFile => {
-               return error.NotImplemented; 
-               // TODO: Parsing should use a stream
-             },
-             .Buffer => {
-                goodInput = try threads.camera_ctx.ctx.updateCameraCfg(content.data.buffer);
-             }
-           }
-         }     
-       }
-       if (goodInput){
-           const cfg_params = threads.camera_ctx.ctx.ctx.camera;
-           var outputStr = try std.fmt.bufPrint(outputSlice, updateStr, 
-            .{cfg_params.width, cfg_params.height, cfg_params.fps});
-           try response.stream.writeAll(outputStr);
-       } else {
-           var outputStr = try std.fmt.bufPrint(outputSlice, failStr, .{});
-           try response.stream.writeAll(outputStr);       
-       }
+    pub fn post(self: *ImgCfgHandler, request: *web.Request, response: *web.Response) !void {
+        try response.headers.append("Content-Type", "text/plain");
+
+        var respBuff: [256]u8 = undefined;
+        const outputSlice = respBuff[0..];
+        var valid: bool = true;
+
+        var content_type = request.headers.getDefault("Content-Type", "");
+        if (std.mem.startsWith(u8, content_type, "application/json")) {
+            if (!request.read_finished) {
+                if (request.stream) |stream| {
+                    try request.readBody(stream);
+                }
+            }
+
+            if (request.content) |content| {
+                switch (content.type) {
+                    .TempFile => {
+                        return error.NotImplemented;
+                        // TODO: Parsing should use a stream
+                    },
+                    .Buffer => {
+                        valid = try threads.configuration.updateCamera(content.data.buffer);
+                    },
+                }
+            }
+        }
+
+        if (valid) {
+            const params = threads.configuration.camera;
+            var outputStr = try std.fmt.bufPrint(outputSlice, updateStr, .{ params.width, params.height, params.fps });
+            try response.stream.writeAll(outputStr);
+        } else {
+            var outputStr = try std.fmt.bufPrint(outputSlice, failStr, .{});
+            try response.stream.writeAll(outputStr);
+        }
     }
-    
 };

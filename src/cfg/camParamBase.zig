@@ -16,51 +16,45 @@ const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
 
+const config = @import("../config.zig");
+
 pub const fullFilePath: []const u8 = "camera/bridge.sh";
 
-const scriptLines = 
-\\#!/bin/bash
-\\
-\\trap "i2cset -y 1 20 12 0x00 b" EXIT
-\\
-\\while :  
-\\do  
-\\sleep 1
-\\value=$(i2cget -y 1 20 15 b)
-\\if [ "$value" == "0xff" ]  
-\\then
-\\	  echo $value
-\\	  echo "GPS Locked"
-\\	  break
-\\fi
-\\done  
-\\
-\\i2cset -y 1 20 12 0xFF b
-\\
+const scriptLines =
+    \\#!/bin/bash
+    \\
+    \\trap "i2cset -y 1 20 12 0x00 b" EXIT
+    \\
+    \\while :  
+    \\do  
+    \\sleep 1
+    \\value=$(i2cget -y 1 20 15 b)
+    \\if [ "$value" == "0xff" ]  
+    \\then
+    \\	  echo $value
+    \\	  echo "GPS Locked"
+    \\	  break
+    \\fi
+    \\done  
+    \\
+    \\i2cset -y 1 20 12 0xFF b
+    \\
 ;
 
-const execLine = 
-\\setarch linux32 ./build/libcamera-bridge --codec mjpeg --segment 0 -o sck:///tmp/bridge.sock --width {} --height {} --framerate {} --tuning-file imx477.json --timeout 0
+const execLine =
+    \\setarch linux32 ./build/libcamera-bridge --codec mjpeg --segment 0 -o sck:///tmp/bridge.sock --width {} --height {} --framerate {} --tuning-file imx477.json --timeout 0
 ;
 
-pub fn update_bridge_script(cfg_filename: []const u8,
-                            hpx:          u16,
-                            vpx:          u16,
-                            fps:          u8)
-                            anyerror!void{                 
-    
-    const output_file = try std.fs.cwd().createFile(
-        cfg_filename, .{ .read = true });
+pub fn update_bridge_script(cfg_filename: []const u8, cfg: config.Camera) anyerror!void {
+    const output_file = try std.fs.cwd().createFile(cfg_filename, .{ .read = true });
     defer output_file.close();
-    
+
     var execLineBuff: [256]u8 = undefined;
     const execLineSlice = execLineBuff[0..];
-    
-    const filledStr = try fmt.bufPrint(execLineSlice, execLine, 
-        .{hpx, vpx, fps});
-    
+
+    const filledStr = try fmt.bufPrint(execLineSlice, execLine, .{ cfg.width, cfg.height, cfg.fps });
+
     try output_file.writeAll(scriptLines);
-    try output_file.writeAll(filledStr);   
+    try output_file.writeAll(filledStr);
     return;
 }
-                  
