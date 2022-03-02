@@ -153,7 +153,7 @@ void NetOutput::outputUnixSocket(void *mem, size_t size, int64_t timestamp_us, u
 
 	// Prepare the header string with topic and number of bytes that follow the line break
 	char header[100] = "";
-	sprintf(header, "PUB frame.jpeg %lu\r\n", size);
+	sprintf(header, "PUB frame.jpeg %lu\r\n", static_cast<unsigned long>(size));
 
 	// if (options_->verbose)
 	// 	std::cerr << "NetOutput: output buffer " << mem << " size " << size << "\n";
@@ -195,7 +195,7 @@ void NetOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint3
 
 	// Prepare the header string with topic and number of bytes that follow the line break
 	char header[100] = "";
-	sprintf(header, "PUB frame.jpeg %lu\r\n", size);
+	sprintf(header, "PUB frame.jpeg %lu\r\n", static_cast<unsigned long>(size));
 
 	size_t bytes_to_send = std::min(size, max_size - header_length);
 	uint8_t *ptr = (uint8_t *)mem;
