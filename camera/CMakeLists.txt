@@ -54,3 +54,5 @@ add_executable(libcamera-bridge app.cpp)
 target_link_libraries(libcamera-bridge libcamera_app encoders outputs)
 
 set(EXECUTABLES libcamera-bridge)
+
+install(TARGETS ${EXECUTABLES} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
