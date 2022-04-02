@@ -58,7 +58,7 @@ set(EXECUTABLES libcamera-bridge)
 install(TARGETS ${EXECUTABLES} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 set(INSTALL_CONFIG_FILES_PATH "")
-if ("${INSTALL_CONFIG_FILES_PATH}" != "")
+if (NOT "${INSTALL_CONFIG_FILES_PATH}" STREQUAL "")
     configure_file(imx477.json ${INSTALL_CONFIG_FILES_PATH}/imx477.json)
     configure_file(bridge.sh   ${INSTALL_CONFIG_FILES_PATH}/bridge.sh) 
 endif()
