@@ -22,7 +22,7 @@ const web = @import("zhp");
 const threads = @import("../threads.zig");
 const cfg = @import("../config.zig");
 
-const updateStr: []const u8 = 
+const updateImgCfgStr: []const u8 = 
 \\Updated Imager Parameters:
 \\Width  = {},
 \\Height = {},
@@ -65,7 +65,7 @@ pub const ImgCfgHandler = struct {
        }
        if (goodInput){
            const cfg_params = threads.camera_ctx.ctx.ctx.camera;
-           var outputStr = try std.fmt.bufPrint(outputSlice, updateStr, 
+           var outputStr = try std.fmt.bufPrint(outputSlice, updateImgCfgStr, 
             .{cfg_params.width, cfg_params.height, cfg_params.fps});
            try response.stream.writeAll(outputStr);
        } else {

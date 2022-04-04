@@ -16,7 +16,7 @@ const std = @import("std");
 const mem = std.mem;
 const fmt = std.fmt;
 
-pub const fullFilePath: []const u8 = "camera/bridge.sh";
+pub const filePath: []const u8 = "./bridge.sh";
 
 const scriptLines = 
 \\#!/bin/bash
@@ -40,27 +40,6 @@ const scriptLines =
 ;
 
 const execLine = 
-\\setarch linux32 ./build/libcamera-bridge --codec mjpeg --segment 0 -o sck:///tmp/bridge.sock --width {} --height {} --framerate {} --tuning-file imx477.json --timeout 0
+\\setarch linux32 ./build/libcamera-bridge --codec mjpeg --segment 0 -o sck:///tmp/bridge.sock --width {} --height {} --framerate {} \
+\\--awb {} --exposure {} --tuning-file imx477.json --timeout 0
 ;
-
-pub fn update_bridge_script(cfg_filename: []const u8,
-                            hpx:          u16,
-                            vpx:          u16,
-                            fps:          u8)
-                            anyerror!void{                 
-    
-    const output_file = try std.fs.cwd().createFile(
-        cfg_filename, .{ .read = true });
-    defer output_file.close();
-    
-    var execLineBuff: [256]u8 = undefined;
-    const execLineSlice = execLineBuff[0..];
-    
-    const filledStr = try fmt.bufPrint(execLineSlice, execLine, 
-        .{hpx, vpx, fps});
-    
-    try output_file.writeAll(scriptLines);
-    try output_file.writeAll(filledStr);   
-    return;
-}
-                  

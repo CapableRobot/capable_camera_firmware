@@ -47,6 +47,8 @@ pub const Camera = struct {
     quality: u8 = 50,
     //codec: Codec = Codec.mjpeg,
     codec: []const u8 = "mjpeg",
+    whiteBalance: []const u8 = "normal",
+    exposure: []const u8 = "normal"
 };
 
 pub const Context = struct {
@@ -233,6 +235,8 @@ pub const Config = struct {
         if (camera.height > 2048){ isGood = false; }
         if (camera.fps    >   30){ isGood = false; }    
     
+        //TODO: Add String validation for exposure and white balance in here
+    
         if(isGood){
             self.ctx.camera = camera;
         }
@@ -245,19 +249,29 @@ pub const Config = struct {
         var cam_param = try std.json.parse(Camera, &contentStream, .{});
         goodInput = self.validateCamCfg(cam_param);
         if(goodInput){
-            try imgCfg.update_bridge_script(imgCfg.fullFilePath,
-                                            self.ctx.camera.width,
-                                            self.ctx.camera.height,
-                                            self.ctx.camera.fps);
+            try self.writeBridgeScript(imgCfg.filePath);
             try self.writeJsonCfg();
         }
         return goodInput;
     }
+    
+    pub fn writeBridgeScript(self: *Config, cfg_filename: []const u8) anyerror!void{                 
+        const output_file = try std.fs.cwd().createFile(
+            cfg_filename, .{ .read = true });
+        defer output_file.close();
+    
+        var execLineBuff: [256]u8 = undefined;
+        const execLineSlice = execLineBuff[0..];
+    
+        const filledStr = try fmt.bufPrint(execLineSlice, execLine, 
+            .{self.ctx.camera.width, 
+              self.ctx.camera.height, 
+              self.ctx.camera.fps,
+              self.ctx.camera.whiteBalance,
+              self.ctx.camera.exposure});
+    
+        try output_file.writeAll(scriptLines);
+        try output_file.writeAll(filledStr);   
+        return;
+    }
 };
-
-
-
-
-
-
-

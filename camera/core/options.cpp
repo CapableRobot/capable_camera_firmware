@@ -66,6 +66,7 @@ bool Options::Parse(int argc, char *argv[])
       { { "normal", libcamera::controls::ExposureNormal },
         { "sport", libcamera::controls::ExposureShort },
         { "short", libcamera::controls::ExposureShort },
+        { "long",  libcamera::controls::ExposureLong },
         // long mode?
         { "custom", libcamera::controls::ExposureCustom } };
     if (exposure_table.count(exposure) == 0)
