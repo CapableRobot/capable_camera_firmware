@@ -15,6 +15,7 @@
 const std = @import("std");
 const fs = std.fs;
 const mem = @import("std").mem;
+const fmt = std.fmt;
 
 const imgCfg = @import("cfg/camParamBase.zig");
 
@@ -47,7 +48,7 @@ pub const Camera = struct {
     quality: u8 = 50,
     //codec: Codec = Codec.mjpeg,
     codec: []const u8 = "mjpeg",
-    whiteBalance: []const u8 = "normal",
+    awb: []const u8 = "normal",
     exposure: []const u8 = "normal"
 };
 
@@ -232,7 +233,7 @@ pub const Config = struct {
         if (camera.height == 0){ isGood = false; }
         if (camera.fps    == 0){ isGood = false; }
         if (camera.width  > 4096){ isGood = false; }
-        if (camera.height > 2048){ isGood = false; }
+        if (camera.height > 3040){ isGood = false; }
         if (camera.fps    >   30){ isGood = false; }    
     
         //TODO: Add String validation for exposure and white balance in here
@@ -246,7 +247,8 @@ pub const Config = struct {
     pub fn updateCameraCfg(self: *Config, reqContent: []const u8) !bool {
         var goodInput = false;
         var contentStream = std.json.TokenStream.init(reqContent);
-        var cam_param = try std.json.parse(Camera, &contentStream, .{});
+        var cam_param = try std.json.parse(Camera, &contentStream, 
+                                         .{.allocator = self.allocator});
         goodInput = self.validateCamCfg(cam_param);
         if(goodInput){
             try self.writeBridgeScript(imgCfg.filePath);
@@ -260,18 +262,25 @@ pub const Config = struct {
             cfg_filename, .{ .read = true });
         defer output_file.close();
     
-        var execLineBuff: [256]u8 = undefined;
-        const execLineSlice = execLineBuff[0..];
+        var execLineBuff: [512]u8 = undefined;
+        
+        const execLineSlice1 = execLineBuff[0..256];
+        const execLineSlice2 = execLineBuff[256..512];
     
-        const filledStr = try fmt.bufPrint(execLineSlice, execLine, 
+        const firstExecStr = try fmt.bufPrint(execLineSlice1, imgCfg.execLine1, 
             .{self.ctx.camera.width, 
               self.ctx.camera.height, 
-              self.ctx.camera.fps,
-              self.ctx.camera.whiteBalance,
+              self.ctx.camera.fps});
+    
+        const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
+            .{self.ctx.camera.awb,
               self.ctx.camera.exposure});
     
-        try output_file.writeAll(scriptLines);
-        try output_file.writeAll(filledStr);   
+        try output_file.writeAll(imgCfg.scriptLines);
+        try output_file.writeAll(firstExecStr);
+        try output_file.writeAll(secndExecStr);
+        
+           
         return;
     }
 };
