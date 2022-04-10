@@ -49,7 +49,15 @@ pub const Camera = struct {
     //codec: Codec = Codec.mjpeg,
     codec: []const u8 = "mjpeg",
     awb: []const u8 = "normal",
-    exposure: []const u8 = "normal"
+    awbGains: float = 0.0,
+    brightness: float = 0.0,
+    contrast: float = 0.0,
+    exposure: []const u8 = "normal",
+    exposureValue: float = 0.0,
+    fixedGain: float = 0.0,
+    metering: []const u8 = "centre",
+    saturation: float = 0.0,
+    sharpness: float = 0.0
 };
 
 pub const Context = struct {
@@ -274,7 +282,15 @@ pub const Config = struct {
     
         const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
             .{self.ctx.camera.awb,
-              self.ctx.camera.exposure});
+              self.ctx.camera.awbGains,
+              self.ctx.camera.brightness,
+              self.ctx.camera.contrast,
+              self.ctx.camera.exposure,
+              self.ctx.camera.exposureValue,
+              self.ctx.camera.fixedGain,
+              self.ctx.camera.metering,
+              self.ctx.camera.saturation,
+              self.ctx.camera.sharpness});
     
         try output_file.writeAll(imgCfg.scriptLines);
         try output_file.writeAll(firstExecStr);
