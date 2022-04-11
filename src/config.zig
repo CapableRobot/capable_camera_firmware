@@ -41,13 +41,35 @@ pub const Recording = struct {
 //see https://github.com/ziglang/zig/issues/9451
 pub const Codec_enum = enum { mjpeg, h264 };
 
+pub const ColorBalance = struct {
+    awb: []const u8 = "normal",
+    awbGains: u32 = 0.0,
+    brightness: u32 = 0.0,
+    contrast: u32 = 0.0,
+    saturation: u64 = 0.0,
+};
+
+pub const Exposure = struct {
+    exposure: []const u8 = "normal",
+    ev: u32 = 0.0,
+    fixedGain: u32 = 0.0,
+    metering: []const u8 = "centre",
+    sharpness: u32 = 0.0,
+};
+
+
 pub const Camera = struct {
     fps: u8 = 10,
     width: u16 = 4056,
     height: u16 = 2016,
     quality: u8 = 50,
-    //codec: Codec = Codec.mjpeg,
+    
+    colorBalance: ColorBalance = ColorBalance{},
+    exposure: Exposure = Exposure{},
+    
     codec: []const u8 = "mjpeg",
+<<<<<<< HEAD
+=======
     awb: []const u8 = "normal",
     awbGains: float = 0.0,
     brightness: float = 0.0,
@@ -58,6 +80,7 @@ pub const Camera = struct {
     metering: []const u8 = "centre",
     saturation: float = 0.0,
     sharpness: float = 0.0
+>>>>>>> 03543acc38c7650876597b84759908a7e2a9f031
 };
 
 pub const Context = struct {
@@ -279,6 +302,23 @@ pub const Config = struct {
             .{self.ctx.camera.width, 
               self.ctx.camera.height, 
               self.ctx.camera.fps});
+<<<<<<< HEAD
+    
+        const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
+            .{self.ctx.camera.colorBalance.awb,
+              self.ctx.camera.awbGains,
+              self.ctx.camera.brightness,
+              self.ctx.camera.contrast,
+              self.ctx.camera.exposure.exposure,
+              self.ctx.camera.ev
+              self.ctx.camera.exposureValue,
+              self.ctx.camera.fixedGain,
+              self.ctx.camera.metering,
+              self.ctx.camera.saturation,
+              self.ctx.camera.sharpness
+              });
+    
+=======
     
         const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
             .{self.ctx.camera.awb,
@@ -292,6 +332,7 @@ pub const Config = struct {
               self.ctx.camera.saturation,
               self.ctx.camera.sharpness});
     
+>>>>>>> 03543acc38c7650876597b84759908a7e2a9f031
         try output_file.writeAll(imgCfg.scriptLines);
         try output_file.writeAll(firstExecStr);
         try output_file.writeAll(secndExecStr);
