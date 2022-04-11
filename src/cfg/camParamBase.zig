@@ -45,4 +45,4 @@ pub const execLine1 =
 
 pub const execLine2 =
 //--awb {s} --awbgains {} --brightness {} --contrast {} --exposure {s} --ev {} --gain {} --metering {s} --saturation {} --sharpness {} --tuning-file imx477.json --timeout 0;
-//;
+;

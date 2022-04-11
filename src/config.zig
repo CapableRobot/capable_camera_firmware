@@ -68,6 +68,19 @@ pub const Camera = struct {
     exposure: Exposure = Exposure{},
     
     codec: []const u8 = "mjpeg",
+<<<<<<< HEAD
+=======
+    awb: []const u8 = "normal",
+    awbGains: float = 0.0,
+    brightness: float = 0.0,
+    contrast: float = 0.0,
+    exposure: []const u8 = "normal",
+    exposureValue: float = 0.0,
+    fixedGain: float = 0.0,
+    metering: []const u8 = "centre",
+    saturation: float = 0.0,
+    sharpness: float = 0.0
+>>>>>>> 03543acc38c7650876597b84759908a7e2a9f031
 };
 
 pub const Context = struct {
