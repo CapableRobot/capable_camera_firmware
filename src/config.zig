@@ -15,6 +15,7 @@
 const std = @import("std");
 const fs = std.fs;
 const mem = @import("std").mem;
+const fmt = std.fmt;
 
 const imgCfg = @import("cfg/camParamBase.zig");
 
@@ -40,15 +41,33 @@ pub const Recording = struct {
 //see https://github.com/ziglang/zig/issues/9451
 pub const Codec_enum = enum { mjpeg, h264 };
 
+pub const ColorBalance = struct {
+    awb: []const u8 = "normal",
+    awbGains: u32 = 0.0,
+    brightness: u32 = 0.0,
+    contrast: u32 = 0.0,
+    saturation: u64 = 0.0,
+};
+
+pub const Exposure = struct {
+    exposure: []const u8 = "normal",
+    ev: u32 = 0.0,
+    fixedGain: u32 = 0.0,
+    metering: []const u8 = "centre",
+    sharpness: u32 = 0.0,
+};
+
+
 pub const Camera = struct {
     fps: u8 = 10,
     width: u16 = 4056,
     height: u16 = 2016,
     quality: u8 = 50,
-    //codec: Codec = Codec.mjpeg,
+    
+    colorBalance: ColorBalance = ColorBalance{},
+    exposure: Exposure = Exposure{},
+    
     codec: []const u8 = "mjpeg",
-    whiteBalance: []const u8 = "normal",
-    exposure: []const u8 = "normal"
 };
 
 pub const Context = struct {
@@ -232,7 +251,7 @@ pub const Config = struct {
         if (camera.height == 0){ isGood = false; }
         if (camera.fps    == 0){ isGood = false; }
         if (camera.width  > 4096){ isGood = false; }
-        if (camera.height > 2048){ isGood = false; }
+        if (camera.height > 3040){ isGood = false; }
         if (camera.fps    >   30){ isGood = false; }    
     
         //TODO: Add String validation for exposure and white balance in here
@@ -246,7 +265,8 @@ pub const Config = struct {
     pub fn updateCameraCfg(self: *Config, reqContent: []const u8) !bool {
         var goodInput = false;
         var contentStream = std.json.TokenStream.init(reqContent);
-        var cam_param = try std.json.parse(Camera, &contentStream, .{});
+        var cam_param = try std.json.parse(Camera, &contentStream, 
+                                         .{.allocator = self.allocator});
         goodInput = self.validateCamCfg(cam_param);
         if(goodInput){
             try self.writeBridgeScript(imgCfg.filePath);
@@ -260,18 +280,35 @@ pub const Config = struct {
             cfg_filename, .{ .read = true });
         defer output_file.close();
     
-        var execLineBuff: [256]u8 = undefined;
-        const execLineSlice = execLineBuff[0..];
+        var execLineBuff: [512]u8 = undefined;
+        
+        const execLineSlice1 = execLineBuff[0..256];
+        const execLineSlice2 = execLineBuff[256..512];
     
-        const filledStr = try fmt.bufPrint(execLineSlice, execLine, 
+        const firstExecStr = try fmt.bufPrint(execLineSlice1, imgCfg.execLine1, 
             .{self.ctx.camera.width, 
               self.ctx.camera.height, 
-              self.ctx.camera.fps,
-              self.ctx.camera.whiteBalance,
-              self.ctx.camera.exposure});
+              self.ctx.camera.fps});
     
-        try output_file.writeAll(scriptLines);
-        try output_file.writeAll(filledStr);   
+        const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
+            .{self.ctx.camera.colorBalance.awb,
+              self.ctx.camera.awbGains,
+              self.ctx.camera.brightness,
+              self.ctx.camera.contrast,
+              self.ctx.camera.exposure.exposure,
+              self.ctx.camera.ev
+              self.ctx.camera.exposureValue,
+              self.ctx.camera.fixedGain,
+              self.ctx.camera.metering,
+              self.ctx.camera.saturation,
+              self.ctx.camera.sharpness
+              });
+    
+        try output_file.writeAll(imgCfg.scriptLines);
+        try output_file.writeAll(firstExecStr);
+        try output_file.writeAll(secndExecStr);
+        
+           
         return;
     }
 };

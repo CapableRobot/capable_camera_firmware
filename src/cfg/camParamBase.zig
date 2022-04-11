@@ -14,19 +14,18 @@
 
 const std = @import("std");
 const mem = std.mem;
-const fmt = std.fmt;
 
 pub const filePath: []const u8 = "./bridge.sh";
 
-const scriptLines = 
+pub const scriptLines = 
 \\#!/bin/bash
 \\
-\\trap "i2cset -y 1 20 12 0x00 b" EXIT
+\\trap "i2cset -y 1 0x14 0xc 0x00 b" EXIT
 \\
 \\while :  
 \\do  
 \\sleep 1
-\\value=$(i2cget -y 1 20 15 b)
+\\value=$(i2cget -y 1 0x14 0xf b)
 \\if [ "$value" == "0xff" ]  
 \\then
 \\	  echo $value
@@ -35,11 +34,15 @@ const scriptLines =
 \\fi
 \\done  
 \\
-\\i2cset -y 1 20 12 0xFF b
+\\i2cset -y 1 0x14 0xc 0xFF b
 \\
 ;
 
-const execLine = 
-\\setarch linux32 ./build/libcamera-bridge --codec mjpeg --segment 0 -o sck:///tmp/bridge.sock --width {} --height {} --framerate {} \
-\\--awb {} --exposure {} --tuning-file imx477.json --timeout 0
-;
+pub const execLine1 = 
+\\setarch linux32 ./libcamera-bridge --codec mjpeg --segment 0 -o sck:///tmp/bridge.sock --width {} --height {} --framerate {} \
+\\
+; 
+
+pub const execLine2 =
+//--awb {s} --awbgains {} --brightness {} --contrast {} --exposure {s} --ev {} --gain {} --metering {s} --saturation {} --sharpness {} --tuning-file imx477.json --timeout 0;
+//;
