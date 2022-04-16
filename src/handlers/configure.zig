@@ -20,28 +20,21 @@ const print = std.debug.print;
 const web = @import("zhp");
 
 const threads = @import("../threads.zig");
-const cfg = @import("../config.zig");
+const config = @import("../config.zig");
 
-const updateStr: []const u8 =
-    \\Updated Imager Parameters:
-    \\Width  = {},
-    \\Height = {},
-    \\FPS    = {}
-;
+pub const HandlerError = error{InvalidRequest};
 
-const failStr: []const u8 =
-    \\Failed to update!
-;
+pub const HandlerResponse = struct {
+    camera: ?config.Camera = null,
+    err: ?anyerror = null,
+    message: ?[]const u8 = null,
+};
 
 pub const ImgCfgHandler = struct {
     pub fn post(self: *ImgCfgHandler, request: *web.Request, response: *web.Response) !void {
-        try response.headers.append("Content-Type", "text/plain");
-
-        var respBuff: [256]u8 = undefined;
-        const outputSlice = respBuff[0..];
-        var valid: bool = true;
-
+        var result = HandlerResponse{ .err = HandlerError.InvalidRequest };
         var content_type = request.headers.getDefault("Content-Type", "");
+
         if (std.mem.startsWith(u8, content_type, "application/json")) {
             if (!request.read_finished) {
                 if (request.stream) |stream| {
@@ -56,19 +49,22 @@ pub const ImgCfgHandler = struct {
                         // TODO: Parsing should use a stream
                     },
                     .Buffer => {
-                        valid = try threads.configuration.updateCamera(content.data.buffer);
+                        var stream = std.json.TokenStream.init(content.data.buffer);
+                        var params = try std.json.parse(config.Camera, &stream, .{});
+
+                        const check = threads.configuration.updateCamera(params);
+
+                        result.camera = params;
+                        result.err = check.err;
+                        result.message = check.message;
                     },
                 }
             }
         }
 
-        if (valid) {
-            const params = threads.configuration.camera;
-            var outputStr = try std.fmt.bufPrint(outputSlice, updateStr, .{ params.width, params.height, params.fps });
-            try response.stream.writeAll(outputStr);
-        } else {
-            var outputStr = try std.fmt.bufPrint(outputSlice, failStr, .{});
-            try response.stream.writeAll(outputStr);
-        }
+        try response.headers.append("Content-Type", "application/json");
+        try std.json.stringify(result, std.json.StringifyOptions{
+            .whitespace = .{ .indent = .{ .Space = 2 } },
+        }, response.stream);
     }
 };

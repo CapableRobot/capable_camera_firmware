@@ -56,6 +56,15 @@ pub const ConfigData = struct {
     gnss: Gnss = Gnss{},
 };
 
+pub const ConfigError = error{Update};
+pub const CameraConfigError = error{ FPS, Width, Height, Codec, Quality };
+
+pub const ConfigValidation = struct {
+    valid: bool = false,
+    message: ?[]const u8 = null,
+    err: ?anyerror = null,
+};
+
 pub const Config = struct {
     api: Api = Api{},
     recording: Recording = Recording{},
@@ -78,48 +87,46 @@ pub const Config = struct {
         try output_file.writeAll(output_str.items);
     }
 
-    pub fn validateCamera(self: *Config, camera: Camera) bool {
-        var valid: bool = true;
-
-        if (camera.width == 0) {
-            valid = false;
-        }
-        if (camera.height == 0) {
-            valid = false;
-        }
-        if (camera.fps == 0) {
-            valid = false;
-        }
-        if (camera.width > 4096) {
-            valid = false;
-        }
-        if (camera.height > 2048) {
-            valid = false;
-        }
-        if (camera.fps > 30) {
-            valid = false;
+    pub fn validateCamera(self: *Config, camera: Camera) ConfigValidation {
+        if (camera.width == 0 or camera.width > 4096) {
+            return ConfigValidation{ .err = error.Width };
         }
 
-        if (valid) {
-            self.camera = camera;
+        if (camera.height == 0 or camera.height > 2048) {
+            return ConfigValidation{ .err = error.Height };
         }
 
-        return valid;
+        if (camera.fps == 0 or camera.fps > 10) {
+            return ConfigValidation{ .err = error.FPS };
+        }
+
+        if (camera.quality == 0 or camera.quality > 100) {
+            return ConfigValidation{ .err = error.Quality };
+        }
+
+        return ConfigValidation{ .valid = true };
     }
 
-    pub fn updateCamera(self: *Config, reqContent: []const u8) !bool {
-        var valid = false;
-        var contentStream = std.json.TokenStream.init(reqContent);
-        var cam_param = try std.json.parse(Camera, &contentStream, .{});
+    pub fn updateCamera(self: *Config, params: Camera) ConfigValidation {
+        var check = self.validateCamera(params);
 
-        valid = self.validateCamera(cam_param);
+        if (check.valid) {
+            self.camera = params;
 
-        if (valid) {
-            try imgCfg.update_bridge_script(imgCfg.fullFilePath, self.camera);
-            try self.save();
+            imgCfg.update_bridge_script(imgCfg.fullFilePath, params) catch |err| {
+                std.log.err("config: update_bridge_script failed : {s}", .{err});
+                check.err = ConfigError.Update;
+                check.message = "Error : update_bridge_script failed";
+            };
+
+            self.save() catch |err| {
+                std.log.err("config: save failed : {s}", .{err});
+                check.err = ConfigError.Update;
+                check.message = "Error : config save failed";
+            };
         }
 
-        return valid;
+        return check;
     }
 
     pub fn load(self: *Config, cfg: ConfigData) void {
