@@ -57,9 +57,10 @@ pub const ImgCfgHandler = struct {
                         // TODO: Parsing should use a stream
                     },
                     .Buffer => {
-                        var stream = std.json.TokenStream.init(content.data.buffer);
-                        var params = try std.json.parse(config.Camera, &stream, .{});
 
+                        var stream = std.json.TokenStream.init(content.data.buffer);
+                        var params = try std.json.parse(config.Camera, &stream, .{.allocator = threads.configuration.allocator});
+                        
                         const check = threads.configuration.updateCamera(params);
 
                         result.camera = params;
