@@ -68,19 +68,6 @@ pub const Camera = struct {
     exposure: Exposure = Exposure{},
     
     codec: []const u8 = "mjpeg",
-<<<<<<< HEAD
-=======
-    awb: []const u8 = "normal",
-    awbGains: float = 0.0,
-    brightness: float = 0.0,
-    contrast: float = 0.0,
-    exposure: []const u8 = "normal",
-    exposureValue: float = 0.0,
-    fixedGain: float = 0.0,
-    metering: []const u8 = "centre",
-    saturation: float = 0.0,
-    sharpness: float = 0.0
->>>>>>> 03543acc38c7650876597b84759908a7e2a9f031
 };
 
 pub const Context = struct {
@@ -302,7 +289,6 @@ pub const Config = struct {
             .{self.ctx.camera.width, 
               self.ctx.camera.height, 
               self.ctx.camera.fps});
-<<<<<<< HEAD
     
         const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
             .{self.ctx.camera.colorBalance.awb,
@@ -315,24 +301,8 @@ pub const Config = struct {
               self.ctx.camera.fixedGain,
               self.ctx.camera.metering,
               self.ctx.camera.saturation,
-              self.ctx.camera.sharpness
-              });
-    
-=======
-    
-        const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
-            .{self.ctx.camera.awb,
-              self.ctx.camera.awbGains,
-              self.ctx.camera.brightness,
-              self.ctx.camera.contrast,
-              self.ctx.camera.exposure,
-              self.ctx.camera.exposureValue,
-              self.ctx.camera.fixedGain,
-              self.ctx.camera.metering,
-              self.ctx.camera.saturation,
               self.ctx.camera.sharpness});
     
->>>>>>> 03543acc38c7650876597b84759908a7e2a9f031
         try output_file.writeAll(imgCfg.scriptLines);
         try output_file.writeAll(firstExecStr);
         try output_file.writeAll(secndExecStr);

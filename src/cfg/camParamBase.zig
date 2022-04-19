@@ -44,10 +44,5 @@ pub const execLine1 =
 ; 
 
 pub const execLine2 =
-<<<<<<< HEAD
-//--awb {s} --awbgains {} --brightness {} --contrast {} --exposure {s} --ev {} --gain {} --metering {s} --saturation {} --sharpness {} --tuning-file imx477.json --timeout 0;
-//;
-=======
 \\--awb {s} --awbgains {} --brightness {} --contrast {} --exposure {s} --ev {} --gain {} --metering {s} --saturation {} --sharpness {} --tuning-file imx477.json --timeout 0;
 ;
->>>>>>> 03543acc38c7650876597b84759908a7e2a9f031
