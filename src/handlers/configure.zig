@@ -20,58 +20,60 @@ const print = std.debug.print;
 const web = @import("zhp");
 
 const threads = @import("../threads.zig");
-const cfg = @import("../config.zig");
+const config = @import("../config.zig");
 
 const updateImgCfgStr: []const u8 = 
-\\Updated Imager Parameters:
-\\Width  = {},
-\\Height = {},
-\\FPS    = {}
+    \\Updated Imager Parameters:
+    \\Width  = {},
+    \\Height = {},
+    \\FPS    = {}
 ;
 
-const failStr: []const u8 =
-\\Failed to update!
-;
+pub const HandlerError = error{InvalidRequest};
+
+pub const HandlerResponse = struct {
+    camera: ?config.Camera = null,
+    err: ?anyerror = null,
+    message: ?[]const u8 = null,
+};
 
 pub const ImgCfgHandler = struct {
-    
-    pub fn post(self: *ImgCfgHandler, 
-                request: *web.Request, 
-                response: *web.Response) !void {
-       try response.headers.append("Content-Type", "text/plain");
-        
-       var respBuff: [256]u8 = undefined;
-       const outputSlice = respBuff[0..];
-       var goodInput: bool = true;
-     
-       var content_type = request.headers.getDefault("Content-Type", "");
-       if (std.mem.startsWith(u8, content_type, "application/json")) {
-         if (!request.read_finished) {
-           if (request.stream) |stream| {
-             try request.readBody(stream);
-           }
-         }
-         if (request.content) |content| {
-           switch (content.type) {
-             .TempFile => {
-               return error.NotImplemented; 
-               // TODO: Parsing should use a stream
-             },
-             .Buffer => {
-                goodInput = try threads.camera_ctx.ctx.updateCameraCfg(content.data.buffer);
-             }
-           }
-         }     
-       }
-       if (goodInput){
-           const cfg_params = threads.camera_ctx.ctx.ctx.camera;
-           var outputStr = try std.fmt.bufPrint(outputSlice, updateImgCfgStr, 
-            .{cfg_params.width, cfg_params.height, cfg_params.fps});
-           try response.stream.writeAll(outputStr);
-       } else {
-           var outputStr = try std.fmt.bufPrint(outputSlice, failStr, .{});
-           try response.stream.writeAll(outputStr);       
-       }
+
+    pub fn post(self: *ImgCfgHandler, request: *web.Request, response: *web.Response) !void {
+        var result = HandlerResponse{ .err = HandlerError.InvalidRequest };
+        var content_type = request.headers.getDefault("Content-Type", "");
+
+        if (std.mem.startsWith(u8, content_type, "application/json")) {
+            if (!request.read_finished) {
+                if (request.stream) |stream| {
+                    try request.readBody(stream);
+                }
+            }
+
+            if (request.content) |content| {
+                switch (content.type) {
+                    .TempFile => {
+                        return error.NotImplemented;
+                        // TODO: Parsing should use a stream
+                    },
+                    .Buffer => {
+                        var stream = std.json.TokenStream.init(content.data.buffer);
+                        var params = try std.json.parse(config.Camera, &stream, .{});
+
+                        const check = threads.configuration.updateCamera(params);
+
+                        result.camera = params;
+                        result.err = check.err;
+                        result.message = check.message;
+                    },
+                }
+            }
+        }
+
+        try response.headers.append("Content-Type", "application/json");
+        try std.json.stringify(result, std.json.StringifyOptions{
+            .whitespace = .{ .indent = .{ .Space = 2 } },
+        }, response.stream);
+
     }
-    
 };

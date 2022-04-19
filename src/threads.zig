@@ -58,11 +58,12 @@ pub const RecordingContext = struct {
 };
 
 pub const CameraContext = struct {
-    ctx: config.Config,
-    socket: []const u8
+    config: config.Camera,
+    socket: []const u8,
 };
 
 pub var camera_ctx: CameraContext = undefined;
+pub var configuration: config.Config = undefined;
 
 const JPEG_SOI = [_]u8{ 0xFF, 0xD8 };
 const JPEG_EOI = [_]u8{ 0xFF, 0xD9 };
