@@ -133,22 +133,21 @@ pub const Config = struct {
         const execLineSlice2 = execLineBuff[256..512];
     
         const firstExecStr = try fmt.bufPrint(execLineSlice1, imgCfg.execLine1, 
-            .{self.ctx.camera.width, 
-              self.ctx.camera.height, 
-              self.ctx.camera.fps});
+            .{self.camera.width, 
+              self.camera.height, 
+              self.camera.fps});
     
         const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
-            .{self.ctx.camera.colorBalance.awb,
-              self.ctx.camera.awbGains,
-              self.ctx.camera.brightness,
-              self.ctx.camera.contrast,
-              self.ctx.camera.exposure.exposure,
-              self.ctx.camera.ev
-              self.ctx.camera.exposureValue,
-              self.ctx.camera.fixedGain,
-              self.ctx.camera.metering,
-              self.ctx.camera.saturation,
-              self.ctx.camera.sharpness});
+            .{self.camera.colorBalance.awb,
+              self.camera.colorBalance.awbGains,
+              self.camera.colorBalance.brightness,
+              self.camera.colorBalance.contrast,
+              self.camera.exposure.exposure,
+              self.camera.exposure.ev,
+              self.camera.exposure.fixedGain,
+              self.camera.exposure.metering,
+              self.camera.colorBalance.saturation,
+              self.camera.exposure.sharpness});
     
         try output_file.writeAll(imgCfg.scriptLines);
         try output_file.writeAll(firstExecStr);
@@ -184,7 +183,7 @@ pub const Config = struct {
         if (check.valid) {
             self.camera = params;
 
-            self.writeBridgeScript(imgCfg.fullFilePath) catch |err| {
+            self.writeBridgeScript(imgCfg.filePath) catch |err| {
                 std.log.err("config: update_bridge_script failed : {s}", .{err});
                 check.err = ConfigError.Update;
                 check.message = "Error : update_bridge_script failed";
