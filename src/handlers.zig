@@ -21,6 +21,7 @@ const Datetime = web.datetime.Datetime;
 const status = @import("handlers/status.zig");
 const info = @import("handlers/info.zig");
 const configure = @import("handlers/configure.zig");
+const fileAPI = @import("handlers/fileAPI.zig");
 const threads = @import("threads.zig");
 const recording = @import("recording.zig");
 
@@ -36,6 +37,7 @@ pub const routes = [_]web.Route{
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
     web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),
     web.Route.create("api/recordings", "/api/recordings/(.+)", RecordingFileHandler),
+    web.Route.create("api/fetch_gnssfilenames","/api/recordings/(.+)/(.+)",fileAPI.Handler),
     web.Route.static("static", "/static/", "static/"),
 };
 
