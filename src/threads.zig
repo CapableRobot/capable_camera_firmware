@@ -58,11 +58,12 @@ pub const RecordingContext = struct {
 };
 
 pub const CameraContext = struct {
-    ctx: config.Config,
-    socket: []const u8
+    config: config.Camera,
+    socket: []const u8,
 };
 
 pub var camera_ctx: CameraContext = undefined;
+pub var configuration: config.Config = undefined;
 
 const JPEG_SOI = [_]u8{ 0xFF, 0xD8 };
 const JPEG_EOI = [_]u8{ 0xFF, 0xD9 };
@@ -323,7 +324,7 @@ fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT) !void 
     const timestamp = determine_frametime(pvt);
 
     // std.log.info("FNAME | GNSS {s} + {d:.3} -> {s}", .{ pvt.timestamp, @intToFloat(f64, pvt.age) / 1000.0, timestamp });
-    std.log.info("REC RECV | Frame {s} is {} bytes", .{ timestamp, buffer.len });
+    //std.log.info("REC RECV | Frame {s} is {} bytes", .{ timestamp, buffer.len });
 
     var filename = try alloc_filename(ctx, timestamp);
     defer ctx.allocator.free(filename);
@@ -442,9 +443,9 @@ pub fn gnss_thread(ctx: GnssContext) void {
                     ctx.led.set(1, [_]u8{ 0, 255, 0 });
                 }
 
-                print("PVT {s} at ({d:.6},{d:.6}) height {d:.2} dop {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height, pvt.dop });
-                print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
-                print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
+                //print("PVT {s} at ({d:.6},{d:.6}) height {d:.2} dop {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height, pvt.dop });
+                //print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
+                //print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
             }
         } else {
             // If no communications, color LED red
