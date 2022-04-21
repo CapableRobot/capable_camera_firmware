@@ -19,6 +19,8 @@ const fmt = std.fmt;
 
 const imgCfg = @import("cfg/camParamBase.zig");
 
+const defaultAWBGains = [2]f32{1.0, 1.0};
+
 pub const Api = struct {
     port: u16 = 5000,
 };
@@ -43,7 +45,7 @@ pub const Codec_enum = enum { mjpeg, h264 };
 
 pub const ColorBalance = struct {
     awb: []const u8 = "normal",
-    awbGains: u32 = 0.0,
+    awbGains: [2]f32 = defaultAWBGains,
     brightness: u32 = 0.0,
     contrast: u32 = 0.0,
     saturation: u64 = 0.0,
@@ -139,7 +141,12 @@ pub const Config = struct {
     
         const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
             .{self.camera.colorBalance.awb,
+<<<<<<< HEAD
               self.camera.colorBalance.awbGains,
+=======
+              self.camera.colorBalance.awbGains[0],
+              self.camera.colorBalance.awbGains[1],
+>>>>>>> cniessl/expBalFix
               self.camera.colorBalance.brightness,
               self.camera.colorBalance.contrast,
               self.camera.exposure.exposure,
