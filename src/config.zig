@@ -141,12 +141,8 @@ pub const Config = struct {
     
         const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
             .{self.camera.colorBalance.awb,
-<<<<<<< HEAD
-              self.camera.colorBalance.awbGains,
-=======
               self.camera.colorBalance.awbGains[0],
               self.camera.colorBalance.awbGains[1],
->>>>>>> cniessl/expBalFix
               self.camera.colorBalance.brightness,
               self.camera.colorBalance.contrast,
               self.camera.exposure.exposure,
