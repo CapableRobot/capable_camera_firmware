@@ -30,7 +30,7 @@ pub const HandlerResponse = struct {
 
 pub const Handler = struct {
 
-    pub fn get(self: *ImgCfgHandler, request: *web.Request, response: *web.Response) !void {
-        print("Got a file list request");
+    pub fn get(self: *Handler, request: *web.Request, response: *web.Response) !void {
+        print("Got a file list request", .{});
     }
 };
