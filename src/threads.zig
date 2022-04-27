@@ -71,6 +71,8 @@ const JPEG_EOI = [_]u8{ 0xFF, 0xD9 };
 const PUB = "PUB ";
 const EOL = "\r\n";
 
+pub var use_fake_pvt = true;
+
 fn find_som(buffer: []const u8, start: usize, end: usize) ?usize {
     return std.mem.indexOf(u8, buffer[start..end], PUB[0..]);
 }
@@ -238,27 +240,51 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
         head += data_len;
 
         if (found_start and found_end) {
-            var pvt = ctx.gnss.gnss.last_nav_pvt();
+            if(use_fake_pvt){
+                var pvt = gnss.fake_pvt;
+                ctx.gnss.led.set(0, [_]u8{ 0, 255, 0 }); // TODO : better access method for recording LED
+                write_image(ctx, buffer[idx_start..idx_end], pvt, 0, true) catch |err| {
+                    std.log.err("REC RECV | could not write image : {}", .{err});
+                    reset_to = 0;
+                    continue;
+                };
+                if(ctx.config.write_aux) {
+                    write_image(ctx, buffer[idx_start..idx_end], pvt, 1, true) catch |err| {
+                    std.log.err("REC RECV | could not write image : {}", .{err});
+                    reset_to = 0;
+                    continue;
+                    };                    
+                }
+            } else {
+                var pvt = ctx.gnss.gnss.last_nav_pvt();
+                if (pvt) |value| {
+                    if (value.fix_type > 0) {
+                        // std.log.info("REC RECV | Frame {} is {}", .{ frame_count, idx_end - idx_start });
+                        ctx.gnss.led.set(0, [_]u8{ 0, 255, 0 }); // TODO : better access method for recording LED
 
-            if (pvt) |value| {
-                if (value.fix_type > 0) {
-                    // std.log.info("REC RECV | Frame {} is {}", .{ frame_count, idx_end - idx_start });
-                    ctx.gnss.led.set(0, [_]u8{ 0, 255, 0 }); // TODO : better access method for recording LED
-
-                    write_image(ctx, buffer[idx_start..idx_end], value) catch |err| {
-                        std.log.err("REC RECV | could not write image : {}", .{err});
-                        reset_to = 0;
-                        continue;
-                    };
-                } else {
-                    std.log.info("REC SKIP | Frame {} is {}", .{ frame_count, idx_end - idx_start });
-                    ctx.gnss.led.set(0, [_]u8{ 255, 127, 0 }); // TODO : better access method for recording LED
+                        write_image(ctx, buffer[idx_start..idx_end], value, 0, false) catch |err| {
+                            std.log.err("REC RECV | could not write image : {}", .{err});
+                            reset_to = 0;
+                            continue;
+                        };
+                        if(ctx.config.write_aux) {
+                            write_image(ctx, buffer[idx_start..idx_end], value, 1, false) catch |err| {
+                            std.log.err("REC RECV | could not write image : {}", .{err});
+                            reset_to = 0;
+                            continue;
+                            };                    
+                        }
+                    } else {
+                        std.log.info("REC SKIP | Frame {} is {}", .{ frame_count, idx_end - idx_start });
+                        ctx.gnss.led.set(0, [_]u8{ 255, 127, 0 }); // TODO : better access method for recording LED
+                    }
                 }
             }
-
+            
             // Copy any partial data we have to the start of the acculumation buffer
             if (idx_end + 2 < head) {
                 std.log.info("REC RECV | copy tail bytes : {} {}", .{ idx_end, head });
+                std.log.info("CUR CPU TIME: {}", .{std.time.nanoTimestamp()});
                 std.mem.copy(u8, buffer[0 .. head - idx_end - 2], buffer[idx_end + 2 .. head]);
                 reset_to = head - idx_end - 2;
             } else {
@@ -268,14 +294,45 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
     }
 }
 
-fn alloc_filename(ctx: *RecordingContext, timestamp: ?[24]u8) ![]u8 {
-    const temp = try std.fmt.allocPrint(ctx.allocator, "{s}/{s}.jpg", .{ ctx.config.dir, timestamp });
-    defer ctx.allocator.free(temp);
+fn alloc_filename(ctx: *RecordingContext, timestamp: ?[24]u8, dirType: u8) ![]u8 {
+    var dirStr: []const u8 = undefined;
+    if (dirType == 0){
+        dirStr = ctx.config.dir;
+    } else {
+        dirStr = ctx.config.dirS;
+    }
 
+    const temp = try std.fmt.allocPrint(ctx.allocator, "{s}/{s}.jpg", .{ dirStr, timestamp });
+    defer ctx.allocator.free(temp);
     const filename = try ctx.allocator.alloc(u8, temp.len);
     _ = std.mem.replace(u8, temp, ":", "-", filename[0..]);
     return filename;
 }
+
+fn get_fake_frametime(pvt: gnss.PVT) [24]u8 {
+    var timestamp: [24]u8 = undefined;
+    const default = "1970-01-01T00-00-00.000Z";
+    std.mem.copy(u8, timestamp[0..], default[0..]);  
+
+    const age_sec = std.time.timestamp();
+    const age_nsec = std.time.nanoTimestamp() - (age_sec * std.time.ns_per_s);
+    
+    var stamp = datetime.Datetime.now();
+    
+    stamp = stamp.shift(datetime.Datetime.Delta{ .seconds = age_sec, .nanoseconds = @intCast(i32, age_nsec) });
+
+    _ = std.fmt.bufPrint(&timestamp, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>6.3}Z", .{
+        stamp.date.year,
+        stamp.date.month,
+        stamp.date.day,
+        stamp.time.hour,
+        stamp.time.minute,
+        @intToFloat(f64, stamp.time.second) + @intToFloat(f64, stamp.time.nanosecond) * 1e-9,
+    }) catch |err| {};
+
+    return timestamp;
+}
+
 
 fn determine_frametime(pvt: gnss.PVT) [24]u8 {
     var timestamp: [24]u8 = undefined;
@@ -320,13 +377,18 @@ fn determine_frametime(pvt: gnss.PVT) [24]u8 {
     return timestamp;
 }
 
-fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT) !void {
-    const timestamp = determine_frametime(pvt);
-
+fn write_image(ctx: *RecordingContext, buffer: []const u8, pvt: gnss.PVT, dirType: u8, useFakeTS: bool) !void {
+    var timestamp : [24]u8 = undefined;
+    if(useFakeTS){
+        timestamp = get_fake_frametime(pvt);
+    } else {
+        timestamp = determine_frametime(pvt);
+    }
+     
     // std.log.info("FNAME | GNSS {s} + {d:.3} -> {s}", .{ pvt.timestamp, @intToFloat(f64, pvt.age) / 1000.0, timestamp });
     //std.log.info("REC RECV | Frame {s} is {} bytes", .{ timestamp, buffer.len });
 
-    var filename = try alloc_filename(ctx, timestamp);
+    var filename = try alloc_filename(ctx, timestamp, dirType);
     defer ctx.allocator.free(filename);
 
     var file = try std.fs.cwd().createFile(filename, .{});

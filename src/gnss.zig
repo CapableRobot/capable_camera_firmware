@@ -298,6 +298,22 @@ pub const PVT = struct {
     dop: f32,
 };
 
+pub const fake_pvt = PVT {
+    .age = 0,
+    .timestamp = undefined,
+    .time = undefined,
+    .longitude = 0.0,
+    .latitude = 0.0,
+    .height = 0.0,
+    .heading = 0.0,
+    .speed = 0.0,
+    .velocity = [3]f32{0.0, 0.0, 0.0},
+    .satellite_count = 0,
+    .fix_type = 0,
+    .flags = [3]u8{0, 0, 0},
+    .dop = 0.0
+};
+
 const GNSSID = extern enum { GPS, SBAS, GAL, BDS, IMES, QZSS, GLO, NONE };
 const SATQUAL = extern enum { NONE, SEARCH, ACQ, DETECT, LOCK, SYNCA, SYNCB, SYNCC };
 const SATHEALTH = extern enum { UNK, GOOD, BAD };
