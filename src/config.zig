@@ -27,6 +27,7 @@ pub const Api = struct {
 
 pub const Gnss = struct {
     debug_period: u16 = 0,
+    debug_period_pvt: u16 = 10,
     reset_on_start: bool = true,
 };
 
