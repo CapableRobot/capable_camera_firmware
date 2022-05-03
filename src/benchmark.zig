@@ -130,7 +130,7 @@ fn cmd_disc(allocator: *std.mem.Allocator, args: []const []const u8) !void {
 fn disc_io_init(allocator: *std.mem.Allocator, config: DiscIO) anyerror!void {
     var dir_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
     const dir_path = try std.os.getFdPath(config.dir.fd, &dir_buffer);
-    std.log.info("Diso IO occuring in {s}", .{dir_path});
+    std.log.info("Disc IO occurring in {s}", .{dir_path});
 
     var test_index: u8 = 0;
 
@@ -150,26 +150,33 @@ fn disc_io_run(allocator: *std.mem.Allocator, config: DiscIO, test_index: usize)
     var file_data_buffer = try allocator.alloc(u8, config.file_size);
     defer allocator.free(file_data_buffer);
 
-    const start_timestamp = std.time.milliTimestamp();
+    var start_timestamp: i64 = undefined;
+    var milliseconds: i64 = 0;
 
     while (file_index < end_file_index) {
         const file_name = try std.fmt.bufPrint(buffer_slice, "file_{d}.ext", .{file_index});
 
         // Write random data into the file
-        std.crypto.random.bytes(file_data_buffer[0..]);
+        try std.os.getrandom(file_data_buffer[0..]);
+
+        start_timestamp = std.time.milliTimestamp();
         try config.dir.writeFile(file_name, file_data_buffer);
+        milliseconds += std.time.milliTimestamp() - start_timestamp;
 
         file_index += 1;
     }
 
+    start_timestamp = std.time.milliTimestamp();
     try run_command(allocator, &[_][]const u8{"sync"});
-
-    const end_timestamp = std.time.milliTimestamp();
+    const sync_milliseconds = std.time.milliTimestamp() - start_timestamp;
+    milliseconds += sync_milliseconds;
 
     const total_MB = @intToFloat(f64, config.file_size * config.file_count) / 1024.0 / 1024.0;
-    const seconds = (@intToFloat(f64, end_timestamp) - @intToFloat(f64, start_timestamp)) / std.time.ms_per_s;
 
-    std.log.info("{d} MB in {d:.2} sec : {d:.2} MB/sec", .{ total_MB, seconds, total_MB / seconds });
+    const sync_seconds = @intToFloat(f64, sync_milliseconds) / std.time.ms_per_s;
+    const seconds = @intToFloat(f64, milliseconds) / std.time.ms_per_s;
+
+    std.log.info("{d} MB in {d: >5.2} sec (sync was {d: >5.2} sec) : {d: >5.2} MB/sec", .{ total_MB, seconds, sync_seconds, total_MB / seconds });
 }
 
 fn run_command(allocator: *std.mem.Allocator, argv: []const []const u8) anyerror!void {
