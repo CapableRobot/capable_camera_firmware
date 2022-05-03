@@ -130,7 +130,7 @@ fn cmd_disc(allocator: *std.mem.Allocator, args: []const []const u8) !void {
 fn disc_io_init(allocator: *std.mem.Allocator, config: DiscIO) anyerror!void {
     var dir_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
     const dir_path = try std.os.getFdPath(config.dir.fd, &dir_buffer);
-    std.log.info("Disc IO occuring in {s}", .{dir_path});
+    std.log.info("Disc IO occurring in {s}", .{dir_path});
 
     var test_index: u8 = 0;
 
