@@ -37,7 +37,7 @@ pub const routes = [_]web.Route{
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
     web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),
     web.Route.create("api/recordings", "/api/recordings/(.+)", RecordingFileHandler),
-    web.Route.create("api/fetch_gnssfilenames","api/fetch_gnssfilenames/(.+)/(.+)",fileAPI.Handler),
+    //web.Route.create("api/fetch_gnssfilenames","api/fetch_gnssfilenames/(.+)/(.+)",fileAPI.Handler),
     web.Route.static("static", "/static/", "static/"),
 };
 
