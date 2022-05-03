@@ -954,20 +954,20 @@ pub const GNSS = struct {
                 // If this is an ACK then let's check if the class and ID match the requestedClass and requestedID
                 else if ((packet.cls == UBX_CLASS_ACK) and (packet.id == UBX_ACK_ACK) and (packet.payload[0] == requested_class) and (packet.payload[1] == requested_id)) {
                     packet.class_id_match = UBX_Packet_Validity.VALID;
-                    // slog.debug("gnss process_ubx :  ACK | Class {} ID {}", .{ packet.payload[0], packet.payload[1] });
+                    // slog.debug("process_ubx :  ACK | Class {} ID {}", .{ packet.payload[0], packet.payload[1] });
                 }
 
                 // If this is an NACK then let's check if the class and ID match the requestedClass and requestedID
                 else if ((packet.cls == UBX_CLASS_ACK) and (packet.id == UBX_ACK_NACK) and (packet.payload[0] == requested_class) and (packet.payload[1] == requested_id)) {
                     packet.class_id_match = UBX_Packet_Validity.NOT_ACKNOWLEDGED;
-                    slog.debug("gnss process_ubx : NACK | Class {} ID {}", .{ packet.payload[0], packet.payload[1] });
+                    slog.debug("process_ubx : NACK | Class {} ID {}", .{ packet.payload[0], packet.payload[1] });
                 }
 
                 // This is not an ACK and we do not have a complete class and ID match
                 // So let's check for an "automatic" message arriving
                 else if (self.check_automatic(packet.cls, packet.id)) {
                     // This isn't the message we are looking for...
-                    slog.debug("gnss process_ubx : automatic | Class {} ID {}", .{ packet.cls, packet.id });
+                    slog.debug("process_ubx : automatic | Class {} ID {}", .{ packet.cls, packet.id });
                 }
 
                 if (self.ignore_payload == false) {
@@ -979,7 +979,7 @@ pub const GNSS = struct {
                 packet.valid = UBX_Packet_Validity.NOT_VALID;
                 packet.class_id_match = UBX_Packet_Validity.NOT_VALID;
 
-                slog.debug("gnss process_ubx : checksum failed | {} {} vs {} {}", .{ packet.checksum_a, packet.checksum_b, self.cur_checksum_a, self.cur_checksum_b });
+                slog.debug("process_ubx : checksum failed | {} {} vs {} {}", .{ packet.checksum_a, packet.checksum_b, self.cur_checksum_a, self.cur_checksum_b });
             }
         } else {
             // Load this byte into the payload array
@@ -1005,7 +1005,7 @@ pub const GNSS = struct {
 
         if (overrun or (packet.counter == max_payload_size + 6) and self.ignore_payload == false) {
             self.message_type = SentenceTypes.NONE;
-            slog.debug("gnss process_ubx : overrun | buffer {} size {}", .{ self.active_buffer, max_payload_size });
+            slog.debug("process_ubx : overrun | buffer {} size {}", .{ self.active_buffer, max_payload_size });
         }
 
         // if (incoming < 16) {
@@ -1027,7 +1027,7 @@ pub const GNSS = struct {
             // UBX_CLASS_TIM => self.process_tim_packet(packet),
             // UBX_CLASS_ESF => self.process_esf_packet(packet),
             // UBX_CLASS_HNR => self.process_hnr_packet(packet),
-            else => slog.debug("gnss process_packet : unknown class {}", .{packet.cls}),
+            else => slog.debug("process_packet : unknown class {}", .{packet.cls}),
         }
     }
 
@@ -1062,7 +1062,7 @@ pub const GNSS = struct {
 
                 self._last_mon_span = data;
             },
-            else => slog.debug("gnss process_mon_packet : unknown id {}", .{packet.id}),
+            else => slog.debug("process_mon_packet : unknown id {}", .{packet.id}),
         }
     }
 
@@ -1111,14 +1111,14 @@ pub const GNSS = struct {
 
                     self._last_nav_pvt = pvt;
                 } else {
-                    slog.debug("gnss nav_packet : incorrect length for PVT : {}", .{packet.len});
+                    slog.debug("nav_packet : incorrect length for PVT : {}", .{packet.len});
                 }
             },
             UBX_NAV_SAT => {
                 const count: u8 = extract(packet, u8, 5);
 
                 var satellites = bounded_array.BoundedArray(SatDetail, MAX_SAT_INFO_COUNT).init(count) catch |err| {
-                    slog.err("GNSS | could not created satellite defailt BoundedArray : {}", .{err});
+                    slog.err("could not created satellite defailt BoundedArray : {}", .{err});
                     return;
                 };
 
@@ -1150,7 +1150,7 @@ pub const GNSS = struct {
                 }
                 self._last_nav_sat = data;
             },
-            else => slog.debug("gnss process_nav_packet : unknown id {}", .{packet.id}),
+            else => slog.debug("process_nav_packet : unknown id {}", .{packet.id}),
         }
     }
 
@@ -1159,7 +1159,7 @@ pub const GNSS = struct {
             const measure_rate = extract(packet, u16, 0);
             const nav_rate = extract(packet, u16, 2);
             const time_ref = extract(packet, u16, 4);
-            slog.info("gnss CFG_RATE : measure_rate {} nav_rate {} time_ref {}", .{ measure_rate, nav_rate, time_ref });
+            slog.info("CFG_RATE : measure_rate {} nav_rate {} time_ref {}", .{ measure_rate, nav_rate, time_ref });
         }
     }
 
@@ -1241,11 +1241,11 @@ pub const GNSS = struct {
         self.packet_cfg.payload[1] = UBX_NAV_PVT;
         self.packet_cfg.payload[2] = rate; // rate relative to navigation freq.
 
-        slog.info("gnss set_auto_pvt_rate({})", .{rate});
+        slog.info("set_auto_pvt_rate({})", .{rate});
         const value = self.send_command(&self.packet_cfg);
 
         if (value == UBX_Status.DATA_SENT) {
-            slog.info("gnss ack", .{});
+            slog.info("ack", .{});
         }
     }
 
