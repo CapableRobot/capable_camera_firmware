@@ -95,14 +95,7 @@ pub fn main() anyerror!void {
 
     attachSegfaultHandler();
 
-    const start_uptime: f32 = system.uptime();
-    const start_timestamp: u64 = @bitCast(u64, std.time.milliTimestamp());
-    std.log.info("start_uptime {}", .{start_uptime});
-    std.log.info("start_timestamp {}", .{start_timestamp});
-
     const slog = std.log.scoped(.main);
-
-    // slog.info("uptime {}", .{});
 
     defer std.debug.assert(!gpa.deinit());
     const allocator = &gpa.allocator;
@@ -123,11 +116,11 @@ pub fn main() anyerror!void {
     led = led_driver.LP50xx{ .fd = i2c_fd };
 
     if (led.read_register(0x00, 1)) |value| {
-        slog.info("CONFIG0 = 0x{s}", .{std.fmt.fmtSliceHexUpper(value)});
+        slog.debug("CONFIG0 = 0x{s}", .{std.fmt.fmtSliceHexUpper(value)});
     }
 
     if (led.read_register(0x01, 1)) |value| {
-        slog.info("CONFIG1 = 0x{s}", .{std.fmt.fmtSliceHexUpper(value)});
+        slog.debug("CONFIG1 = 0x{s}", .{std.fmt.fmtSliceHexUpper(value)});
     }
 
     led.off();
@@ -143,7 +136,7 @@ pub fn main() anyerror!void {
     try loop.runDetached(allocator, threads.heartbeat_thread, .{led_ctx});
 
     var handle = spi.SPI{ .fd = spi01_fd };
-    slog.info("SPI configure {any}", .{handle.configure(0, 5500)});
+    slog.debug("SPI configure {any}", .{handle.configure(0, 5500)});
 
     var pos = gnss.init(handle);
     var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
