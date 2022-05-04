@@ -19,7 +19,7 @@ const fmt = std.fmt;
 
 const imgCfg = @import("cfg/camParamBase.zig");
 
-const defaultAWBGains = [2]f32{1.0, 1.0};
+const defaultAWBGains = [2]f32{ 1.0, 1.0 };
 
 pub const Api = struct {
     port: u16 = 5000,
@@ -27,6 +27,7 @@ pub const Api = struct {
 
 pub const Gnss = struct {
     debug_period: u16 = 0,
+    debug_period_pvt: u16 = 10,
     reset_on_start: bool = true,
 };
 
@@ -60,7 +61,6 @@ pub const Exposure = struct {
     metering: []const u8 = "centre",
     sharpness: u32 = 0.0,
 };
-
 
 pub const Camera = struct {
     fps: u8 = 10,
@@ -114,7 +114,7 @@ pub const Config = struct {
 
     pub fn save(self: *Config) !void {
         const output_file = std.fs.cwd().createFile("config.json", .{ .read = true }) catch |err| {
-            std.log.err("config: failed to open config file\n", .{});
+            std.log.err("config: failed to open config file", .{});
             return err;
         };
         defer output_file.close();
@@ -126,39 +126,23 @@ pub const Config = struct {
         try output_file.writeAll(output_str.items);
     }
 
-    pub fn writeBridgeScript(self: *Config, cfg_filename: []const u8) anyerror!void{                 
-        const output_file = try std.fs.cwd().createFile(
-            cfg_filename, .{ .read = true });
+    pub fn writeBridgeScript(self: *Config, cfg_filename: []const u8) anyerror!void {
+        const output_file = try std.fs.cwd().createFile(cfg_filename, .{ .read = true });
         defer output_file.close();
-    
+
         var execLineBuff: [512]u8 = undefined;
-        
+
         const execLineSlice1 = execLineBuff[0..256];
         const execLineSlice2 = execLineBuff[256..512];
-    
-        const firstExecStr = try fmt.bufPrint(execLineSlice1, imgCfg.execLine1, 
-            .{self.camera.width, 
-              self.camera.height, 
-              self.camera.fps});
-    
-        const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2,
-            .{self.camera.colorBalance.awb,
-              self.camera.colorBalance.awbGains[0],
-              self.camera.colorBalance.awbGains[1],
-              self.camera.colorBalance.brightness,
-              self.camera.colorBalance.contrast,
-              self.camera.exposure.exposure,
-              self.camera.exposure.ev,
-              self.camera.exposure.fixedGain,
-              self.camera.exposure.metering,
-              self.camera.colorBalance.saturation,
-              self.camera.exposure.sharpness});
-    
+
+        const firstExecStr = try fmt.bufPrint(execLineSlice1, imgCfg.execLine1, .{ self.camera.width, self.camera.height, self.camera.fps });
+
+        const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2, .{ self.camera.colorBalance.awb, self.camera.colorBalance.awbGains[0], self.camera.colorBalance.awbGains[1], self.camera.colorBalance.brightness, self.camera.colorBalance.contrast, self.camera.exposure.exposure, self.camera.exposure.ev, self.camera.exposure.fixedGain, self.camera.exposure.metering, self.camera.colorBalance.saturation, self.camera.exposure.sharpness });
+
         try output_file.writeAll(imgCfg.scriptLines);
         try output_file.writeAll(firstExecStr);
         try output_file.writeAll(secndExecStr);
-        
-           
+
         return;
     }
 
@@ -203,14 +187,13 @@ pub const Config = struct {
 
         return check;
     }
-
 };
 
 pub fn load(allocator: *mem.Allocator) Config {
     const max_size = 1024 * 1024;
 
     const input_file = std.fs.cwd().openFile("config.json", .{}) catch |err| {
-        std.log.err("config: failed to open config file\n", .{});
+        std.log.err("config: failed to open config file", .{});
         return Config{ .allocator = allocator };
     };
 
@@ -219,11 +202,11 @@ pub fn load(allocator: *mem.Allocator) Config {
         max_size,
     ) catch |err| switch (err) {
         error.FileTooBig => {
-            std.log.err("config: file too large\n", .{});
+            std.log.err("config: file too large", .{});
             return Config{ .allocator = allocator };
         },
         else => {
-            std.log.err("config: file read error\n", .{});
+            std.log.err("config: file read error", .{});
             return Config{ .allocator = allocator };
         },
     };
@@ -236,7 +219,7 @@ pub fn load(allocator: *mem.Allocator) Config {
         .ignore_unknown_fields = true,
         .allow_trailing_data = true,
     }) catch |err| {
-        std.log.err("config: failed to parse config file : {any}\n", .{err});
+        std.log.err("config: failed to parse config file : {any}", .{err});
         return Config{ .allocator = allocator };
     };
 
@@ -255,12 +238,12 @@ pub fn load(allocator: *mem.Allocator) Config {
     // - Contents of config.json inside the target recording folder
 
     const patch_path = std.fs.path.join(allocator, &[_][]const u8{ config.recording.dir, "config.json" }) catch |err| {
-        std.log.info("config: could not create overrider file path\n", .{});
+        std.log.info("config: could not create overrider file path", .{});
         return config;
     };
 
     const patch_file = fs.openFileAbsolute(patch_path, .{ .read = true }) catch |err| {
-        std.log.info("config: no override file found\n", .{});
+        std.log.info("config: no override file found", .{});
         return config;
     };
 
@@ -272,18 +255,18 @@ pub fn load(allocator: *mem.Allocator) Config {
         max_size,
     ) catch |err| switch (err) {
         error.FileTooBig => {
-            std.log.err("config: file too large\n", .{});
+            std.log.err("config: file too large", .{});
             return config;
         },
         else => {
-            std.log.err("config: file read error\n", .{});
+            std.log.err("config: file read error", .{});
             return config;
         },
     };
     defer allocator.free(patch_input);
 
     var tree = parser.parse(patch_input) catch |err| {
-        std.log.info("config: error parsing override file, returning config\n", .{});
+        std.log.info("config: error parsing override file, returning config", .{});
         return config;
     };
     defer tree.deinit();
@@ -351,7 +334,7 @@ pub fn load(allocator: *mem.Allocator) Config {
             }
         }
     }
-    
+
     std.log.info("config: {any}", .{config});
 
     return config;

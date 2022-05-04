@@ -336,7 +336,7 @@ fn get_fake_frametime(pvt: gnss.PVT) [24]u8 {
 
 fn determine_frametime(pvt: gnss.PVT) [24]u8 {
     var timestamp: [24]u8 = undefined;
-    const default = "1970-01-01T00-00-00.000Z";
+    const default = "0000-00-00T00-00-00.000Z";
     std.mem.copy(u8, timestamp[0..], default[0..]);
 
     const t = pvt.time;
@@ -473,8 +473,12 @@ pub fn gnss_thread(ctx: GnssContext) void {
     ctx.gnss.set_timeout(ctx.interval + 50);
 
     var last_debug_ms = std.time.milliTimestamp();
+    var last_debug_pvt_ms = std.time.milliTimestamp();
     var last_debug: i8 = -1;
+
     const debug_interval: usize = ctx.config.debug_period * 1000;
+    const debug_interval_pvt: usize = ctx.config.debug_period_pvt * 1000;
+    const slog = std.log.scoped(.gnss);
 
     while (true) {
         const this_ms = std.time.milliTimestamp();
@@ -503,6 +507,12 @@ pub fn gnss_thread(ctx: GnssContext) void {
                 } else {
                     // If there is a fix, color LED green
                     ctx.led.set(1, [_]u8{ 0, 255, 0 });
+                }
+
+                if (debug_interval_pvt > 0 and this_ms - last_debug_pvt_ms > debug_interval_pvt) {
+                    last_debug_pvt_ms = this_ms;
+
+                    slog.info("{s} {any}", .{ pvt.timestamp, pvt });
                 }
 
                 //print("PVT {s} at ({d:.6},{d:.6}) height {d:.2} dop {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height, pvt.dop });

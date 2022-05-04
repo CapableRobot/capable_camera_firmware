@@ -32,12 +32,50 @@ const camera = @import("camera.zig");
 const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
 const info = @import("info.zig");
+const system = @import("system.zig");
 
 const handlers = @import("handlers.zig");
 
 pub const routes = handlers.routes;
 
 var led: led_driver.LP50xx = undefined;
+
+var init_uptime: f32 = 0.0;
+var init_timestamp: i64 = 0.0;
+
+// Returns seconds since system was turned on.
+// Requires that init_uptime and init_timestamp be set at program boot.
+// This allows calls to be offset from initially stored uptime via system time offsets
+// which is faster than reading /proc/uptime for every long line
+pub fn logstamp() f32 {
+    const millis = std.time.milliTimestamp() - init_timestamp;
+    return init_uptime + @intToFloat(f32, millis) / 1000.0;
+}
+
+pub const log_level: std.log.Level = .debug;
+
+// Define root.log to override the std implementation
+pub fn log(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
+
+    // Ignore all non-critical logging from sources other than specified
+    const scope_prefix = "" ++ switch (scope) {
+        .main, .gnss, .config, .default => @tagName(scope),
+        else => if (@enumToInt(level) <= @enumToInt(std.log.Level.crit))
+            @tagName(scope)
+        else
+            return,
+    } ++ " : ";
+
+    const prefix = " [" ++ @tagName(level) ++ "] " ++ scope_prefix;
+
+    const held = std.debug.getStderrMutex().acquire();
+    defer held.release();
+    const stderr = std.io.getStdErr().writer();
+
+    // Log timestamp cannot be included in second call to print due to comptime unknowns
+    nosuspend stderr.print("{d: >12.3}", .{logstamp()}) catch return;
+    nosuspend stderr.print(prefix ++ format ++ "\n", args) catch return;
+}
 
 fn write_info_json() !void {
     if (try info.stat()) |stat| {
@@ -52,7 +90,12 @@ fn write_info_json() !void {
 }
 
 pub fn main() anyerror!void {
+    init_uptime = system.uptime();
+    init_timestamp = std.time.milliTimestamp();
+
     attachSegfaultHandler();
+
+    const slog = std.log.scoped(.main);
 
     defer std.debug.assert(!gpa.deinit());
     const allocator = &gpa.allocator;
@@ -73,11 +116,11 @@ pub fn main() anyerror!void {
     led = led_driver.LP50xx{ .fd = i2c_fd };
 
     if (led.read_register(0x00, 1)) |value| {
-        print("CONFIG0 = 0x{s}\n", .{std.fmt.fmtSliceHexUpper(value)});
+        slog.debug("CONFIG0 = 0x{s}", .{std.fmt.fmtSliceHexUpper(value)});
     }
 
     if (led.read_register(0x01, 1)) |value| {
-        print("CONFIG1 = 0x{s}\n", .{std.fmt.fmtSliceHexUpper(value)});
+        slog.debug("CONFIG1 = 0x{s}", .{std.fmt.fmtSliceHexUpper(value)});
     }
 
     led.off();
@@ -93,7 +136,7 @@ pub fn main() anyerror!void {
     try loop.runDetached(allocator, threads.heartbeat_thread, .{led_ctx});
 
     var handle = spi.SPI{ .fd = spi01_fd };
-    print("SPI configure {any}\n", .{handle.configure(0, 5500)});
+    slog.debug("SPI configure {any}", .{handle.configure(0, 5500)});
 
     var pos = gnss.init(handle);
     var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
@@ -118,6 +161,7 @@ pub fn main() anyerror!void {
     std.fs.cwd().deleteFile(cfg.recording.socket) catch {};
 
     const address = std.net.Address.initUnix(cfg.recording.socket) catch |err| {
+        slog.err("Error creating unix socket: {}", .{err});
         std.debug.panic("Error creating unix socket: {}", .{err});
     };
 
@@ -125,6 +169,7 @@ pub fn main() anyerror!void {
     defer server.deinit();
 
     server.listen(address) catch |err| {
+        slog.err("Error listening to unix socket: {}", .{err});
         std.debug.panic("Error listening to unix socket: {}", .{err});
     };
 

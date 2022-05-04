@@ -25,7 +25,6 @@ const fileAPI = @import("handlers/fileAPI.zig");
 const threads = @import("threads.zig");
 const recording = @import("recording.zig");
 
-
 pub const routes = [_]web.Route{
     web.Route.create("", "/", MainHandler),
     web.Route.create("api", "/api", MainHandler),
@@ -79,7 +78,7 @@ pub const RecordingIndexHandler = struct {
 
         const ctx = threads.rec_ctx;
 
-        if (recording.directory_listing(ctx.allocator, ctx.config.dir)) |listing| {
+        if (recording.directory_listing(ctx.allocator, ctx.config.dir, ".jpg")) |listing| {
             defer ctx.allocator.free(listing.items);
 
             var list = std.ArrayList(FileData).init(ctx.allocator);

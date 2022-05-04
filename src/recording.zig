@@ -93,7 +93,7 @@ fn cmp_file_listing_mtime(context: void, a: FileData, b: FileData) bool {
     return a.mtime < b.mtime;
 }
 
-pub fn directory_listing(allocator: *std.mem.Allocator, path: []const u8) ?FolderListing {
+pub fn directory_listing(allocator: *std.mem.Allocator, path: []const u8, suffix: []const u8) ?FolderListing {
     var total_size: u64 = 0;
     var count: usize = 0;
 
@@ -110,6 +110,11 @@ pub fn directory_listing(allocator: *std.mem.Allocator, path: []const u8) ?Folde
 
                 // Skip files starting with '.'
                 if (entry.name[0] == 0x2E) {
+                    continue;
+                }
+
+                // Skip files which do not end with suffix
+                if (!std.mem.endsWith(u8, entry.name, suffix)) {
                     continue;
                 }
 
@@ -145,7 +150,7 @@ pub fn directory_listing(allocator: *std.mem.Allocator, path: []const u8) ?Folde
 }
 
 pub fn directory_cleanup(ctx: threads.RecordingContext) void {
-    if (directory_listing(ctx.allocator, ctx.config.dir)) |listing| {
+    if (directory_listing(ctx.allocator, ctx.config.dir, ".jpg")) |listing| {
         defer ctx.allocator.free(listing.items);
 
         std.log.info("count: {d}", .{listing.count});
@@ -188,12 +193,13 @@ test "recording directory cleanup" {
 
     var dir_buffer: [std.fs.MAX_PATH_BYTES]u8 = undefined;
     const dir_path = try std.os.getFdPath(tmp.dir.fd, &dir_buffer);
+    const ext = ".ext";
 
     const max_size = 1; // MB
     var cfg = config.Recording{ .max_size = max_size, .dir = dir_path };
     var ctx = threads.RecordingContext{ .config = cfg, .allocator = alloc };
 
-    if (directory_listing(ctx.allocator, ctx.config.dir)) |listing| {
+    if (directory_listing(ctx.allocator, ctx.config.dir, ext)) |listing| {
         defer alloc.free(listing.items);
         try std.testing.expectEqual(listing.count, 0);
     }
@@ -206,7 +212,7 @@ test "recording directory cleanup" {
     var file_data_buffer: [file_size]u8 = undefined;
 
     for (file_suffixes) |suffix| {
-        const file_name = try std.fmt.bufPrint(buffer_slice, "frame_{c}.ext", .{suffix});
+        const file_name = try std.fmt.bufPrint(buffer_slice, "frame_{c}.{s}", .{ suffix, ext });
 
         // Write randome data into the file
         std.crypto.random.bytes(file_data_buffer[0..]);
@@ -217,7 +223,7 @@ test "recording directory cleanup" {
     }
 
     // Check that the directory listing finds the files and counts the file sizes correctly
-    if (directory_listing(ctx.allocator, ctx.config.dir)) |listing| {
+    if (directory_listing(ctx.allocator, ctx.config.dir, ext)) |listing| {
         defer alloc.free(listing.items);
         try std.testing.expectEqual(listing.count, file_suffixes.len);
         try std.testing.expectEqual(listing.bytes, file_size * file_suffixes.len);
@@ -227,7 +233,7 @@ test "recording directory cleanup" {
 
     // Check that cleanup removed the correct number of files
     // TODO : check that cleanup removed the correct (oldest) files
-    if (directory_listing(ctx.allocator, ctx.config.dir)) |listing| {
+    if (directory_listing(ctx.allocator, ctx.config.dir, ext)) |listing| {
         defer alloc.free(listing.items);
         try std.testing.expect(listing.count < file_suffixes.len);
         try std.testing.expectEqual(listing.count, @divTrunc(max_size * 1024 * 1024, file_size));
