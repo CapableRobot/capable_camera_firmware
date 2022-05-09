@@ -53,9 +53,9 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
 
 // The main even loop for the application.
 
-static void event_loop(LibcameraEncoder &app)
+static void execute_stream(LibcameraEncoder &app, VideoOptions const *options)
 {
-  VideoOptions const *options = app.GetOptions();
+
   std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
   app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
   app.StartEncoder();
@@ -104,8 +104,21 @@ static void event_loop(LibcameraEncoder &app)
   }
 }
 
+static void setup_net_options()
+{
+    options->ParseNet();
+}
+
+static void listen_options(VideoOptions *options, bool *end_exec)
+{
+
+}
+
 int main(int argc, char *argv[])
 {
+  bool optionsValid = false;
+  bool setupNetCfg = false;
+  bool end_exec = true;
   try
   {
     LibcameraEncoder app;
@@ -113,10 +126,35 @@ int main(int argc, char *argv[])
     if (options->Parse(argc, argv))
     {
       if (options->verbose)
+      {
         options->Print();
-
-      event_loop(app);
+      }
+      setupNetCfg = options->netConfig;
+      optionsValid = true;
     }
+    
+    if(setupNetCfg)
+    {
+      setup_net_options();
+      end_exec = false;
+    }
+    
+    do{
+      if(setupNetCfg)
+      {
+        listen_options(options, end_exec);
+      }
+      if(optionsValid)
+      {
+        execute_stream(app, options);
+      }
+    } while(!end_exec);
+    
+    if(setupNetCfg)
+    {
+      //TODO: teardown socket here
+    }
+    
   }
   catch (std::exception const &e)
   {
