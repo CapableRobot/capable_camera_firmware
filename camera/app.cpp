@@ -14,7 +14,7 @@
 #include <iomanip>
 
 #include "core/libcamera_encoder.hpp"
-#include "output/output.hpp"
+#include "network/output.hpp"
 
 using namespace std::placeholders;
 
@@ -51,9 +51,39 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
   return key;
 }
 
-// The main even loop for the application.
+static void setup_net_options()
+{
+  // We are a client.
+  saddr_ = {};
+  saddr_.sin_family = AF_INET;
+  saddr_.sin_port = htons(port);
+  if (inet_aton(address.c_str(), &saddr_.sin_addr) == 0)
+    throw std::runtime_error("inet_aton failed for " + address);
 
-static void execute_stream(LibcameraEncoder &app, VideoOptions const *options)
+  fd_ = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd_ < 0)
+	throw std::runtime_error("unable to open client socket");
+
+  if (options->verbose)
+	std::cerr << "Connecting to server..." << std::endl;
+  if (connect(fd_, (struct sockaddr *)&saddr_, sizeof(sockaddr_in)) < 0)
+	throw std::runtime_error("connect to server failed");
+  if (options->verbose)
+	std::cerr << "Connected" << std::endl;    
+}
+
+static void poll_options(VideoOptions *options, bool *end_exec)
+{
+  end_exec = false;
+}
+
+static void teardown_net_options()
+{
+
+}
+
+// The main even loop for the application.
+static void execute_stream(LibcameraEncoder &app, VideoOptions const *options, bool do_poll_options)
 {
 
   std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
@@ -72,7 +102,9 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions const *options)
   auto start_time = std::chrono::high_resolution_clock::now();
   auto last_time = std::chrono::high_resolution_clock::now();
 
-  for (unsigned int count = 0; ; count++)
+  bool end_early = false;
+
+  for (unsigned int count = 0; !end_early; count++)
   {
     LibcameraEncoder::Msg msg = app.Wait();
     if (msg.type == LibcameraEncoder::MsgType::Quit)
@@ -82,6 +114,11 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions const *options)
     int key = get_key_or_signal(options, p);
     if (key == '\n')
       output->Signal();
+
+    if(do_poll_options)
+    {
+      poll_options(options, end_early);
+    }
 
     auto this_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = this_time - last_time;
@@ -94,23 +131,15 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions const *options)
     if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)) || key == 'x' ||
       key == 'X')
     {
-      app.StopCamera(); // stop complains if encoder very slow to close
-      app.StopEncoder();
-      return;
+      end_early = true;
     }
 
     CompletedRequestPtr &completed_request = std::get<CompletedRequestPtr>(msg.payload);
     app.EncodeBuffer(completed_request, app.VideoStream());
   }
-}
-
-static void setup_net_options()
-{
-    options->ParseNet();
-}
-
-static void listen_options(VideoOptions *options, bool *end_exec)
-{
+  
+  app.StopCamera(); // stop complains if encoder very slow to close
+  app.StopEncoder();
 
 }
 
@@ -142,11 +171,11 @@ int main(int argc, char *argv[])
     do{
       if(setupNetCfg)
       {
-        listen_options(options, end_exec);
+        poll_options(options, end_exec);
       }
       if(optionsValid)
       {
-        execute_stream(app, options);
+        execute_stream(app, options, setupNetCfg);
       }
     } while(!end_exec);
     

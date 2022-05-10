@@ -45,7 +45,7 @@ include_directories(${CMAKE_SOURCE_DIR} ${LIBCAMERA_INCLUDE_DIRS})
 
 add_subdirectory(core)
 add_subdirectory(encoder)
-add_subdirectory(output)
+add_subdirectory(network)
 add_subdirectory(post_processing_stages)
 
 
