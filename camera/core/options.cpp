@@ -5,7 +5,14 @@
  * options.cpp - common program options helpers
  */
 
+#include <nlohmann/json.hpp>
+
 #include "core/options.hpp"
+
+bool Options::JSONParse()
+{
+    return true;
+}
 
 bool Options::Parse(int argc, char *argv[])
 {

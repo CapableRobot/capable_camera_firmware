@@ -12,9 +12,12 @@
 #include <sys/stat.h>
 
 #include <iomanip>
+#include <chrono>
+#include <thread>
 
 #include "core/libcamera_encoder.hpp"
 #include "network/output.hpp"
+#include "network/net_input.hpp"
 
 using namespace std::placeholders;
 
@@ -51,39 +54,17 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
   return key;
 }
 
-static void setup_net_options()
+static bool wait_for_options(VideoOptions *options, NetInput *netInput)
 {
-  // We are a client.
-  saddr_ = {};
-  saddr_.sin_family = AF_INET;
-  saddr_.sin_port = htons(port);
-  if (inet_aton(address.c_str(), &saddr_.sin_addr) == 0)
-    throw std::runtime_error("inet_aton failed for " + address);
-
-  fd_ = socket(AF_INET, SOCK_STREAM, 0);
-  if (fd_ < 0)
-	throw std::runtime_error("unable to open client socket");
-
-  if (options->verbose)
-	std::cerr << "Connecting to server..." << std::endl;
-  if (connect(fd_, (struct sockaddr *)&saddr_, sizeof(sockaddr_in)) < 0)
-	throw std::runtime_error("connect to server failed");
-  if (options->verbose)
-	std::cerr << "Connected" << std::endl;    
-}
-
-static void poll_options(VideoOptions *options, bool *end_exec)
-{
-  end_exec = false;
-}
-
-static void teardown_net_options()
-{
-
+  while(netInput->poll_input() == 0)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); 
+  }
+  return false;    
 }
 
 // The main even loop for the application.
-static void execute_stream(LibcameraEncoder &app, VideoOptions const *options, bool do_poll_options)
+static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do_poll_options, NetInput *netInput)
 {
 
   std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
@@ -117,7 +98,8 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions const *options, b
 
     if(do_poll_options)
     {
-      poll_options(options, end_early);
+      netInput->poll_input();
+      //poll_options(options, &end_early);
     }
 
     auto this_time = std::chrono::high_resolution_clock::now();
@@ -152,37 +134,34 @@ int main(int argc, char *argv[])
   {
     LibcameraEncoder app;
     VideoOptions *options = app.GetOptions();
+    NetInput *netInput; 
     if (options->Parse(argc, argv))
     {
       if (options->verbose)
       {
         options->Print();
       }
-      setupNetCfg = options->netConfig;
+      setupNetCfg = options->netconfig;
       optionsValid = true;
     }
     
     if(setupNetCfg)
     {
-      setup_net_options();
+      netInput = new NetInput(options);
       end_exec = false;
     }
     
     do{
       if(setupNetCfg)
       {
-        poll_options(options, end_exec);
+        optionsValid = wait_for_options(options, netInput);
       }
       if(optionsValid)
       {
-        execute_stream(app, options, setupNetCfg);
+        execute_stream(app, options, setupNetCfg, netInput);
       }
     } while(!end_exec);
     
-    if(setupNetCfg)
-    {
-      //TODO: teardown socket here
-    }
     
   }
   catch (std::exception const &e)

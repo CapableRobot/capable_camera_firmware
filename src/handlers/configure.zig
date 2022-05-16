@@ -78,3 +78,12 @@ pub const ImgCfgHandler = struct {
 
     }
 };
+
+pub const PreviewHandler = struct {
+
+    pub fn get(self: *PreviewHandler, request: *web.Request, response: *web.Response) !void {
+        try response.headers.put("Content-Type", "text/plain");
+        _ = try response.stream.write("Try port 5001 for stream!");
+    }
+
+};

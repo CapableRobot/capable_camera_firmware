@@ -47,6 +47,11 @@ pub const HeartBeatContext = struct {
 };
 
 pub var rec_ctx: RecordingContext = undefined;
+pub var brdg_cfg_ctx: BridgeCfgContext = undefined;
+
+pub const BridgeCfgContext = struct {
+    cfg_server: *std.net.StreamServer,
+};
 
 pub const RecordingContext = struct {
     config: config.Recording,
@@ -71,10 +76,25 @@ const JPEG_EOI = [_]u8{ 0xFF, 0xD9 };
 const PUB = "PUB ";
 const EOL = "\r\n";
 
+const HELLO = "Hello World\r\n";
+
 pub var use_fake_pvt = true;
 
 fn find_som(buffer: []const u8, start: usize, end: usize) ?usize {
     return std.mem.indexOf(u8, buffer[start..end], PUB[0..]);
+}
+
+pub fn bridge_cfg_thread(ctx: *BridgeCfgContext) void {
+    while (true) {
+        const conn = ctx.cfg_server.accept() catch |err| {
+            std.log.err("WRITE | server accept | ERR {}", .{err});
+            continue;
+        };
+        const data_len = conn.stream.writer().write(HELLO) catch |err| {
+            std.log.err("WRITE | ERR {}", .{err});
+            continue;
+        };
+    }
 }
 
 pub fn recording_server_thread(ctx: *RecordingContext) void {

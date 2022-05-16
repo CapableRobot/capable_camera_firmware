@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.6)
 
 include(GNUInstallDirs)
 
-add_library(outputs output.cpp net_output.cpp)
+add_library(network output.cpp net_output.cpp net_input.cpp)
 
-install(TARGETS outputs LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS network LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 

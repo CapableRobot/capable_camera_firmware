@@ -157,10 +157,16 @@ pub fn main() anyerror!void {
 
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
-    // This will error if the socket doesn't exists.  We ignore that error
+    // This will error if either socket doesn't exists.  We ignore that error
     std.fs.cwd().deleteFile(cfg.recording.socket) catch {};
+    std.fs.cwd().deleteFile(cfg.cfg_socket) catch {};    
 
     const address = std.net.Address.initUnix(cfg.recording.socket) catch |err| {
+        slog.err("Error creating unix socket: {}", .{err});
+        std.debug.panic("Error creating unix socket: {}", .{err});
+    };
+    
+    const cfg_address = std.net.Address.initUnix(cfg.cfg_socket) catch |err| {
         slog.err("Error creating unix socket: {}", .{err});
         std.debug.panic("Error creating unix socket: {}", .{err});
     };
@@ -173,6 +179,15 @@ pub fn main() anyerror!void {
         std.debug.panic("Error listening to unix socket: {}", .{err});
     };
 
+    // Set up cfg communication for camera thread
+    var cfg_server = std.net.StreamServer.init(.{});
+    defer cfg_server.deinit();
+
+    cfg_server.listen(cfg_address) catch |err| {
+        slog.err("Error listening to unix socket: {}", .{err});
+        std.debug.panic("Error listening to unix socket: {}", .{err});
+    };
+
     threads.rec_ctx = threads.RecordingContext{
         .config = cfg.recording,
         .allocator = allocator,
@@ -181,6 +196,11 @@ pub fn main() anyerror!void {
         .gnss = threads.gnss_ctx,
     };
 
+    threads.brdg_cfg_ctx = threads.BridgeCfgContext{
+        .cfg_server = &cfg_server,
+    };
+
+    try loop.runDetached(allocator, threads.bridge_cfg_thread, .{&threads.brdg_cfg_ctx});
     try loop.runDetached(allocator, threads.recording_cleanup_thread, .{threads.rec_ctx});
     try loop.runDetached(allocator, threads.recording_server_thread, .{&threads.rec_ctx});
 

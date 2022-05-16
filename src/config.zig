@@ -94,6 +94,8 @@ pub const Config = struct {
     camera: Camera = Camera{},
     gnss: Gnss = Gnss{},
 
+    cfg_socket: []const u8 = "/tmp/config.sock",
+
     allocator: *std.mem.Allocator,
 
     pub fn data(self: *Config) ConfigData {

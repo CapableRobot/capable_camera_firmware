@@ -51,7 +51,7 @@ add_subdirectory(post_processing_stages)
 
 project(libcamera-bridge)
 add_executable(libcamera-bridge app.cpp)
-target_link_libraries(libcamera-bridge libcamera_app encoders outputs)
+target_link_libraries(libcamera-bridge libcamera_app encoders network)
 
 set(EXECUTABLES libcamera-bridge)
 set(EXEC_SCRIPTS bridge.sh)
