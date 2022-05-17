@@ -40,18 +40,6 @@ pub const routes = handlers.routes;
 
 var led: led_driver.LP50xx = undefined;
 
-var init_uptime: f32 = 0.0;
-var init_timestamp: i64 = 0.0;
-
-// Returns seconds since system was turned on.
-// Requires that init_uptime and init_timestamp be set at program boot.
-// This allows calls to be offset from initially stored uptime via system time offsets
-// which is faster than reading /proc/uptime for every long line
-pub fn logstamp() f32 {
-    const millis = std.time.milliTimestamp() - init_timestamp;
-    return init_uptime + @intToFloat(f32, millis) / 1000.0;
-}
-
 pub const log_level: std.log.Level = .debug;
 
 // Define root.log to override the std implementation
@@ -73,7 +61,7 @@ pub fn log(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral),
     const stderr = std.io.getStdErr().writer();
 
     // Log timestamp cannot be included in second call to print due to comptime unknowns
-    nosuspend stderr.print("{d: >12.3}", .{logstamp()}) catch return;
+    nosuspend stderr.print("{d: >12.3}", .{system.logstamp()}) catch return;
     nosuspend stderr.print(prefix ++ format ++ "\n", args) catch return;
 }
 
@@ -90,8 +78,7 @@ fn write_info_json() !void {
 }
 
 pub fn main() anyerror!void {
-    init_uptime = system.uptime();
-    init_timestamp = std.time.milliTimestamp();
+    system.init();
 
     attachSegfaultHandler();
 
