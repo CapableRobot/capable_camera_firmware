@@ -17,6 +17,7 @@ const slog = std.log.scoped(.imu);
 const print = @import("std").debug.print;
 
 const spi = @import("bus/spi.zig");
+const system = @import("system.zig");
 
 const SPI_BUFFER_SIZE = 64;
 const FIFO_SIZE = 64;
@@ -33,14 +34,15 @@ pub fn init(handle: spi.SPI) IMU {
     return obj;
 }
 
-const RawSample = struct {
+pub const RawSample = struct {
     received_at: i64 = 0,
     temperature: i16 = 0,
     accelerometer: [3]i16 = [_]i16{ 0, 0, 0 },
     gyroscope: [3]i16 = [_]i16{ 0, 0, 0 },
 };
 
-const Sample = struct {
+pub const Sample = struct {
+    age: i64 = 0,
     received_at: i64,
     temperature: f32,
     accelerometer: [3]f64,
@@ -305,20 +307,15 @@ pub const IMU = struct {
         const gy = extract(self.read_buffer, i16, 11);
         const gz = extract(self.read_buffer, i16, 13);
 
-        const raw = RawSample{
-            .received_at = std.time.milliTimestamp(),
+        const data = self.convert_last_raw_sample(RawSample{
+            .received_at = system.timestamp(),
             .temperature = temp,
             .accelerometer = [3]i16{ ax, ay, az },
             .gyroscope = [3]i16{ gx, gy, gz },
-        };
-
-        self._last_raw_sample = raw;
-
-        const data = self.last_sample();
+        });
 
         if (self.fifo.writableLength() < 1) {
             self.fifo.discard(1);
-            slog.info("pop", .{});
         }
 
         self.fifo.writeItem(data) catch |err| {
@@ -334,17 +331,22 @@ pub const IMU = struct {
         return data;
     }
 
-    pub fn last_raw_sample(self: *IMU) RawSample {
-        return self._last_raw_sample;
-    }
+    fn convert_last_raw_sample(self: *IMU, last: RawSample) Sample {
+        self._last_raw_sample = last;
 
-    pub fn last_sample(self: *IMU) Sample {
-        const last = self.last_raw_sample();
         return Sample{
             .received_at = last.received_at,
             .temperature = convert_temperature(last.temperature),
             .accelerometer = self.convert_accelerometer(last.accelerometer),
             .gyroscope = self.convert_gyroscope(last.gyroscope),
         };
+    }
+
+    pub fn latest(self: *IMU) Sample {
+        return self.fifo.peekItem(self.fifo.count - 1);
+    }
+
+    pub fn latest_raw_sample(self: *IMU) RawSample {
+        return self._last_raw_sample;
     }
 };
