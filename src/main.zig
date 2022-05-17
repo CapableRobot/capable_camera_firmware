@@ -30,6 +30,7 @@ const threads = @import("threads.zig");
 const camera = @import("camera.zig");
 
 const led_driver = @import("led_driver.zig");
+const imu = @import("imu.zig");
 const gnss = @import("gnss.zig");
 const info = @import("info.zig");
 const system = @import("system.zig");
@@ -97,8 +98,26 @@ pub fn main() anyerror!void {
     var i2c_fd = try fs.openFileAbsolute("/dev/i2c-1", fs.File.OpenFlags{ .read = true, .write = true });
     defer i2c_fd.close();
 
+    var spi00_fd = try fs.openFileAbsolute("/dev/spidev0.0", fs.File.OpenFlags{ .read = true, .write = true });
+    defer spi00_fd.close();
+
     var spi01_fd = try fs.openFileAbsolute("/dev/spidev0.1", fs.File.OpenFlags{ .read = true, .write = true });
     defer spi01_fd.close();
+
+    var imu_handle = spi.SPI{ .fd = spi00_fd };
+    slog.debug("SPI00 configure {any}", .{imu_handle.configure(0, 10000)});
+
+    var iim = imu.init(imu_handle);
+    slog.info("INIT", .{});
+    iim.config(imu.ACCEL_FS.G8, imu.GYRO_FS.DPS_1000);
+    slog.info("CONFIG", .{});
+
+    threads.imu_ctx = threads.ImuContext{
+        .imu = &iim,
+        .interval = 1000,
+    };
+
+    try loop.runDetached(allocator, threads.imu_thread, .{threads.imu_ctx});
 
     led = led_driver.LP50xx{ .fd = i2c_fd };
 
@@ -122,10 +141,10 @@ pub fn main() anyerror!void {
     var led_ctx = threads.HeartBeatContext{ .led = led, .idx = 2 };
     try loop.runDetached(allocator, threads.heartbeat_thread, .{led_ctx});
 
-    var handle = spi.SPI{ .fd = spi01_fd };
-    slog.debug("SPI configure {any}", .{handle.configure(0, 5500)});
+    var gnss_handle = spi.SPI{ .fd = spi01_fd };
+    slog.debug("SPI01 configure {any}", .{gnss_handle.configure(0, 5500)});
 
-    var pos = gnss.init(handle);
+    var pos = gnss.init(gnss_handle);
     var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
 
     if (cfg.gnss.reset_on_start) {

@@ -35,7 +35,7 @@ pub const GnssContext = struct {
 
 pub const ImuContext = struct {
     imu: *imu.IMU,
-    interval: u16 = 1000,
+    interval: u16 = 100,
 
     pub fn latest(self: *ImuContext) imu.Sample {
         var data = self.imu.latest();
