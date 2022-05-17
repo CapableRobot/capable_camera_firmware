@@ -56,11 +56,14 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
 
 static bool wait_for_options(VideoOptions *options, NetInput *netInput)
 {
-  while(netInput->poll_input() == 0)
+  size_t incoming_bytes = 0;
+  while(incoming_bytes == 0)
   {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); 
+    incoming_bytes = netInput->poll_input();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   }
-  return false;    
+  
+  return true;    
 }
 
 // The main even loop for the application.
@@ -96,9 +99,13 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do
     if (key == '\n')
       output->Signal();
 
-    if(do_poll_options)
+    if(do_poll_options && netInput != NULL)
     {
-      netInput->poll_input();
+      if(netInput->poll_input() > 0)
+      {
+        end_early = true;
+        continue;
+      }
       //poll_options(options, &end_early);
     }
 
@@ -134,7 +141,7 @@ int main(int argc, char *argv[])
   {
     LibcameraEncoder app;
     VideoOptions *options = app.GetOptions();
-    NetInput *netInput; 
+    NetInput *netInput = NULL; 
     if (options->Parse(argc, argv))
     {
       if (options->verbose)

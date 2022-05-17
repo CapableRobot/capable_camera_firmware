@@ -23,6 +23,7 @@ const exif = @import("exif.zig");
 const datetime = @import("datetime.zig");
 
 const web = @import("zhp");
+const mutex = @import("std").Thread.Mutex;
 
 pub const GnssContext = struct {
     gnss: *gnss.GNSS,
@@ -51,6 +52,9 @@ pub var brdg_cfg_ctx: BridgeCfgContext = undefined;
 
 pub const BridgeCfgContext = struct {
     cfg_server: *std.net.StreamServer,
+    cfg_lock: mutex,
+    cfg_ready: bool,
+    cfg_data: std.ArrayList(u8),
 };
 
 pub const RecordingContext = struct {
@@ -76,7 +80,9 @@ const JPEG_EOI = [_]u8{ 0xFF, 0xD9 };
 const PUB = "PUB ";
 const EOL = "\r\n";
 
-const HELLO = "Hello World\r\n";
+const HELLO = "Hello World!\r\n";
+
+const SLEEP = std.time.ns_per_ms * 1000;
 
 pub var use_fake_pvt = true;
 
@@ -90,10 +96,54 @@ pub fn bridge_cfg_thread(ctx: *BridgeCfgContext) void {
             std.log.err("WRITE | server accept | ERR {}", .{err});
             continue;
         };
-        const data_len = conn.stream.writer().write(HELLO) catch |err| {
-            std.log.err("WRITE | ERR {}", .{err});
-            continue;
-        };
+        defer conn.stream.close();
+        
+        //Perform initial configuration send-over
+        if(ctx.cfg_lock.tryAcquire()) |held| {
+            defer held.release();
+            ctx.cfg_ready = true;
+            jsonify_cfg_data(ctx) catch |err| {
+                std.log.err("config: send failed: {s}", .{err});
+                ctx.cfg_ready = false;
+            };
+        }
+        
+        var sendover = async handle_cfg_bridge(ctx, conn);
+        await sendover;
+    }
+}
+
+fn jsonify_cfg_data(ctx: *BridgeCfgContext) !void {
+    try std.json.stringify(configuration.data(), .{}, ctx.cfg_data.writer());
+}
+
+fn handle_cfg_bridge(ctx: *BridgeCfgContext, conn: std.net.StreamServer.Connection) void {
+    var doDelay = false;
+    while(true) {
+        //Check our bridge context for more data if it exists 
+        if(ctx.cfg_lock.tryAcquire()) |held| {
+            defer held.release();
+            if(ctx.cfg_ready){
+                const data_len = conn.stream.writer().write(ctx.cfg_data.items) catch |err| {
+                    std.log.err("WRITE | ERR {}", .{err});
+                    continue;
+                };
+                std.log.info("Writing {} bytes over config.", .{data_len});
+                std.log.info("{s}", .{ctx.cfg_data.items});
+                ctx.cfg_ready = false;
+            }
+            else{
+                doDelay = true;
+            }
+        }
+        else{
+            doDelay = true;
+        }
+        if(doDelay){
+            std.log.info("No config available. waiting...", .{});
+            std.time.sleep(SLEEP);
+            doDelay = false;
+        }
     }
 }
 
@@ -103,7 +153,6 @@ pub fn recording_server_thread(ctx: *RecordingContext) void {
             std.log.err("REC | server accept | ERR {}", .{err});
             continue;
         };
-
         std.log.info("REC | client connected", .{});
         defer conn.stream.close();
 
@@ -184,7 +233,7 @@ fn handle_connection(ctx: *RecordingContext, conn: std.net.StreamServer.Connecti
             // Using read as start of search space as PUB might be split across UDP packets
             // and head.. might skip over start of sequence.
 
-            // if (std.mem.indexOf(u8, buffer[read..head+data_len], PUB[0..])) |idx_msg_start| {
+            // if (std.mem.indexOf(u8, buffer[read..head+data_len], PUB[0..])) |idx_msg_start| 
             if (find_som(&buffer, read, head + data_len)) |idx_msg_start| {
                 const idx_topic_start = idx_msg_start + PUB.len;
 

@@ -198,7 +198,11 @@ pub fn main() anyerror!void {
 
     threads.brdg_cfg_ctx = threads.BridgeCfgContext{
         .cfg_server = &cfg_server,
+        .cfg_lock = .{},
+        .cfg_ready = false,
+        .cfg_data  = std.ArrayList(u8).init(allocator),
     };
+    defer threads.brdg_cfg_ctx.cfg_data.deinit();
 
     try loop.runDetached(allocator, threads.bridge_cfg_thread, .{&threads.brdg_cfg_ctx});
     try loop.runDetached(allocator, threads.recording_cleanup_thread, .{threads.rec_ctx});
