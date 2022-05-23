@@ -30,7 +30,7 @@ pub const routes = [_]web.Route{
     web.Route.create("api", "/api", MainHandler),
     web.Route.create("api", "/api/", MainHandler),
     web.Route.create("api", "/api/v1/start_stream", configure.PreviewHandler),
-    web.Route.create("api", "/api/v1/stop_stream",  configure.PreviewHandler),
+    web.Route.create("api", "/api/v1/stop_stream",  configure.StopPreviewHandler),
     web.Route.create("api", "/api/config/img", configure.ImgCfgHandler),
     web.Route.create("api/status", "/api/status", status.Handler),
     web.Route.create("api/info", "/api/info", info.Handler),

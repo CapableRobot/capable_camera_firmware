@@ -84,7 +84,7 @@ const HELLO = "{\"Heartbeat\":\"Hello!\"}";
 
 const SLEEP = std.time.ns_per_ms * 1000;
 
-pub var use_fake_pvt = true;
+pub var use_fake_pvt = false;
 
 fn find_som(buffer: []const u8, start: usize, end: usize) ?usize {
     return std.mem.indexOf(u8, buffer[start..end], PUB[0..]);
@@ -113,7 +113,7 @@ pub fn bridge_cfg_thread(ctx: *BridgeCfgContext) void {
     }
 }
 
-fn jsonify_cfg_data(ctx: *BridgeCfgContext) !void {
+pub fn jsonify_cfg_data(ctx: *BridgeCfgContext) !void {
     try std.json.stringify(configuration.data(), .{}, ctx.cfg_data.writer());
 }
 
@@ -144,16 +144,18 @@ fn handle_cfg_bridge(ctx: *BridgeCfgContext, conn: std.net.StreamServer.Connecti
         if(doDelay){
             std.time.sleep(SLEEP);
             doDelay = false;
-            sendHeartbeat -= 1;
+            //sendHeartbeat -= 1;
         }
-        if(sendHeartbeat == 0){
-            sendHeartbeat = 3;
-            const data_len = conn.stream.writer().write(HELLO) catch |err| {
-                std.log.err("CFG_WRITE | ERR {}", .{err});
-                break;
-            };
-            ctx.cfg_data.clearRetainingCapacity();
-        }
+        
+        //if(sendHeartbeat == 0){
+        //    sendHeartbeat = 3;
+        //    const data_len = conn.stream.writer().write(HELLO) catch |err| {
+        //        std.log.err("CFG_WRITE | ERR {}", .{err});
+        //        break;
+        //    };
+        //    ctx.cfg_data.clearRetainingCapacity();
+        //}
+        
     }
 }
 

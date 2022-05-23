@@ -37,7 +37,7 @@ pub const HandlerResponse = struct {
     message: ?[]const u8 = null,
 };
 
-fn jsonify_preview_data(ctx: *threads.BridgeCfgContext, cfg: config.ConfigData) !void {
+pub fn jsonify_preview_data(ctx: *threads.BridgeCfgContext, cfg: config.ConfigData) !void {
     try std.json.stringify(cfg, .{}, ctx.cfg_data.writer());
 }
 
@@ -102,13 +102,33 @@ pub const PreviewHandler = struct {
         
         var held = threads.brdg_cfg_ctx.cfg_lock.acquire();
         defer held.release();
-
-        threads.brdg_cfg_ctx.cfg_ready = true;        
+      
         jsonify_preview_data(&threads.brdg_cfg_ctx, prevCfg) catch |err| {
             std.log.err("config: send failed: {s}", .{err});
             threads.brdg_cfg_ctx.cfg_ready = false;
         };
+        threads.brdg_cfg_ctx.cfg_ready = true;  
         
-        _ = try response.stream.write("Try port 5001 for stream!");
+        _ = try response.stream.write("tcp://0.0.0.0:5001");
+    }
+};
+
+pub const StopPreviewHandler = struct {
+
+    pub fn post(self: *StopPreviewHandler, request: *web.Request, response: *web.Response) !void {
+        try response.headers.put("Content-Type", "text/plain");
+        
+        
+        var held = threads.brdg_cfg_ctx.cfg_lock.acquire();
+        defer held.release();
+      
+        threads.jsonify_cfg_data(&threads.brdg_cfg_ctx) catch |err| {
+                std.log.err("config: send failed: {s}", .{err});
+                threads.brdg_cfg_ctx.cfg_ready = false;
+        };
+        
+        threads.brdg_cfg_ctx.cfg_ready = true;  
+        
+        _ = try response.stream.write("tcp://0.0.0.0:5001");
     }
 };
