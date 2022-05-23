@@ -78,6 +78,8 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do
   app.ConfigureVideo();
   app.StartCamera();
 
+  std::cout << "Stream created" << std::endl;
+
   // Monitoring for keypresses and signals.
   signal(SIGUSR1, default_signal_handler);
   signal(SIGUSR2, default_signal_handler);
@@ -103,6 +105,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do
     {
       if(netInput->poll_input() > 0)
       {
+        std::cout << "New configuration received!" << std::endl;
         end_early = true;
         continue;
       }
@@ -117,10 +120,15 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do
     last_time = this_time;
 
     auto now = std::chrono::high_resolution_clock::now();
-    if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)) || key == 'x' ||
-      key == 'X')
+    if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)))
     {
       end_early = true;
+      std::cout << "Timeout!" << std::endl;
+    }
+    if(key == 'x' || key == 'X')
+    {
+      end_early = true;
+      std::cout << "Got exit key signal" << std::endl;
     }
 
     CompletedRequestPtr &completed_request = std::get<CompletedRequestPtr>(msg.payload);
@@ -129,7 +137,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do
   
   app.StopCamera(); // stop complains if encoder very slow to close
   app.StopEncoder();
-
+  std::cout << "Stream destroyed" << std::endl;
 }
 
 int main(int argc, char *argv[])
@@ -156,16 +164,22 @@ int main(int argc, char *argv[])
     {
       netInput = new NetInput(options);
       end_exec = false;
+      optionsValid = wait_for_options(options, netInput);
+      if (options->verbose)
+      {
+        options->Print();
+      }
     }
     
     do{
-      if(setupNetCfg)
-      {
-        optionsValid = wait_for_options(options, netInput);
-      }
       if(optionsValid)
       {
         execute_stream(app, options, setupNetCfg, netInput);
+        app.Teardown();
+        app.CloseCamera();
+      }else if(setupNetCfg)
+      {
+        optionsValid = wait_for_options(options, netInput);
       }
     } while(!end_exec);
     

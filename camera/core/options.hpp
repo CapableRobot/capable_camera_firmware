@@ -73,7 +73,7 @@ struct Options
        "Set the EV exposure compensation, where 0 = no change")
       ("awb", value<std::string>(&awb)->default_value("auto"),
        "Set the AWB mode (auto, incandescent, tungsten, fluorescent, indoor, daylight, cloudy, custom)")
-      ("awbgains", value<std::string>(&awbgains)->default_value("0,0"),
+      ("awbgains", value<std::string>(&awbgains)->default_value("0.0,0.0"),
        "Set explict red and blue gains (disable the automatic AWB algorithm)")
       ("flush", value<bool>(&flush)->default_value(false)->implicit_value(true),
        "Flush output data as soon as possible")

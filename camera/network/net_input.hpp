@@ -11,7 +11,13 @@
 #include <poll.h>
 #include <sys/un.h>
 
+#include <nlohmann/json.hpp>
+
 #include "output.hpp"
+
+#define NUM_CAM_OPTS 
+
+using json = nlohmann::json;
 
 class NetInput
 {
@@ -21,7 +27,7 @@ public:
     ~NetInput();
 
     size_t poll_input();
-    void   update_options(uint8_t *buffer);
+    bool   update_options(uint8_t *buffer);
 
 private:
     
@@ -30,4 +36,15 @@ private:
     struct pollfd fd_to_check_[1];
     
     VideoOptions *options_;
+
+    void manage_cx_cfg(json connection_cfg);
+
+    void manage_rec_cfg(json recording_cfg);
+    
+    void manage_enc_cfg(json encoding_cfg);
+    void manage_cb_cfg(json color_cfg);
+    void manage_exp_cfg(json exposure_cfg);
+    
+    void manage_cam_cfg(json camera_cfg);
+    
 };

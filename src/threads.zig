@@ -80,7 +80,7 @@ const JPEG_EOI = [_]u8{ 0xFF, 0xD9 };
 const PUB = "PUB ";
 const EOL = "\r\n";
 
-const HELLO = "Hello World!\r\n";
+const HELLO = "{\"Heartbeat\":\"Hello!\"}";
 
 const SLEEP = std.time.ns_per_ms * 1000;
 
@@ -119,18 +119,20 @@ fn jsonify_cfg_data(ctx: *BridgeCfgContext) !void {
 
 fn handle_cfg_bridge(ctx: *BridgeCfgContext, conn: std.net.StreamServer.Connection) void {
     var doDelay = false;
+    var sendHeartbeat: u8 = 3;
     while(true) {
         //Check our bridge context for more data if it exists 
         if(ctx.cfg_lock.tryAcquire()) |held| {
             defer held.release();
             if(ctx.cfg_ready){
                 const data_len = conn.stream.writer().write(ctx.cfg_data.items) catch |err| {
-                    std.log.err("WRITE | ERR {}", .{err});
-                    continue;
+                    std.log.err("CFG_WRITE | ERR {}", .{err});
+                    break;
                 };
                 std.log.info("Writing {} bytes over config.", .{data_len});
                 std.log.info("{s}", .{ctx.cfg_data.items});
                 ctx.cfg_ready = false;
+                ctx.cfg_data.clearRetainingCapacity();
             }
             else{
                 doDelay = true;
@@ -140,9 +142,17 @@ fn handle_cfg_bridge(ctx: *BridgeCfgContext, conn: std.net.StreamServer.Connecti
             doDelay = true;
         }
         if(doDelay){
-            std.log.info("No config available. waiting...", .{});
             std.time.sleep(SLEEP);
             doDelay = false;
+            sendHeartbeat -= 1;
+        }
+        if(sendHeartbeat == 0){
+            sendHeartbeat = 3;
+            const data_len = conn.stream.writer().write(HELLO) catch |err| {
+                std.log.err("CFG_WRITE | ERR {}", .{err});
+                break;
+            };
+            ctx.cfg_data.clearRetainingCapacity();
         }
     }
 }

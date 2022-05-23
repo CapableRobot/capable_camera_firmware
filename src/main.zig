@@ -139,7 +139,7 @@ pub fn main() anyerror!void {
     slog.debug("SPI configure {any}", .{handle.configure(0, 5500)});
 
     var pos = gnss.init(handle);
-    var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.fps));
+    var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.encoding.fps));
 
     if (cfg.gnss.reset_on_start) {
         pos.reset(null);
@@ -158,10 +158,10 @@ pub fn main() anyerror!void {
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});
 
     // This will error if either socket doesn't exists.  We ignore that error
-    std.fs.cwd().deleteFile(cfg.recording.socket) catch {};
+    std.fs.cwd().deleteFile(cfg.recording.connection.socket) catch {};
     std.fs.cwd().deleteFile(cfg.cfg_socket) catch {};    
 
-    const address = std.net.Address.initUnix(cfg.recording.socket) catch |err| {
+    const address = std.net.Address.initUnix(cfg.recording.connection.socket) catch |err| {
         slog.err("Error creating unix socket: {}", .{err});
         std.debug.panic("Error creating unix socket: {}", .{err});
     };
@@ -210,7 +210,7 @@ pub fn main() anyerror!void {
 
     threads.camera_ctx = threads.CameraContext{
         .config = cfg.camera,
-        .socket = threads.rec_ctx.config.socket,
+        .socket = threads.rec_ctx.config.connection.socket,
     };
 
     //try loop.runDetached(allocator, camera.bridge_thread, .{threads.camera_ctx});
