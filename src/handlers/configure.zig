@@ -96,8 +96,8 @@ pub const PreviewHandler = struct {
         
         prevCfg.camera = threads.configuration.camera;
         prevCfg.camera.encoding.fps = 30;
-        prevCfg.camera.encoding.width = 1280;
-        prevCfg.camera.encoding.height = 720;
+        prevCfg.camera.encoding.width = 640;
+        prevCfg.camera.encoding.height = 480;
         prevCfg.camera.encoding.codec  = "h264";
         
         var held = threads.brdg_cfg_ctx.cfg_lock.acquire();

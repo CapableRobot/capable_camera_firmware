@@ -20,6 +20,7 @@ const Datetime = web.datetime.Datetime;
 
 const status = @import("handlers/status.zig");
 const info = @import("handlers/info.zig");
+const imu = @import("handlers/imu.zig");
 const configure = @import("handlers/configure.zig");
 const fileAPI = @import("handlers/fileAPI.zig");
 const threads = @import("threads.zig");
@@ -34,6 +35,8 @@ pub const routes = [_]web.Route{
     web.Route.create("api", "/api/config/img", configure.ImgCfgHandler),
     web.Route.create("api/status", "/api/status", status.Handler),
     web.Route.create("api/info", "/api/info", info.Handler),
+    web.Route.create("api/imu/sample", "/api/imu/sample", imu.Sample),
+    web.Route.create("api/imu/history", "/api/imu/history", imu.History),
     web.Route.create("api/gnss/pvt", "/api/gnss/pvt", GnssPvtHandler),
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
     web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),

@@ -30,6 +30,7 @@ const threads = @import("threads.zig");
 const camera = @import("camera.zig");
 
 const led_driver = @import("led_driver.zig");
+const imu = @import("imu.zig");
 const gnss = @import("gnss.zig");
 const info = @import("info.zig");
 const system = @import("system.zig");
@@ -39,18 +40,6 @@ const handlers = @import("handlers.zig");
 pub const routes = handlers.routes;
 
 var led: led_driver.LP50xx = undefined;
-
-var init_uptime: f32 = 0.0;
-var init_timestamp: i64 = 0.0;
-
-// Returns seconds since system was turned on.
-// Requires that init_uptime and init_timestamp be set at program boot.
-// This allows calls to be offset from initially stored uptime via system time offsets
-// which is faster than reading /proc/uptime for every long line
-pub fn logstamp() f32 {
-    const millis = std.time.milliTimestamp() - init_timestamp;
-    return init_uptime + @intToFloat(f32, millis) / 1000.0;
-}
 
 pub const log_level: std.log.Level = .debug;
 
@@ -73,7 +62,7 @@ pub fn log(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral),
     const stderr = std.io.getStdErr().writer();
 
     // Log timestamp cannot be included in second call to print due to comptime unknowns
-    nosuspend stderr.print("{d: >12.3}", .{logstamp()}) catch return;
+    nosuspend stderr.print("{d: >12.3}", .{system.logstamp()}) catch return;
     nosuspend stderr.print(prefix ++ format ++ "\n", args) catch return;
 }
 
@@ -90,8 +79,7 @@ fn write_info_json() !void {
 }
 
 pub fn main() anyerror!void {
-    init_uptime = system.uptime();
-    init_timestamp = std.time.milliTimestamp();
+    system.init();
 
     attachSegfaultHandler();
 
@@ -110,8 +98,26 @@ pub fn main() anyerror!void {
     var i2c_fd = try fs.openFileAbsolute("/dev/i2c-1", fs.File.OpenFlags{ .read = true, .write = true });
     defer i2c_fd.close();
 
+    var spi00_fd = try fs.openFileAbsolute("/dev/spidev0.0", fs.File.OpenFlags{ .read = true, .write = true });
+    defer spi00_fd.close();
+
     var spi01_fd = try fs.openFileAbsolute("/dev/spidev0.1", fs.File.OpenFlags{ .read = true, .write = true });
     defer spi01_fd.close();
+
+    var imu_handle = spi.SPI{ .fd = spi00_fd };
+    slog.debug("SPI00 configure {any}", .{imu_handle.configure(0, 10000)});
+
+    var iim = imu.init(imu_handle);
+    slog.info("INIT", .{});
+    iim.config(imu.ACCEL_FS.G8, imu.GYRO_FS.DPS_1000);
+    slog.info("CONFIG", .{});
+
+    threads.imu_ctx = threads.ImuContext{
+        .imu = &iim,
+        .interval = 1000,
+    };
+
+    try loop.runDetached(allocator, threads.imu_thread, .{threads.imu_ctx});
 
     led = led_driver.LP50xx{ .fd = i2c_fd };
 
@@ -135,10 +141,10 @@ pub fn main() anyerror!void {
     var led_ctx = threads.HeartBeatContext{ .led = led, .idx = 2 };
     try loop.runDetached(allocator, threads.heartbeat_thread, .{led_ctx});
 
-    var handle = spi.SPI{ .fd = spi01_fd };
-    slog.debug("SPI configure {any}", .{handle.configure(0, 5500)});
+    var gnss_handle = spi.SPI{ .fd = spi01_fd };
+    slog.debug("SPI01 configure {any}", .{gnss_handle.configure(0, 5500)});
 
-    var pos = gnss.init(handle);
+    var pos = gnss.init(gnss_handle);
     var gnss_interval = @divFloor(1000, @intCast(u16, cfg.camera.encoding.fps));
 
     if (cfg.gnss.reset_on_start) {

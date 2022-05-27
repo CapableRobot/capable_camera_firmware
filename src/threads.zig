@@ -17,10 +17,12 @@ const print = @import("std").debug.print;
 
 const led_driver = @import("led_driver.zig");
 const gnss = @import("gnss.zig");
+const imu = @import("imu.zig");
 const config = @import("config.zig");
 const recording = @import("recording.zig");
 const exif = @import("exif.zig");
 const datetime = @import("datetime.zig");
+const system = @import("system.zig");
 
 const web = @import("zhp");
 const mutex = @import("std").Thread.Mutex;
@@ -32,12 +34,28 @@ pub const GnssContext = struct {
     config: config.Gnss,
 };
 
+pub const ImuContext = struct {
+    imu: *imu.IMU,
+    interval: u16 = 100,
+
+    pub fn latest(self: *ImuContext) imu.Sample {
+        var data = self.imu.latest();
+        data.age = system.timestamp() - data.received_at;
+        return data;
+    }
+
+    pub fn history(self: *ImuContext) []const imu.Sample {
+        return self.imu.fifo.readableSlice(0);
+    }
+};
+
 pub const AppContext = struct {
     config: config.Api,
     app: *web.Application,
 };
 
 pub var gnss_ctx: GnssContext = undefined;
+pub var imu_ctx: ImuContext = undefined;
 
 pub const HeartBeatContext = struct {
     idx: u8 = 0,
@@ -606,6 +624,19 @@ pub fn gnss_thread(ctx: GnssContext) void {
         }
 
         // std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.interval / 4));
+    }
+}
+
+pub fn imu_thread(ctx: ImuContext) void {
+
+    // const slog = std.log.scoped(.imu);
+
+    while (true) {
+        const this_ms = std.time.milliTimestamp();
+        _ = ctx.imu.poll();
+
+        const duration = std.time.milliTimestamp() - this_ms;
+        std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.interval - duration));
     }
 }
 
