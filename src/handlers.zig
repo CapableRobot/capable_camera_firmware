@@ -34,8 +34,9 @@ pub const routes = [_]web.Route{
     web.Route.create("api", "/api/config/img", configure.ImgCfgHandler),
     web.Route.create("api/status", "/api/status", status.Handler),
     web.Route.create("api/info", "/api/info", info.Handler),
-    web.Route.create("api/imu/sample", "/api/imu/sample", imu.Sample),
-    web.Route.create("api/imu/history", "/api/imu/history", imu.History),
+
+    web.Route.create("get-imu-sample", "/api/1/imu/sample", imu.Sample),
+    web.Route.create("get-imu-recent", "/api/1/imu/recent", imu.Recent),
 
     web.Route.create("list-recordings", "/api/1/recordings", files.RecordingIndexHandler),
     web.Route.create("get-last-recording", "/api/1/recordings/last.jpg", files.RecordingLastHandler),
