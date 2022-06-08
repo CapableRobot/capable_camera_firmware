@@ -48,7 +48,7 @@ pub fn log(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral),
 
     // Ignore all non-critical logging from sources other than specified
     const scope_prefix = "" ++ switch (scope) {
-        .main, .gnss, .config, .default => @tagName(scope),
+        .main, .gnss, .config, .trace, .default => @tagName(scope),
         else => if (@enumToInt(level) <= @enumToInt(std.log.Level.crit))
             @tagName(scope)
         else
@@ -115,6 +115,8 @@ pub fn main() anyerror!void {
     threads.imu_ctx = threads.ImuContext{
         .imu = &iim,
         .interval = 1000,
+        .trace_dir = cfg.recording.dir,
+        .allocator = allocator,
     };
 
     try loop.runDetached(allocator, threads.imu_thread, .{threads.imu_ctx});
@@ -159,6 +161,8 @@ pub fn main() anyerror!void {
         .gnss = &pos,
         .interval = gnss_interval,
         .config = cfg.gnss,
+        .trace_dir = cfg.recording.dir,
+        .allocator = allocator,
     };
 
     try loop.runDetached(allocator, threads.gnss_thread, .{threads.gnss_ctx});

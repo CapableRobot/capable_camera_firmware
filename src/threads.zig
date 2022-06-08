@@ -31,11 +31,17 @@ pub const GnssContext = struct {
     led: led_driver.LP50xx,
     interval: u16 = 1000,
     config: config.Gnss,
+
+    trace_dir: []const u8,
+    allocator: *std.mem.Allocator,
 };
 
 pub const ImuContext = struct {
     imu: *imu.IMU,
     interval: u16 = 100,
+
+    trace_dir: []const u8,
+    allocator: *std.mem.Allocator,
 
     pub fn latest(self: *ImuContext) imu.Sample {
         var data = self.imu.latest();
@@ -436,6 +442,9 @@ pub fn gnss_thread(ctx: GnssContext) void {
     const debug_interval_pvt: usize = ctx.config.debug_period_pvt * 1000;
     const slog = std.log.scoped(.gnss);
 
+    var trace = recording.TraceLog(gnss.PVT).init(ctx.allocator, ctx.trace_dir, recording.TraceLogType.GNSS);
+    var record: bool = false;
+
     while (true) {
         const this_ms = std.time.milliTimestamp();
 
@@ -463,6 +472,12 @@ pub fn gnss_thread(ctx: GnssContext) void {
                 } else {
                     // If there is a fix, color LED green
                     ctx.led.set(1, [_]u8{ 0, 255, 0 });
+
+                    if (record == false) {
+                        slog.info("starting GNSS log {s}", .{pvt.timestamp});
+                        trace.setTimestamp(pvt.timestamp);
+                        record = true;
+                    }
                 }
 
                 if (debug_interval_pvt > 0 and this_ms - last_debug_pvt_ms > debug_interval_pvt) {
@@ -474,6 +489,10 @@ pub fn gnss_thread(ctx: GnssContext) void {
                 //print("PVT {s} at ({d:.6},{d:.6}) height {d:.2} dop {d:.2}", .{ pvt.timestamp, pvt.latitude, pvt.longitude, pvt.height, pvt.dop });
                 //print(" heading {d:.2} velocity ({d:.2},{d:.2},{d:.2}) speed {d:.2}", .{ pvt.heading, pvt.velocity[0], pvt.velocity[1], pvt.velocity[2], pvt.speed });
                 //print(" fix {d} sat {} flags {} {} {}\n", .{ pvt.fix_type, pvt.satellite_count, pvt.flags[0], pvt.flags[1], pvt.flags[2] });
+
+                if (record) {
+                    trace.append(pvt);
+                }
             }
         } else {
             // If no communications, color LED red
@@ -485,12 +504,17 @@ pub fn gnss_thread(ctx: GnssContext) void {
 }
 
 pub fn imu_thread(ctx: ImuContext) void {
-
+    // const trace = recording.TraceLog(imu.Sample).init(ctx.allocator, ctx.trace_dir, recording.TraceLogType.IMU);
+    // var record: bool = false;
     // const slog = std.log.scoped(.imu);
 
     while (true) {
         const this_ms = std.time.milliTimestamp();
-        _ = ctx.imu.poll();
+        const data = ctx.imu.poll();
+
+        // if (record) {
+        //     trace.append(data);
+        // }
 
         const duration = std.time.milliTimestamp() - this_ms;
         std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.interval - duration));
