@@ -58,7 +58,7 @@ pub fn TraceLog(comptime T: type) type {
         end_at: i64 = 0,
 
         // Maximum duration of the log, could be shorter if capacity is reached
-        seconds: i64 = 10,
+        seconds: i64 = 60,
 
         // Used to create the log file path : {dir}/{timestamp}.{ext}
         dir: []const u8,
