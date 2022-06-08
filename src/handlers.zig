@@ -25,6 +25,8 @@ const configure = @import("handlers/configure.zig");
 
 const threads = @import("threads.zig");
 
+const ISO_DATETIME_REGEX = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}Z";
+
 pub const routes = [_]web.Route{
     web.Route.create("", "/", MainHandler),
     web.Route.create("api", "/api", MainHandler),
@@ -34,10 +36,16 @@ pub const routes = [_]web.Route{
     web.Route.create("api/info", "/api/info", info.Handler),
     web.Route.create("api/imu/sample", "/api/imu/sample", imu.Sample),
     web.Route.create("api/imu/history", "/api/imu/history", imu.History),
-    web.Route.create("api/gnss/pvt", "/api/gnss/pvt", GnssPvtHandler),
-    web.Route.create("api/1/recordings", "/api/1/recordings", files.RecordingIndexHandler),
-    web.Route.create("api/1/recordings", "/api/1/recordings/last.jpg", files.RecordingLastHandler),
-    web.Route.create("api/1/recordings", "/api/1/recordings/(.+)", files.RecordingFileHandler),
+
+    web.Route.create("list-recordings", "/api/1/recordings", files.RecordingIndexHandler),
+    web.Route.create("get-last-recording", "/api/1/recordings/last.jpg", files.RecordingLastHandler),
+    web.Route.create("get-recordings-by-name", "/api/1/recordings/(.+)", files.RecordingFileHandler),
+
+    web.Route.create("list-gnss", "/api/1/gnss", files.GnssIndexHandler),
+    web.Route.create("list-gnss", "/api/1/gnss/", files.GnssIndexHandler),
+    web.Route.create("get-last-gnss", "/api/1/gnss/sample", GnssPvtHandler),
+    web.Route.create("get-gnss-by-name", "/api/1/gnss/(" ++ ISO_DATETIME_REGEX ++ ".gps)", files.AuxFileHandler),
+
     web.Route.static("static", "/static/", "static/"),
 };
 

@@ -34,61 +34,90 @@ const FileData = struct {
     size: u64,
 };
 
-pub const RecordingIndexHandler = struct {
-    pub fn get(self: *RecordingIndexHandler, request: *web.Request, response: *web.Response) !void {
-        try response.headers.append("Content-Type", "application/json");
+fn indexHandler(request: *web.Request, response: *web.Response, suffix: []const u8) !void {
+    try response.headers.append("Content-Type", "application/json");
 
-        const ctx = threads.rec_ctx;
+    const ctx = threads.rec_ctx;
 
-        if (recording.directory_listing(ctx.allocator, ctx.config.dir, ".jpg")) |listing| {
-            defer ctx.allocator.free(listing.items);
+    if (recording.directory_listing(ctx.allocator, ctx.config.dir, suffix)) |listing| {
+        defer ctx.allocator.free(listing.items);
 
-            var list = std.ArrayList(FileData).init(ctx.allocator);
+        var list = std.ArrayList(FileData).init(ctx.allocator);
 
-            for (listing.items) |elem| {
-                var buffer = ctx.allocator.alloc(u8, elem.name_length) catch {
-                    std.log.err("failed to allocate memory for entry: {s}", .{elem.name});
+        for (listing.items) |elem| {
+            var buffer = ctx.allocator.alloc(u8, elem.name_length) catch {
+                std.log.err("failed to allocate memory for entry: {s}", .{elem.name});
 
-                    response.status = web.responses.INTERNAL_SERVER_ERROR;
-                    try response.stream.print("ERROR: failed to allocate memory for entry: {s}", .{elem.name});
-                    return;
-                };
-
-                var obj = FileData{
-                    .name = buffer,
-                    .size = elem.size,
-                    .mtime = elem.mtime,
-                    .ctime = elem.ctime,
-                };
-
-                std.mem.copy(u8, obj.name, elem.name[0..elem.name_length]);
-
-                list.append(obj) catch {
-                    std.log.err("failed to append entry: {s}", .{elem.name});
-
-                    response.status = web.responses.INTERNAL_SERVER_ERROR;
-                    try response.stream.print("ERROR: failed to append entry: {s}", .{elem.name});
-                    return;
-                };
-            }
-
-            const out = FolderListing{
-                .count = listing.count,
-                .bytes = listing.bytes,
-                .files = list.items,
+                response.status = web.responses.INTERNAL_SERVER_ERROR;
+                try response.stream.print("ERROR: failed to allocate memory for entry: {s}", .{elem.name});
+                return;
             };
 
-            try std.json.stringify(out, std.json.StringifyOptions{
-                .whitespace = .{ .indent = .{ .Space = 2 } },
-            }, response.stream);
+            var obj = FileData{
+                .name = buffer,
+                .size = elem.size,
+                .mtime = elem.mtime,
+                .ctime = elem.ctime,
+            };
 
-            defer {
-                for (list.items) |node| {
-                    ctx.allocator.free(node.name);
-                }
-                list.deinit();
-            }
+            std.mem.copy(u8, obj.name, elem.name[0..elem.name_length]);
+
+            list.append(obj) catch {
+                std.log.err("failed to append entry: {s}", .{elem.name});
+
+                response.status = web.responses.INTERNAL_SERVER_ERROR;
+                try response.stream.print("ERROR: failed to append entry: {s}", .{elem.name});
+                return;
+            };
         }
+
+        const out = FolderListing{
+            .count = listing.count,
+            .bytes = listing.bytes,
+            .files = list.items,
+        };
+
+        try std.json.stringify(out, std.json.StringifyOptions{
+            .whitespace = .{ .indent = .{ .Space = 2 } },
+        }, response.stream);
+
+        defer {
+            for (list.items) |node| {
+                ctx.allocator.free(node.name);
+            }
+            list.deinit();
+        }
+    }
+}
+
+pub const GnssIndexHandler = struct {
+    pub fn get(self: *GnssIndexHandler, request: *web.Request, response: *web.Response) !void {
+        try indexHandler(request, response, ".gps");
+    }
+};
+
+pub const AuxFileHandler = struct {
+    handler: FileHandler = undefined,
+
+    pub fn get(self: *AuxFileHandler, request: *web.Request, response: *web.Response) !void {
+        const allocator = response.allocator;
+        const ctx = threads.rec_ctx;
+        const args = request.args.?;
+
+        const full_path = try std.fs.path.join(allocator, &[_][]const u8{ ctx.config.dir, args[0].? });
+
+        self.handler = FileHandler{ .path = full_path, .content_type = "application/json" };
+        return self.handler.dispatch(request, response);
+    }
+
+    pub fn stream(self: *AuxFileHandler, io: *web.IOStream) !u64 {
+        return self.handler.stream(io);
+    }
+};
+
+pub const RecordingIndexHandler = struct {
+    pub fn get(self: *RecordingIndexHandler, request: *web.Request, response: *web.Response) !void {
+        try indexHandler(request, response, ".jpg");
     }
 };
 
@@ -142,6 +171,7 @@ pub const FileHandler = struct {
     start: u64 = 0,
     end: u64 = 0,
     path: []const u8,
+    content_type: ?[]const u8 = null,
 
     pub fn dispatch(self: *FileHandler, request: *web.Request, response: *web.Response) !void {
         const allocator = response.allocator;
@@ -181,9 +211,14 @@ pub const FileHandler = struct {
         self.end = stat.size;
         var size: u64 = stat.size;
 
-        // Try to get the content type
-        const content_type = mimetypes.getTypeFromFilename(self.path) orelse "application/octet-stream";
-        try response.headers.append("Content-Type", content_type);
+        if (self.content_type) |value| {
+            try response.headers.append("Content-Type", value);
+        } else {
+            // Try to get the content type
+            const content_type = mimetypes.getTypeFromFilename(self.path) orelse "application/octet-stream";
+            try response.headers.append("Content-Type", content_type);
+        }
+
         try response.headers.append("Content-Length", try std.fmt.allocPrint(allocator, "{}", .{size}));
         self.file = file;
         response.send_stream = true;
