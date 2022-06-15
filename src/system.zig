@@ -77,9 +77,13 @@ pub const State = struct {
         return self._uptime + @intToFloat(f32, millis) / 1000.0;
     }
 
-    pub fn timestamp(self: *State) i64 {
+    pub fn bootstamp(self: *State) i64 {
         const millis = std.time.milliTimestamp() - self._at;
         return self._uptime_ms + millis;
+    }
+
+    pub fn timestamp(self: *State) i64 {
+        return std.time.milliTimestamp();
     }
 
     pub fn gnssInitLockAt(self: *State, received_at: i64, isostring: [24]u8) void {
