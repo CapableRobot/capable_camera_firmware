@@ -30,8 +30,8 @@ pub const Sample = struct {
     }
 };
 
-pub const History = struct {
-    pub fn get(self: *History, request: *web.Request, response: *web.Response) !void {
+pub const Recent = struct {
+    pub fn get(self: *Recent, request: *web.Request, response: *web.Response) !void {
         try response.headers.append("Content-Type", "application/json");
 
         const data = threads.imu_ctx.history();

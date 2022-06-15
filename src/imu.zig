@@ -308,7 +308,7 @@ pub const IMU = struct {
         const gz = extract(self.read_buffer, i16, 13);
 
         const data = self.convert_last_raw_sample(RawSample{
-            .received_at = system.timestamp(),
+            .received_at = std.time.milliTimestamp(),
             .temperature = temp,
             .accelerometer = [3]i16{ ax, ay, az },
             .gyroscope = [3]i16{ gx, gy, gz },

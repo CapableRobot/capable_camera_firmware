@@ -16,22 +16,22 @@ const std = @import("std");
 const fs = std.fs;
 const mem = std.mem;
 
-pub var init_uptime: f32 = 0.0;
-pub var init_uptime_ms: i64 = 0.0;
-pub var init_timestamp: i64 = 0.0;
+const slog = std.log.scoped(.system);
+
+const datetime = @import("datetime.zig");
+
+pub var state: State = undefined;
 
 // Returns seconds since system was turned on.
 // Requires that init_uptime and init_timestamp be set at program boot.
 // This allows calls to be offset from initially stored uptime via system time offsets
 // which is faster than reading /proc/uptime for every long line
 pub fn logstamp() f32 {
-    const millis = std.time.milliTimestamp() - init_timestamp;
-    return init_uptime + @intToFloat(f32, millis) / 1000.0;
+    return state.logstamp();
 }
 
 pub fn timestamp() i64 {
-    const millis = std.time.milliTimestamp() - init_timestamp;
-    return init_uptime_ms + millis;
+    return state.timestamp();
 }
 
 pub fn uptime_idletime() ?[2]f32 {
@@ -63,9 +63,61 @@ pub fn uptime() f32 {
     return 0;
 }
 
-pub fn init() void {
-    init_uptime = uptime();
-    init_uptime_ms = @floatToInt(i64, init_uptime * 1000);
+pub const State = struct {
+    _uptime: f32,
+    _uptime_ms: i64,
+    _at: i64,
 
-    init_timestamp = std.time.milliTimestamp();
+    gnss_has_locked: bool = false,
+    _gnss_at: i64 = 0,
+    _gnss_datetime: datetime.Datetime = undefined,
+
+    pub fn logstamp(self: *State) f32 {
+        const millis = std.time.milliTimestamp() - self._at;
+        return self._uptime + @intToFloat(f32, millis) / 1000.0;
+    }
+
+    pub fn bootstamp(self: *State) i64 {
+        const millis = std.time.milliTimestamp() - self._at;
+        return self._uptime_ms + millis;
+    }
+
+    pub fn timestamp(self: *State) i64 {
+        return std.time.milliTimestamp();
+    }
+
+    pub fn gnssInitLockAt(self: *State, received_at: i64, isostring: [24]u8) void {
+        if (self.gnss_has_locked) {
+            return;
+        }
+
+        self.gnss_has_locked = true;
+        self._gnss_at = received_at;
+        self._gnss_datetime = datetime.Datetime.parseIso(isostring[0..]) catch datetime.Datetime.now();
+
+        slog.info("Tag initial GNSS lock at {d:.3} {s}", .{ self._gnss_at, self._gnss_datetime });
+    }
+
+    pub fn isoBuf(self: *State, buf: []u8) ![]u8 {
+        if (self.gnss_has_locked) {
+            const now = std.time.milliTimestamp();
+            const now_dt = self._gnss_datetime.shiftMilliseconds(now - self._gnss_at);
+            return now_dt.formatIsoBuf(buf);
+        }
+
+        return error.WaitingForGNSSLock;
+    }
+};
+
+pub fn init() void {
+    const start = uptime();
+    const stamp = std.time.milliTimestamp();
+
+    slog.info("Time mapping {} uptime = {} timestamp", .{ start, stamp });
+
+    state = State{
+        ._uptime = start,
+        ._uptime_ms = @floatToInt(i64, start * 1000),
+        ._at = stamp,
+    };
 }

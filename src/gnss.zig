@@ -286,6 +286,7 @@ const PVTData = struct {
 
 pub const PVT = struct {
     age: i64,
+    received_at: i64,
     timestamp: [24]u8,
     time: TimeData,
     longitude: f64,
@@ -1313,6 +1314,7 @@ pub const GNSS = struct {
 
             return PVT{
                 .age = std.time.milliTimestamp() - pvt.received_at,
+                .received_at = pvt.received_at,
                 .timestamp = timestamp,
                 .time = pvt.time,
 
