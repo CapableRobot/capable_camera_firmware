@@ -16,22 +16,18 @@ const std = @import("std");
 const fs = std.fs;
 const mem = std.mem;
 
-pub var init_uptime: f32 = 0.0;
-pub var init_uptime_ms: i64 = 0.0;
-pub var init_timestamp: i64 = 0.0;
+pub var state: State = undefined;
 
 // Returns seconds since system was turned on.
 // Requires that init_uptime and init_timestamp be set at program boot.
 // This allows calls to be offset from initially stored uptime via system time offsets
 // which is faster than reading /proc/uptime for every long line
 pub fn logstamp() f32 {
-    const millis = std.time.milliTimestamp() - init_timestamp;
-    return init_uptime + @intToFloat(f32, millis) / 1000.0;
+    return state.logstamp();
 }
 
 pub fn timestamp() i64 {
-    const millis = std.time.milliTimestamp() - init_timestamp;
-    return init_uptime_ms + millis;
+    return state.timestamp();
 }
 
 pub fn uptime_idletime() ?[2]f32 {
@@ -63,9 +59,29 @@ pub fn uptime() f32 {
     return 0;
 }
 
-pub fn init() void {
-    init_uptime = uptime();
-    init_uptime_ms = @floatToInt(i64, init_uptime * 1000);
+pub const State = struct {
+    _uptime: f32,
+    _uptime_ms: i64,
+    _timestamp: i64,
 
-    init_timestamp = std.time.milliTimestamp();
+    pub fn logstamp(self: *State) f32 {
+        const millis = std.time.milliTimestamp() - self._timestamp;
+        return self._uptime + @intToFloat(f32, millis) / 1000.0;
+    }
+
+    pub fn timestamp(self: *State) i64 {
+        const millis = std.time.milliTimestamp() - self._timestamp;
+        return self._uptime_ms + millis;
+    }
+};
+
+pub fn init() void {
+    const start = uptime();
+    const stamp = std.time.milliTimestamp();
+
+    state = State{
+        ._uptime = start,
+        ._uptime_ms = @floatToInt(i64, start * 1000),
+        ._timestamp = stamp,
+    };
 }
