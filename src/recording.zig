@@ -50,6 +50,7 @@ pub fn TraceLog(comptime T: type) type {
         // These are used to allow for remapping between local milliTimestamp() and global time
         init_at: i64 = 0,
         init_datetime: datetime.Datetime = undefined,
+        timestamp_needed: bool = true,
 
         // Reset whenever a new log is started
         start_at: i64 = 0,
@@ -83,6 +84,7 @@ pub fn TraceLog(comptime T: type) type {
         }
 
         pub fn setTimestamp(self: *Self, value: [24]u8) void {
+            self.timestamp_needed = false;
             self.init_at = std.time.milliTimestamp();
             self.init_datetime = datetime.Datetime.parseIso(value[0..]) catch datetime.Datetime.now();
             _ = self.init_datetime.formatIsoBuf(self.timestamp[0..]) catch unreachable;
@@ -296,8 +298,8 @@ pub fn directory_cleanup(ctx: threads.RecordingContext) void {
     if (directory_listing(ctx.allocator, ctx.config.dir, ".jpg")) |listing| {
         defer ctx.allocator.free(listing.items);
 
-        std.log.info("count: {d}", .{listing.count});
-        std.log.info("size: {d}", .{listing.bytes});
+        // std.log.info("count: {d}", .{listing.count});
+        // std.log.info("size: {d}", .{listing.bytes});
 
         // for (listing.items) |elem| {
         //     std.log.info("node: {s}", .{elem.name});

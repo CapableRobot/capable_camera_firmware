@@ -36,8 +36,11 @@ pub const routes = [_]web.Route{
     web.Route.create("api/status", "/api/status", status.Handler),
     web.Route.create("api/info", "/api/info", info.Handler),
 
+    web.Route.create("list-imu", "/api/1/imu", files.ImuIndexHandler),
+    web.Route.create("list-imu", "/api/1/imu/", files.ImuIndexHandler),
     web.Route.create("get-last-imu", "/api/1/imu/sample", imu.Sample),
     web.Route.create("get-recent-imu", "/api/1/imu/recent", imu.Recent),
+    web.Route.create("get-imu-by-name", "/api/1/imu/(" ++ ISO_DATETIME_REGEX ++ ".imu)", files.AuxFileHandler),
 
     web.Route.create("list-recordings", "/api/1/recordings", files.RecordingIndexHandler),
     web.Route.create("list-recordings", "/api/1/recordings/", files.RecordingIndexHandler),

@@ -48,7 +48,7 @@ pub fn log(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral),
 
     // Ignore all non-critical logging from sources other than specified
     const scope_prefix = "" ++ switch (scope) {
-        .main, .gnss, .config, .trace, .default => @tagName(scope),
+        .main, .gnss, .config, .trace, .system, .imu, .default => @tagName(scope),
         else => if (@enumToInt(level) <= @enumToInt(std.log.Level.crit))
             @tagName(scope)
         else

@@ -478,6 +478,10 @@ pub fn gnss_thread(ctx: GnssContext) void {
                         trace.setTimestamp(pvt.timestamp);
                         record = true;
                     }
+
+                    if (system.state.gnss_has_locked == false) {
+                        system.state.gnssInitLockAt(pvt.received_at, pvt.timestamp);
+                    }
                 }
 
                 if (debug_interval_pvt > 0 and this_ms - last_debug_pvt_ms > debug_interval_pvt) {
@@ -504,17 +508,26 @@ pub fn gnss_thread(ctx: GnssContext) void {
 }
 
 pub fn imu_thread(ctx: ImuContext) void {
-    // const trace = recording.TraceLog(imu.Sample).init(ctx.allocator, ctx.trace_dir, recording.TraceLogType.IMU);
-    // var record: bool = false;
-    // const slog = std.log.scoped(.imu);
+    var trace = recording.TraceLog(imu.Sample).init(ctx.allocator, ctx.trace_dir, recording.TraceLogType.IMU);
+    const slog = std.log.scoped(.imu);
 
     while (true) {
         const this_ms = std.time.milliTimestamp();
         const data = ctx.imu.poll();
 
-        // if (record) {
-        //     trace.append(data);
-        // }
+        if (system.state.gnss_has_locked) {
+            if (trace.timestamp_needed) {
+                var buf: [24]u8 = undefined;
+                _ = system.state.isoBuf(buf[0..]) catch |err| {
+                    slog.warn("state.isoBuf failed", .{});
+                };
+
+                slog.info("starting IMU log {s}", .{buf});
+                trace.setTimestamp(buf);
+            }
+
+            trace.append(data);
+        }
 
         const duration = std.time.milliTimestamp() - this_ms;
         std.time.sleep(std.time.ns_per_ms * @intCast(u64, ctx.interval - duration));

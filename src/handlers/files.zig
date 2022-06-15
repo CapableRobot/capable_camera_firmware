@@ -96,6 +96,12 @@ pub const GnssIndexHandler = struct {
     }
 };
 
+pub const ImuIndexHandler = struct {
+    pub fn get(self: *ImuIndexHandler, request: *web.Request, response: *web.Response) !void {
+        try indexHandler(request, response, ".imu");
+    }
+};
+
 pub const AuxFileHandler = struct {
     handler: FileHandler = undefined,
 
