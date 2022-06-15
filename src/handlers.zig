@@ -31,10 +31,12 @@ pub const routes = [_]web.Route{
     web.Route.create("", "/", MainHandler),
     web.Route.create("api", "/api", MainHandler),
     web.Route.create("api", "/api/", MainHandler),
+    web.Route.create("api", "/api/1", MainHandler),
+    web.Route.create("api", "/api/1/", MainHandler),
 
     web.Route.create("api", "/api/config/img", configure.ImgCfgHandler),
-    web.Route.create("api/status", "/api/status", status.Handler),
-    web.Route.create("api/info", "/api/info", info.Handler),
+    web.Route.create("get-device-status", "/api/status", status.Handler),
+    web.Route.create("get-device-information", "/api/1/info", info.Handler),
 
     web.Route.create("list-imu", "/api/1/imu", files.ImuIndexHandler),
     web.Route.create("list-imu", "/api/1/imu/", files.ImuIndexHandler),
