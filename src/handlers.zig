@@ -23,6 +23,7 @@ const info = @import("handlers/info.zig");
 const imu = @import("handlers/imu.zig");
 const configure = @import("handlers/configure.zig");
 
+const fileAPI = @import("handlers/fileAPI.zig");
 const threads = @import("threads.zig");
 
 const ISO_DATETIME_REGEX = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}Z";
@@ -31,6 +32,10 @@ pub const routes = [_]web.Route{
     web.Route.create("", "/", MainHandler),
     web.Route.create("api", "/api", MainHandler),
     web.Route.create("api", "/api/", MainHandler),
+
+    web.Route.create("api", "/api/1/start_stream", configure.PreviewHandler),
+    web.Route.create("api", "/api/1/stop_stream",  configure.StopPreviewHandler),
+    
     web.Route.create("api", "/api/1", MainHandler),
     web.Route.create("api", "/api/1/", MainHandler),
 

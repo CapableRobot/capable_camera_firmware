@@ -31,11 +31,19 @@ pub const Gnss = struct {
     reset_on_start: bool = true,
 };
 
+pub const Connection = struct {
+    socket: []const u8 = "/tmp/bridge.sock",
+    socketType: []const u8 = "sck://",
+    listen: bool = false,
+};
+
 pub const Recording = struct {
     dir: []const u8 = "/tmp/recording",
+    dirS: []const u8 = "/media/pi/265D-57F2",
+    write_aux: bool = false,
     max_size: u64 = 100, // MB
     cleanup_period: u16 = 10, // seconds
-    socket: []const u8 = "/tmp/bridge.sock",
+    connection: Connection = Connection{},
 };
 
 //Note that the JSON parser currently doesn't support
@@ -60,12 +68,16 @@ pub const Exposure = struct {
     sharpness: u32 = 0.0,
 };
 
-pub const Camera = struct {
+pub const Encoding = struct {
     fps: u8 = 10,
     width: u16 = 4056,
     height: u16 = 2016,
     codec: []const u8 = "mjpeg",
-    quality: u8 = 50,
+    quality: u8 = 50,    
+};
+
+pub const Camera = struct {
+    encoding: Encoding = Encoding{},
     colorBalance: ColorBalance = ColorBalance{},
     exposure: Exposure = Exposure{},
 };
@@ -91,6 +103,8 @@ pub const Config = struct {
     recording: Recording = Recording{},
     camera: Camera = Camera{},
     gnss: Gnss = Gnss{},
+
+    cfg_socket: []const u8 = "/tmp/config.sock",
 
     allocator: *std.mem.Allocator,
 
@@ -133,7 +147,7 @@ pub const Config = struct {
         const execLineSlice1 = execLineBuff[0..256];
         const execLineSlice2 = execLineBuff[256..512];
 
-        const firstExecStr = try fmt.bufPrint(execLineSlice1, imgCfg.execLine1, .{ self.camera.width, self.camera.height, self.camera.fps });
+        const firstExecStr = try fmt.bufPrint(execLineSlice1, imgCfg.execLine1, .{ self.camera.encoding.width, self.camera.encoding.height, self.camera.encoding.fps });
 
         const secndExecStr = try fmt.bufPrint(execLineSlice2, imgCfg.execLine2, .{ self.camera.colorBalance.awb, self.camera.colorBalance.awbGains[0], self.camera.colorBalance.awbGains[1], self.camera.colorBalance.brightness, self.camera.colorBalance.contrast, self.camera.exposure.exposure, self.camera.exposure.ev, self.camera.exposure.fixedGain, self.camera.exposure.metering, self.camera.colorBalance.saturation, self.camera.exposure.sharpness });
 
@@ -145,19 +159,19 @@ pub const Config = struct {
     }
 
     pub fn validateCamera(self: *Config, camera: Camera) ConfigValidation {
-        if (camera.width <= 0 or camera.width > 4096) {
+        if (camera.encoding.width <= 0 or camera.encoding.width > 4096) {
             return ConfigValidation{ .err = error.Width };
         }
 
-        if (camera.height <= 0 or camera.height > 2048) {
+        if (camera.encoding.height <= 0 or camera.encoding.height > 2048) {
             return ConfigValidation{ .err = error.Height };
         }
 
-        if (camera.fps <= 0 or camera.fps > 10) {
+        if (camera.encoding.fps <= 0 or camera.encoding.fps > 10) {
             return ConfigValidation{ .err = error.FPS };
         }
 
-        if (camera.quality <= 0 or camera.quality > 100) {
+        if (camera.encoding.quality <= 0 or camera.encoding.quality > 100) {
             return ConfigValidation{ .err = error.Quality };
         }
 

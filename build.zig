@@ -60,9 +60,9 @@ pub fn build(b: *std.build.Builder) void {
     run_step.dependOn(&run_cmd.step);
 
     const bench_exe = b.addExecutable("benchmark", "src/benchmark.zig");
-    exe.setTarget(target);
-    exe.setBuildMode(mode);
-    exe.install();
+    bench_exe.setTarget(target);
+    bench_exe.setBuildMode(mode);
+    bench_exe.install();
 
     const bench_run_cmd = bench_exe.run();
     bench_run_cmd.step.dependOn(b.getInstallStep());
