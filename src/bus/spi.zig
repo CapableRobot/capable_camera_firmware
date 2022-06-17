@@ -30,7 +30,7 @@ const c = @cImport({
 // };
 
 const DEFAULT_MODE = 0;
-const DEFAULT_SPEED = 1000000;
+const DEFAULT_SPEED = 100000; //1000000;
 
 const spi_ioc_transfer = extern struct {
     tx_buf: u64,
