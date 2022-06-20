@@ -747,6 +747,7 @@ pub const GNSS = struct {
         var idx: u8 = 0;
         while (idx < self.read_buffer_index) {
             //Enable debug print
+            slog.debug("check_for_data : requested class and id {} {}", .{requested_class, requested_id})
             slog.debug("check_for_data : read_buffer {} {} {any}", .{ idx, self.read_buffer_index, self.read_buffer });
             
             self.process_byte(self.read_buffer[idx], packet, requested_class, requested_id);
