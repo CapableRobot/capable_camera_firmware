@@ -746,7 +746,9 @@ pub const GNSS = struct {
         // Process the contents of the SPI buffer if not empty
         var idx: u8 = 0;
         while (idx < self.read_buffer_index) {
-            // slog.debug("check_for_data : read_buffer {} {} {any}", .{ idx, self.read_buffer_index, self.read_buffer });
+            //Enable debug print
+            slog.debug("check_for_data : read_buffer {} {} {any}", .{ idx, self.read_buffer_index, self.read_buffer });
+            
             self.process_byte(self.read_buffer[idx], packet, requested_class, requested_id);
             idx += 1;
         }
@@ -756,13 +758,13 @@ pub const GNSS = struct {
         while (true) {
             if (self.handle.read_byte()) |value| {
                 if (value == 0xFF and self.message_type == SentenceTypes.NONE) {
-                    // slog.debug("check_for_data : read_byte got EOM", .{});
+                    slog.debug("check_for_data : read_byte got EOM", .{});
                     break;
                 }
-                // slog.debug("check_for_data : read_byte got 0x{X}", .{value});
+                slog.debug("check_for_data : read_byte got 0x{X}", .{value});
                 self.process_byte(value, packet, requested_class, requested_id);
             } else {
-                // slog.debug("check_for_data : read_byte failed", .{});
+                slog.debug("check_for_data : read_byte failed", .{});
                 break;
             }
         }
