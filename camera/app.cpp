@@ -54,20 +54,8 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
   return key;
 }
 
-static bool wait_for_options(VideoOptions *options, NetInput *netInput)
-{
-  size_t incoming_bytes = 0;
-  while(incoming_bytes == 0)
-  {
-    incoming_bytes = netInput->poll_input();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-  }
-  
-  return true;    
-}
-
 // The main even loop for the application.
-static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do_poll_options, NetInput *netInput)
+static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
 {
 
   std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
@@ -101,25 +89,19 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do
     if (key == '\n')
       output->Signal();
 
-    if(do_poll_options && netInput != NULL)
-    {
-      if(netInput->poll_input() > 0)
-      {
-        std::cout << "New configuration received!" << std::endl;
-        end_early = true;
-        continue;
-      }
-      //poll_options(options, &end_early);
-    }
 
     auto this_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = this_time - last_time;
     std::chrono::duration<double> elapsed = this_time - start_time;
 
-    std::cout << "Frame " << std::setw(6) << count << " delta " << diff.count() << std::endl;
+    if (options->verbose)
+    {
+      std::cout << "Frame " << std::setw(6) << count << " delta " << diff.count() << std::endl;
+    }
+    
     last_time = this_time;
-
     auto now = std::chrono::high_resolution_clock::now();
+    
     if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)))
     {
       end_early = true;
@@ -135,7 +117,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options, bool do
     app.EncodeBuffer(completed_request, app.VideoStream());
   }
   
-  app.StopCamera(); // stop complains if encoder very slow to close
+  app.StopCamera();
   app.StopEncoder();
   std::cout << "Stream destroyed" << std::endl;
 }
@@ -149,41 +131,17 @@ int main(int argc, char *argv[])
   {
     LibcameraEncoder app;
     VideoOptions *options = app.GetOptions();
-    NetInput *netInput = NULL; 
+    
     if (options->Parse(argc, argv))
     {
       if (options->verbose)
       {
         options->Print();
       }
-      setupNetCfg = options->netconfig;
-      optionsValid = true;
     }
-    
-    if(setupNetCfg)
-    {
-      netInput = new NetInput(options);
-      end_exec = false;
-      optionsValid = wait_for_options(options, netInput);
-      if (options->verbose)
-      {
-        options->Print();
-      }
-    }
-    
-    do{
-      if(optionsValid)
-      {
-        execute_stream(app, options, setupNetCfg, netInput);
-        app.Teardown();
-        app.CloseCamera();
-      }else if(setupNetCfg)
-      {
-        optionsValid = wait_for_options(options, netInput);
-      }
-    } while(!end_exec);
-    
-    
+    execute_stream(app, options, setupNetCfg);
+    app.Teardown();
+    app.CloseCamera(); 
   }
   catch (std::exception const &e)
   {
