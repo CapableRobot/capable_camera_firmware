@@ -83,13 +83,20 @@ void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyf
 
 void Output::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags)
 {
-  // Supply this so that a vanilla Output gives you an object that outputs no buffers.
+  // DEPRECATED. Separate FileOutput class created to handle file output. If a null/empty
+  // pipe is needed, then create an Output object and leave this empty.
 }
 
 Output *Output::Create(VideoOptions const *options)
 {
-  if (strncmp(options->output.c_str(), "udp://", 6) == 0 || strncmp(options->output.c_str(), "tcp://", 6) == 0 || strncmp(options->output.c_str(), "sck://", 6) == 0)
+  if (strncmp(options->output.c_str(), "udp://", 6) == 0 || 
+      strncmp(options->output.c_str(), "tcp://", 6) == 0 || 
+      strncmp(options->output.c_str(), "sck://", 6) == 0)
+  {
     return new NetOutput(options);
+  }
   else
-    return new Output(options);
+  {
+    return new FileOutput(options);
+  }
 }
