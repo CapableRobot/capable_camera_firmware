@@ -9,6 +9,7 @@
 #include <stdexcept>
 
 #include "net_output.hpp"
+#include "file_output.hpp"
 #include "output.hpp"
 
 int64_t timestamp_now() 

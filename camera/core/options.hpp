@@ -47,7 +47,7 @@ struct Options
        "Set the output image width (0 = use default value)")
       ("height", value<unsigned int>(&height)->default_value(0),
        "Set the output image height (0 = use default value)")
-      ("timeout,t", value<uint64_t>(&timeout)->default_value(5000),
+      ("timeout,t", value<uint64_t>(&timeout)->default_value(0),
        "Time (in ms) for which program runs")
       ("output,o", value<std::string>(&output),
        "Set the output file name")

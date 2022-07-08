@@ -6,16 +6,18 @@
  */
 
 #include <arpa/inet.h>
-#include <sys/socket.h>
+#include <fcntl.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <time.h>
 
-#include "net_output.hpp"
+#include "file_output.hpp"
 
 FileOutput::FileOutput(VideoOptions const *options) : Output(options)
 {
-  prefix_ = options_->filePrefix;
+  prefix_ = options_->output;
+  //TODO - Assume jpeg formate for now. Otherwise extract 
+  postfix_ = ".jpg";
 }
 
 FileOutput::~FileOutput()
@@ -24,25 +26,29 @@ FileOutput::~FileOutput()
 
 void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
 {
+  static uint32_t picCounter = 0;
 
   //generate file name
-  time_t nowTime;
-  time(&nowTime);
-  ctime(&nowTime);
+  //time_t nowTime;
+  //time(&nowTime);
+  //ctime(&nowTime);
   std::stringstream fileNameGenerator;
-  fullFileName << prefix << "_" << ctime(&nowTime);
-  std::string fullFileName = fullFileName.str();
+  fileNameGenerator << prefix_ << "_";
+  fileNameGenerator << setw(8) << setfill('0') << picCounter;
+  fileNameGenerator << postfix_;
+  std::string fullFileName = fileNameGenerator.str();
   
   //open file name and assign fd
-  int fd;
+  int fd, ret;
   fd = open(fullFileName.c_str(), O_CREAT|O_WRONLY|O_TRUNC);
   
   if ((ret = write(fd, mem, size)) < 0) {
-    throw std::runtime_error("failed to send data on unix socket");
+    throw std::runtime_error("failed to write data");
   }
 
   close(fd);
-
+  
+  picCounter += 1;
   if (options_->verbose)
   {
     std::cerr << "  wrote " << ret << " bytes\n";

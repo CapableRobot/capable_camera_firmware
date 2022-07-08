@@ -104,8 +104,8 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
     
     if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)))
     {
-      end_early = true;
-      std::cout << "Timeout!" << std::endl;
+      //end_early = true;
+      std::cout << "Timeout is deprecated" << std::endl;
     }
     if(key == 'x' || key == 'X')
     {
@@ -124,9 +124,6 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
 
 int main(int argc, char *argv[])
 {
-  bool optionsValid = false;
-  bool setupNetCfg = false;
-  bool end_exec = true;
   try
   {
     LibcameraEncoder app;
@@ -139,7 +136,7 @@ int main(int argc, char *argv[])
         options->Print();
       }
     }
-    execute_stream(app, options, setupNetCfg);
+    execute_stream(app, options);
     app.Teardown();
     app.CloseCamera(); 
   }

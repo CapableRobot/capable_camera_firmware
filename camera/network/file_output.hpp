@@ -23,6 +23,6 @@ protected:
     void outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags) override;
 
 private:
-    int fd_;
     std::string prefix_;
+    std::string postfix_;
 };
