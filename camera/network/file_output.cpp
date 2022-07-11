@@ -4,6 +4,8 @@
  *
  * net_output.cpp - send output over network.
  */
+#include <iostream>
+#include <iomanip>
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -34,13 +36,13 @@ void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint
   //ctime(&nowTime);
   std::stringstream fileNameGenerator;
   fileNameGenerator << prefix_ << "_";
-  fileNameGenerator << setw(8) << setfill('0') << picCounter;
+  fileNameGenerator << std::setw(8) << std::setfill('0') << picCounter;
   fileNameGenerator << postfix_;
   std::string fullFileName = fileNameGenerator.str();
   
   //open file name and assign fd
   int fd, ret;
-  fd = open(fullFileName.c_str(), O_CREAT|O_WRONLY|O_TRUNC);
+  fd = open(fullFileName.c_str(), O_CREAT|O_WRONLY|O_TRUNC, 0444);
   
   if ((ret = write(fd, mem, size)) < 0) {
     throw std::runtime_error("failed to write data");
