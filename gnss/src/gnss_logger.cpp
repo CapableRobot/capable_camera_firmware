@@ -80,10 +80,10 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     // Need to determine if data is finite, the library does not check it
     // If gpsd version 3.24 is used ECEF_SET can be used instead
     if (/*(data.set & ECEF_SET) != 0) && */
-        (isfinite(data.fix.ecef.x) == true) &&
-        (isfinite(data.fix.ecef.y) == true) &&
-        (isfinite(data.fix.ecef.z) == true) &&
-        (isfinite(data.fix.ecef.pAcc) == true))
+        (std::isfinite(data.fix.ecef.x) == true) &&
+        (std::isfinite(data.fix.ecef.y) == true) &&
+        (std::isfinite(data.fix.ecef.z) == true) &&
+        (std::isfinite(data.fix.ecef.pAcc) == true))
     {
         dataObject["ecef"]["position"] = json::array({
             data.fix.ecef.x,
@@ -97,10 +97,10 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     // Need to determine if data is finite, the library does not check it
     // If gpsd version 3.24 is used VECEF_SET can be used instead
     if (/*(data.set & VECEF_SET) != 0) && */
-        (isfinite(data.fix.ecef.vx) == true) &&
-        (isfinite(data.fix.ecef.vy) == true) &&
-        (isfinite(data.fix.ecef.vz) == true) &&
-        (isfinite(data.fix.ecef.vAcc) == true))
+        (std::isfinite(data.fix.ecef.vx) == true) &&
+        (std::isfinite(data.fix.ecef.vy) == true) &&
+        (std::isfinite(data.fix.ecef.vz) == true) &&
+        (std::isfinite(data.fix.ecef.vAcc) == true))
     {
         dataObject["ecef"]["velocity"] = json::array({
             data.fix.ecef.vx,
