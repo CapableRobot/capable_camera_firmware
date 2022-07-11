@@ -1,3 +1,10 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright 2022 Gunnar Ryder for Hellbender, Inc.
+ * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
+ * 
+ * thread.cpp - General thread class
+ */
 #include "thread.hpp"
 
 #include <chrono>

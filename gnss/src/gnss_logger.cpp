@@ -1,3 +1,11 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright 2022 Gunnar Ryder for Hellbender, Inc.
+ * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
+ * 
+ * gnss_logger.cpp - Data logger for gnss data
+ */
+
 #include "gnss_logger.hpp"
 
 #include <string>

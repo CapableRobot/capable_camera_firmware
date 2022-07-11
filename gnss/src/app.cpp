@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 Chris Niessl for Capable Robot Components, Inc.
+ * Copyright 2022 Gunnar Ryder for Hellbender, Inc.
  * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
  * 
  * app.cpp - Main entry point for GNSS over Serial UART communicator

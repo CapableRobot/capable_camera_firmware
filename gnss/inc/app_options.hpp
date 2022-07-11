@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 Chris Niessl for Capable Robot Components, Inc.
+ * Copyright 2022 Gunnar Ryder for Hellbender, Inc.
  * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
  * 
- * serial_options.hpp - Options parser for serial communication
+ * app_options.cpp - Options parser for gnss logger communication
  */
 
 #pragma once
