@@ -1,0 +1,262 @@
+#include "logger.hpp"
+
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <deque>
+#include <string>
+using namespace std::chrono;
+
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
+#include "app_options.hpp"
+#include "thread.hpp"
+
+Logger::Logger(AppOptions *opts) : 
+    Thread(opts),  mDuration(1min), mQueueIndex(0), mLogOpen(false),
+    mTotalLogSize(0), mCurrLogSize(0)
+{
+    SetInterval(1s);
+}
+Logger::~Logger() = default;
+
+void Logger::SetFileDuration(seconds &&duration)
+{
+    // Set the duration internally
+    mDuration = duration;
+}
+std::string Logger::GetDateTimeString(timespec time)
+{
+    // Set up string for formatting
+    const short STR_RESIZE = 128;
+    std::string dtString;
+    dtString.resize(STR_RESIZE);
+
+    // Convert the time and format it
+    std::tm *currTime = gmtime(&time.tv_sec);
+    size_t count = strftime(dtString.data(), STR_RESIZE, "%FT%T", currTime);
+    dtString.resize(count);
+
+    // Setup milliseconds and append them
+    char msAppend[6];
+    sprintf(msAppend, ".%03dZ", (time.tv_nsec / 1000000));
+    dtString += msAppend;
+
+    return dtString;
+}
+
+void Logger::OpenLog()
+{
+    // Get time and create date string
+    timespec time;
+    timespec_get(&time, TIME_UTC);
+    mFileName = GetDateTimeString(time) + "." + mOptions->ext;
+
+    // Create full path
+    std::string fullPath = mOptions->path + mFileName;
+
+    if (mOptions->verbose == true)
+    {
+        std::cerr << "Opening log file: " << fullPath << std::endl;
+    }
+
+    // Open log file and check that it opened successfullt
+    mLogFile.open(fullPath, std::ios_base::trunc | std::ios_base::out);
+    mLogOpen = mLogFile.is_open();
+    if (mLogOpen == true)
+    {
+        // Log the open time and add an element to the tracking queue
+        mLogOpenTime = steady_clock::now();
+        mLogFileQueue.push_back({
+            mFileName,
+            0,
+            time.tv_sec
+        });
+    }
+
+    if (mOptions->verbose == true)
+    {
+        std::cerr << "Log file status: " << 
+            ((mLogOpen == true) ? "Open" : "Error") << 
+            std::endl;
+    }
+}
+
+void Logger::CheckLogStatus()
+{
+    // Determine if elapsed time
+    steady_clock::time_point currTime = steady_clock::now();
+    auto diff = currTime - mLogOpenTime;
+
+    // If there is no file open or the duration has elapsed
+    if ((mLogOpen == false) || (diff > mDuration))
+    {
+        // If there's already a log open, close it
+        if (mLogOpen == true)
+        {
+            mLogFile.close();
+
+            if (mOptions->verbose)
+            {
+                std::cerr << "Closing log \"" << mFileName << "\"" << std::endl;
+            }
+        }
+
+        // Handle opening the new log
+        OpenLog();
+    }
+
+    // Rotate out old entries
+    RotateLogs();
+}
+
+void Logger::GetLogData()
+{
+    // Open directory to information about files in it
+    DIR *logDir = opendir(mOptions->path.c_str());
+
+    // If the directory opened appropriately
+    if (logDir != nullptr)
+    {
+        struct dirent *currItem = nullptr;
+        struct stat fileStat = {0};
+        do
+        {
+            // Get the next item in the directory
+            currItem = readdir(logDir);
+
+            // If we got a valid item and the item is a regular file
+            if ((currItem != nullptr) && (currItem->d_type == DT_REG))
+            {
+                // Store the item name
+                std::string currItemName = currItem->d_name;
+
+                // Determine if the file has the appropriate extension
+                size_t findPos = currItemName.find_last_of(mOptions->ext);
+                if ((findPos != std::string::npos) &&
+                    (findPos == (currItemName.size() - 1)))
+                {
+                    // Get the full path of the file and get stats on it
+                    std::string currFilePath = mOptions->path + 
+                        currItemName;
+                    stat(currFilePath.c_str(), &fileStat);
+
+                    // Add the file to the information we know about
+                    mLogFileQueue.push_back({
+                        currItemName,
+                        fileStat.st_size,
+                        fileStat.st_mtime
+                    });
+
+                    if (mOptions->verbose == true)
+                    {
+                        std::cerr << "Tracking log file " << currItemName <<
+                            std::endl;
+                    }
+
+                    // Accumulate the size of that log file
+                    mTotalLogSize += fileStat.st_size;
+                }
+            }
+        } while (currItem != nullptr);
+
+        // Sort the information by oldest time first
+        std::sort(mLogFileQueue.begin(), mLogFileQueue.end(),
+            [](FileData &a, FileData &b) {
+                return a.epoch < b.epoch;
+        });
+    }
+    closedir(logDir);
+}
+
+void Logger::RotateLogs()
+{
+    // If we don't have any data accumulated, check to see if there is any
+    // in the output directory
+    if (mTotalLogSize == 0)
+    {
+        GetLogData();
+    }
+
+    // Remove logs until we're smaller than the limit or we only have one file
+    while (((mTotalLogSize / 1024) > mOptions->logSize) &&
+        (mLogFileQueue.size() != 1))
+    {
+        // Get the full path of the front item
+        FileData &frontData = mLogFileQueue.front();
+        std::string fullPath = mOptions->path + frontData.name;
+
+        // Remove the file and remove the size from the running total
+        unlink(fullPath.c_str());
+        mTotalLogSize -= frontData.size;
+        mLogFileQueue.pop_front();
+
+        if (mOptions->verbose == true)
+        {
+            std::cerr << "Removing log file " << frontData.name << std::endl;
+        }
+    }
+}
+
+void Logger::QueueData(json &data)
+{
+    // Add data to the queue
+    mDataQueue[mQueueIndex].push(data);
+}
+
+void Logger::ProcessData(short queueIndex)
+{
+    // Remove the current file size from the total
+    mTotalLogSize -= mCurrLogSize;
+
+    if (mOptions->verbose == true)
+    {
+        std::cerr << "Writing data to file:" << std::endl;
+    }
+
+    std::queue<json> &dataQueue = mDataQueue[queueIndex];
+    while (dataQueue.empty() == false)
+    {
+        if (mOptions->verbose == true)
+        {
+            std::cerr << dataQueue.front() << std::endl;
+        }
+
+        // Add the front item to the output object and pop it from the queue
+        mOutput += dataQueue.front();
+        dataQueue.pop();
+    }
+
+    // Rewrite contents of the file
+    mLogFile.seekp(0);
+    mLogFile << mOutput.dump(1, '\t', true) << std::endl;
+    mLogFile.flush();
+
+    // Update current log size and add it to the total
+    mCurrLogSize = mLogFile.tellp();
+    mLogFileQueue.back().size = mCurrLogSize;
+    mTotalLogSize += mCurrLogSize;
+}
+
+void Logger::ThreadFunc()
+{
+    // Change the queue that data is added to
+    short queueIndex = mQueueIndex;
+    mQueueIndex ^= 1;
+
+    // Check to see if a new file needs created
+    CheckLogStatus();
+
+    // If a log is open output the data
+    if (mLogOpen == true)
+    {
+        ProcessData(queueIndex);
+    }
+}
