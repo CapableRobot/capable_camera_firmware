@@ -192,6 +192,7 @@ void GnssData::ThreadFunc()
                         {
                             mLocked = false;
                         }
+                        break;
                     }
                     case MODE_2D:
                     case MODE_3D:
@@ -201,6 +202,7 @@ void GnssData::ThreadFunc()
                             mLocked = true;
                             SignalGnssLock();
                         }
+                        break;
                     }
                 }
 
