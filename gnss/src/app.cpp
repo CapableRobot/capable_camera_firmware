@@ -16,9 +16,15 @@
 #include "app_options.hpp"
 
 bool doExit = false;
+AppOptions *gOptions = nullptr;
 
 void SigHandle(int sigNum)
 {
+    if ((gOptions != nullptr) && (gOptions->verbose == true))
+    {
+        std::cerr << "Received signal: " << sigNum << std::endl;
+    }
+
     if (sigNum == SIGINT)
     {
         doExit = true;
@@ -51,6 +57,7 @@ int main(int argc, char *argv[])
     // If the options are valid, continue with the application
     if(optionsValid)
     {
+        gOptions = &options;
         signal(SIGINT, &SigHandle);
 
         // Setup objects
@@ -68,7 +75,7 @@ int main(int argc, char *argv[])
         // Continue until exit signal received
         while (doExit == false)
         {
-            
+            usleep(1000);
         }
 
         logger.Stop();

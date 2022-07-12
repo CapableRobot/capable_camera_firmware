@@ -15,8 +15,10 @@
 #include <iostream>
 #include <deque>
 #include <string>
+#include <sstream>
 using namespace std::chrono;
 
+#include <errno.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -32,6 +34,48 @@ Logger::Logger(AppOptions *opts) :
     mTotalLogSize(0), mCurrLogSize(0)
 {
     SetInterval(1s);
+
+    std::stringstream path(mOptions->path);
+    std::string currPath = "/";
+    int status = 0;
+    for (std::string token; std::getline(path, token, '/');)
+    {
+        if (token.empty() == false)
+        {
+            currPath += token + "/";
+
+            // Check to see if the directory exists
+            DIR *dir = opendir(currPath.c_str());
+            if (dir != nullptr)
+            {
+                closedir(dir);
+            }
+            // The directory doesn't exist, so make it
+            else
+            {
+                status = mkdir(currPath.c_str(), S_IRWXU | S_IRWXG);
+                if (status != 0)
+                {
+                    // Something failed, so fall back to a default (safe) location
+                    currPath = "/temp/";
+                    mOptions->path = currPath;
+
+                    if (mOptions->verbose)
+                    {
+                        std::cerr << "Failed to create needed directory." << std::endl;
+                        std::cerr << "Falling back to " << currPath << std::endl;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Check to make sure there is a final slash on the path, if not add it
+    if (mOptions->path.back() != '/')
+    {
+        mOptions->path += "/";
+    }
 }
 Logger::~Logger() = default;
 
@@ -54,7 +98,7 @@ std::string Logger::GetDateTimeString(timespec time)
 
     // Setup milliseconds and append them
     char msAppend[6];
-    sprintf(msAppend, ".%03dZ", (time.tv_nsec / 1000000));
+    sprintf(msAppend, ".%03ldZ", (time.tv_nsec / 1000000));
     dtString += msAppend;
 
     return dtString;

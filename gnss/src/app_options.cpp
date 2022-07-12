@@ -22,7 +22,7 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Displays the build version number")
         ("verbose,v", value<bool>(&verbose)->default_value(false)->implicit_value(true),
             "Output extra debug and diagnostics")
-        ("logSize,s", value<int>(&logSize)->default_value(30720)->implicit_value(true),
+        ("logSize,s", value<int>(&logSize)->default_value(30000)->implicit_value(true),
             "Log size in kilobytes")
         ("path,p", value<std::string>(&path)->default_value("/tmp/"),
             "Path to for data log")
@@ -46,11 +46,11 @@ bool AppOptions::Parse(int argc, char *argv[])
 {
     using namespace boost::program_options;
     variables_map vm;
-        
+
     // Read options from the command line
     store(parse_command_line(argc, argv, mOptions), vm);
     notify(vm);
-        
+
     // Read options from a file if specified
     std::ifstream ifs(config_file.c_str());
     if (ifs)
