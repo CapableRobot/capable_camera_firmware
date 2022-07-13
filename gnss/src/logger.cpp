@@ -131,6 +131,7 @@ void Logger::OpenLog()
             0,
             time.tv_sec
         });
+        mOutput = json::array();
     }
 
     if (mOptions->verbose == true)
