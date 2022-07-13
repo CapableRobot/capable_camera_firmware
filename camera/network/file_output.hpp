@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include <sys/un.h>
 
+#include <queue>
 #include "output.hpp"
 
 class FileOutput : public Output
@@ -19,10 +20,27 @@ public:
     ~FileOutput();
 
 protected:
-    void outputUnixSocket(void *mem, size_t size, int64_t timestamp_us, uint32_t flags);
+
+    void accountForExistingFiles();
+    bool checkAndFreeSpace();
+    void writeFile(std::string fullFileName, void *mem, size_t size);
+    void deleteOldestFile();
+
     void outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags) override;
 
 private:
+
+    std::string directory_;
     std::string prefix_;
     std::string postfix_;
+
+    std::queue<std::string> filenameQueue_;
+    std::queue<size_t>      filesizeQueue_;
+
+    std::queue<std::string> oldFileQueue_;
+    std::queue<size_t>      oldSizeQueue_;
+    
+    size_t minFreeSizeThresh_;
+    size_t maxUsedSizeThresh_;
+    size_t currentUsedSize_;
 };

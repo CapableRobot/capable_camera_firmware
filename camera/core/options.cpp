@@ -121,6 +121,9 @@ void Options::Print() const
     std::cout << "    width: " << width << std::endl;
     std::cout << "    height: " << height << std::endl;
     std::cout << "    output: " << output << std::endl;
+    std::cout << "    prefix: " << prefix << std::endl;
+    std::cout << "    min free space: " << minfreespace << std::endl;
+    std::cout << "    max used space: " << maxusedspace << std::endl; 
     std::cout << "    post_process_file: " << post_process_file << std::endl;
     std::cout << "    rawfull: " << rawfull << std::endl;
     std::cout << "    transform: " << transformToString(transform) << std::endl;

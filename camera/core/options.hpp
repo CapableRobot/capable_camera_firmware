@@ -50,7 +50,13 @@ struct Options
       ("timeout,t", value<uint64_t>(&timeout)->default_value(0),
        "Time (in ms) for which program runs")
       ("output,o", value<std::string>(&output),
-       "Set the output file name")
+       "Set the output file directory or socket endpoint")
+      ("prefix", value<std::string>(&prefix)->default_value(""),
+       "Set the beginning of output file names if provided")
+      ("minfreespace", value<std::uint64_t>(&minfreespace)->default_value(268435456),
+       "Minimum free space the partition must have, otherwise delete photos. Default to 256MiB")
+      ("maxusedspace", value<std::uint64_t>(&maxusedspace)->default_value(2147483648),
+       "Maximum amount of space photos can occupy otherwise delete them. Default to 2GiB")      
       ("post-process-file", value<std::string>(&post_process_file),
        "Set the file name for configuring the post-processing")
       ("rawfull", value<bool>(&rawfull)->default_value(false)->implicit_value(true),
@@ -112,7 +118,10 @@ struct Options
   bool netconfig;
   uint64_t timeout; // in ms
   std::string config_file;
+  std::string prefix;
   std::string output;
+  uint64_t minfreespace;
+  uint64_t maxusedspace;
   std::string post_process_file;
   unsigned int width;
   unsigned int height;
