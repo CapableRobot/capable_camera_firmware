@@ -22,6 +22,8 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Displays the build version number")
         ("verbose,v", value<bool>(&verbose)->default_value(false)->implicit_value(true),
             "Output extra debug and diagnostics")
+        ("debugLevel,d", value<int>(&debugLevel)->default_value(0)->implicit_value(true),
+            "Debug output level")
         ("logSize,s", value<int>(&logSize)->default_value(30000)->implicit_value(true),
             "Log size in kilobytes")
         ("path,p", value<std::string>(&path)->default_value("/tmp/"),

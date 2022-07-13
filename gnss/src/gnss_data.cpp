@@ -171,7 +171,7 @@ void GnssData::ThreadFunc()
         // Read data and validate the read was successful
         int status = gps_read(&mGpsData, msgPtr, msgSize);
         if (status != -1) {
-            if (mOptions->verbose == true)
+            if ((mOptions->verbose == true) && (mOptions->debugLevel > 0))
             {
                 // Resize to the amount of data we read
                 msg.resize(status);

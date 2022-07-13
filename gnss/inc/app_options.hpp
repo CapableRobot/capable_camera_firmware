@@ -23,6 +23,7 @@ struct AppOptions
   bool help;
   bool version;
   bool verbose;
+  int debugLevel;
   int logSize;
   std::string path;
   std::string ext;

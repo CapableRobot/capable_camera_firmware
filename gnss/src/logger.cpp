@@ -131,7 +131,10 @@ void Logger::OpenLog()
             0,
             time.tv_sec
         });
+
+        // Reset members for the new log
         mOutput = json::array();
+        mCurrLogSize = 0;
     }
 
     if (mOptions->verbose == true)
@@ -238,8 +241,15 @@ void Logger::RotateLogs()
         GetLogData();
     }
 
+    if (mOptions->verbose == true)
+    {
+        std::cerr << "Total log size: " << (mTotalLogSize / 1000) <<
+            "kB"<< std::endl;
+        std::cerr << "Config size: " << mOptions->logSize << "kB"<< std::endl;
+    }
+
     // Remove logs until we're smaller than the limit or we only have one file
-    while (((mTotalLogSize / 1024) > mOptions->logSize) &&
+    while (((mTotalLogSize / 1000) >= mOptions->logSize) &&
         (mLogFileQueue.size() != 1))
     {
         // Get the full path of the front item
@@ -249,12 +259,13 @@ void Logger::RotateLogs()
         // Remove the file and remove the size from the running total
         unlink(fullPath.c_str());
         mTotalLogSize -= frontData.size;
-        mLogFileQueue.pop_front();
 
         if (mOptions->verbose == true)
         {
             std::cerr << "Removing log file " << frontData.name << std::endl;
         }
+        
+        mLogFileQueue.pop_front();
     }
 }
 
@@ -269,7 +280,7 @@ void Logger::ProcessData(short queueIndex)
     // Remove the current file size from the total
     mTotalLogSize -= mCurrLogSize;
 
-    if (mOptions->verbose == true)
+    if ((mOptions->verbose == true) && (mOptions->debugLevel > 0))
     {
         std::cerr << "Writing data to file:" << std::endl;
     }
@@ -277,7 +288,7 @@ void Logger::ProcessData(short queueIndex)
     std::queue<json> &dataQueue = mDataQueue[queueIndex];
     while (dataQueue.empty() == false)
     {
-        if (mOptions->verbose == true)
+        if ((mOptions->verbose == true) && (mOptions->debugLevel > 0))
         {
             std::cerr << dataQueue.front() << std::endl;
         }
