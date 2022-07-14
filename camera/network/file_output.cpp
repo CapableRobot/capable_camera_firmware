@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
+ * Copyright (C) 2022, Chris Niessl, Hellbender Inc.
  *
- * net_output.cpp - send output over network.
+ * net_output.cpp - send directly to file.
  */
 #include <iostream>
 #include <iomanip>
+
 
 #include <sys/time.h>
 #include <arpa/inet.h>
@@ -13,7 +14,6 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <time.h>
-
 #include <boost/filesystem.hpp>
 
 #include "file_output.hpp"
@@ -22,7 +22,6 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
     ,filenameQueue_()
     ,filesizeQueue_()
     ,oldFileQueue_()
-    ,oldSizeQueue_()
 {
   directory_ = options_->output;
   prefix_ = options_->prefix;
@@ -36,8 +35,10 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   minFreeSizeThresh_ = options_->minfreespace;
   maxUsedSizeThresh_ = options_->maxusedspace;
 
-  //Check free space and delete the dest directory if we need to
-  //freeSpace = boost::filesystem::space("/tmp/recording/");
+  verbose_ = options_->verbose;
+
+  //Check free space and mark files in the dest directory 
+  //for deletion if we need to...
   accountForExistingFiles();
 }
 
@@ -55,14 +56,22 @@ void FileOutput::accountForExistingFiles()
     for (directory_iterator itr(writeLocation); itr != logDirEnd; ++itr)
     {
         if (is_regular_file(itr->path())) {
+            //get info
+            std::time_t writeTime = last_write_time(itr->path());
             std::string current_file = itr->path().string();
             size_t size = file_size(current_file);
             
-            std::cout << current_file << " size: " << size << std::endl;
-            //TODO: Change Queue to Priority Queue (OS does not organize by filename)
+            //display info
+            if(verbose_)
+            {
+                std::cout << "Marking: " << current_file << " size: " << size;
+                std::cout << " write time: " << writeTime << std::endl;
+            }
+            //add to queue
             currentUsedSize_ += size;
-            oldSizeQueue_.push(size);
-            oldFileQueue_.push(current_file);
+            fileInfo sizeFilePair = std::make_pair(size, current_file);
+            filePoint fileToAdd   = std::make_pair(writeTime, sizeFilePair);
+            oldFileQueue_.push(fileToAdd);
         }
     }
 }
@@ -75,7 +84,7 @@ bool FileOutput::checkAndFreeSpace()
     for(int ii = 0; ii < 8; ii+=1)
     {
       freeSpace = boost::filesystem::space("/tmp/recording/");
-      //if(
+      if(verbose_)
       {
           std::cout << "Bytes available:" << freeSpace.available << std::endl;
           std::cout << "Bytes used:" << currentUsedSize_ << std::endl;
@@ -92,7 +101,6 @@ bool FileOutput::checkAndFreeSpace()
     
       if(doDelete)
       {
-        std::cerr << "Deleting oldest file" << std::endl;
         deleteOldestFile();
         doDelete = false;
       }
@@ -120,7 +128,7 @@ void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)
   filesizeQueue_.push(size);
   filenameQueue_.push(fullFileName);
   
-  if (options_->verbose)
+  if (verbose_)
   {
     std::cerr << "  wrote " << ret << " bytes\n";
   }
@@ -130,18 +138,25 @@ void FileOutput::deleteOldestFile()
 {
   if(oldFileQueue_.size() > 0)
   {
-    int res = remove(oldFileQueue_.front().c_str());
+    int res;
+    filePoint popOff = oldFileQueue_.top();
+    size_t size = popOff.second.first;
+    std::string name = popOff.second.second;
+    
+    res = remove(name.c_str());
     if(res == 0)
     {
-      currentUsedSize_ -= filesizeQueue_.front();
-      oldFileQueue_.pop();
-      oldSizeQueue_.pop();
+      if(verbose_)
+      {
+          std::cerr << "Deleting " << name << std::endl;
+      }
+      currentUsedSize_ -= size;
     }
     else
     {
       std::cerr << "Error attempting to delete file" << std::endl;
-      filenameQueue_.pop();
     }  
+    oldFileQueue_.pop();
   }
   else if(filesizeQueue_.size() > 0)
   {
