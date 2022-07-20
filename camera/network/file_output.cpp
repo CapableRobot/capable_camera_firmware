@@ -57,12 +57,16 @@ FileOutput::~FileOutput()
 void FileOutput::accountForExistingFiles(int index)
 {
     using namespace boost::filesystem;
-    path writeLocation(directory_[index]);
-    directory_iterator logDirEnd;
-
-    // cycle through the directory
-    for (directory_iterator itr(writeLocation); itr != logDirEnd; ++itr)
+    try
     {
+      path writeLocation(directory_[index]);
+    
+    
+      directory_iterator logDirEnd;
+
+      // cycle through the directory
+      for (directory_iterator itr(writeLocation); itr != logDirEnd; ++itr)
+      {
         if (is_regular_file(itr->path())) {
             //get info
             std::time_t writeTime = last_write_time(itr->path());
@@ -81,6 +85,13 @@ void FileOutput::accountForExistingFiles(int index)
             filePoint fileToAdd   = std::make_pair(writeTime, sizeFilePair);
             oldFileQueue_[index].push(fileToAdd);
         }
+      }
+    }
+    catch (std::exception const &e)
+    {
+      std::cerr << "Error scanning directory: " << directory_[index];
+      std::cerr << ". Not using it" << std::endl;
+      directory_[index] = "";
     }
 }
 
