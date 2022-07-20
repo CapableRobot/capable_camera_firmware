@@ -95,7 +95,7 @@ bool FileOutput::checkAndFreeSpace(int index)
       if(verbose_)
       {
           std::cout << "Bytes available:" << freeSpace.available << std::endl;
-          std::cout << "Bytes used:" << currentUsedSize_ << std::endl;
+          std::cout << "Bytes used:" << currentUsedSize_[index] << std::endl;
       }
       if(currentUsedSize_[index] > maxUsedSizeThresh_[index] && 
          maxUsedSizeThresh_[index] > 0)
@@ -140,7 +140,8 @@ void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size, int
   
   if (verbose_)
   {
-    std::cerr << "  wrote " << ret << " bytes\n";
+    std::cerr << "wrote " << ret << " bytes to ";
+    std::cerr << fullFileName << std::endl;
   }
 }
 
