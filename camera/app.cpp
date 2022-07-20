@@ -19,6 +19,7 @@
 #include "network/output.hpp"
 #include "network/net_input.hpp"
 
+using json = nlohmann::json;
 using namespace std::placeholders;
 
 // Some keypress/signal handling.

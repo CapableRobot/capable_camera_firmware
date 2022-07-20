@@ -23,33 +23,41 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
     ,filesizeQueue_()
     ,oldFileQueue_()
 {
-  directory_ = options_->output;
+  directory_[0] = options_->output;
+  directory_[1] = options_->output_2nd;
   prefix_ = options_->prefix;
   
   //TODO - Assume jpeg formate for now. Otherwise extract 
   postfix_ = ".jpg";
   
-  currentUsedSize_ = 0;
+  currentUsedSize_[0] = 0;
+  currentUsedSize_[1] = 0;
   
-  //TODO - Set these via options
-  minFreeSizeThresh_ = options_->minfreespace;
-  maxUsedSizeThresh_ = options_->maxusedspace;
+  minFreeSizeThresh_[0] = options_->minfreespace;
+  maxUsedSizeThresh_[0] = options_->maxusedspace;
+
+  minFreeSizeThresh_[1] = options_->minfreespace_2nd;
+  maxUsedSizeThresh_[1] = options_->maxusedspace_2nd;
 
   verbose_ = options_->verbose;
 
   //Check free space and mark files in the dest directory 
   //for deletion if we need to...
-  accountForExistingFiles();
+  accountForExistingFiles(0);
+  if(directory_[1] != "")
+  {
+    accountForExistingFiles(1);
+  }
 }
 
 FileOutput::~FileOutput()
 {
 }
 
-void FileOutput::accountForExistingFiles()
+void FileOutput::accountForExistingFiles(int index)
 {
     using namespace boost::filesystem;
-    path writeLocation(directory_);
+    path writeLocation(directory_[index]);
     directory_iterator logDirEnd;
 
     // cycle through the directory
@@ -68,40 +76,42 @@ void FileOutput::accountForExistingFiles()
                 std::cout << " write time: " << writeTime << std::endl;
             }
             //add to queue
-            currentUsedSize_ += size;
+            currentUsedSize_[index] += size;
             fileInfo sizeFilePair = std::make_pair(size, current_file);
             filePoint fileToAdd   = std::make_pair(writeTime, sizeFilePair);
-            oldFileQueue_.push(fileToAdd);
+            oldFileQueue_[index].push(fileToAdd);
         }
     }
 }
 
-bool FileOutput::checkAndFreeSpace()
+bool FileOutput::checkAndFreeSpace(int index)
 {
     bool doDelete  = false;
     bool freeSpaceAvail = false;
     boost::filesystem::space_info freeSpace;
     for(int ii = 0; ii < 8; ii+=1)
     {
-      freeSpace = boost::filesystem::space("/tmp/recording/");
+      freeSpace = boost::filesystem::space(directory_[index]);
       if(verbose_)
       {
           std::cout << "Bytes available:" << freeSpace.available << std::endl;
           std::cout << "Bytes used:" << currentUsedSize_ << std::endl;
       }
-      if(currentUsedSize_ > maxUsedSizeThresh_)
+      if(currentUsedSize_[index] > maxUsedSizeThresh_[index] && 
+         maxUsedSizeThresh_[index] > 0)
       {
         doDelete = true;
       }
     
-      if(freeSpace.available < minFreeSizeThresh_)
+      if(freeSpace.available < minFreeSizeThresh_[index] &&
+         minFreeSizeThresh_[index] > 0)
       {
         doDelete = true;
       }
     
       if(doDelete)
       {
-        deleteOldestFile();
+        deleteOldestFile(index);
         doDelete = false;
       }
       else
@@ -114,7 +124,7 @@ bool FileOutput::checkAndFreeSpace()
     return freeSpaceAvail;
 }
 
-void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)
+void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size, int index)
 {
   //open file name and assign fd
   int fd, ret;
@@ -124,9 +134,9 @@ void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)
   }
   close(fd);
   
-  currentUsedSize_ += size;
-  filesizeQueue_.push(size);
-  filenameQueue_.push(fullFileName);
+  currentUsedSize_[index] += size;
+  filesizeQueue_[index].push(size);
+  filenameQueue_[index].push(fullFileName);
   
   if (verbose_)
   {
@@ -134,12 +144,12 @@ void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)
   }
 }
 
-void FileOutput::deleteOldestFile()
+void FileOutput::deleteOldestFile(int index)
 {
-  if(oldFileQueue_.size() > 0)
+  if(oldFileQueue_[index].size() > 0)
   {
     int res;
-    filePoint popOff = oldFileQueue_.top();
+    filePoint popOff = oldFileQueue_[index].top();
     size_t size = popOff.second.first;
     std::string name = popOff.second.second;
     
@@ -150,51 +160,49 @@ void FileOutput::deleteOldestFile()
       {
           std::cerr << "Deleting " << name << std::endl;
       }
-      currentUsedSize_ -= size;
+      currentUsedSize_[index] -= size;
     }
     else
     {
       std::cerr << "Error attempting to delete file" << std::endl;
     }  
-    oldFileQueue_.pop();
+    oldFileQueue_[index].pop();
   }
-  else if(filesizeQueue_.size() > 0)
+  else if(filesizeQueue_[index].size() > 0)
   {
-    int res = remove(filenameQueue_.front().c_str());
+    int res = remove(filenameQueue_[index].front().c_str());
     if(res == 0)
     {
-      currentUsedSize_ -= filesizeQueue_.front();
-      filenameQueue_.pop();
-      filesizeQueue_.pop();
+      currentUsedSize_[index] -= filesizeQueue_[index].front();
+      filenameQueue_[index].pop();
+      filesizeQueue_[index].pop();
     }
     else
     {
       std::cerr << "Error attempting to delete file" << std::endl;
-      filenameQueue_.pop();
+      filenameQueue_[index].pop();
     }    
   }
   
 }
 
-void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
+void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp, int index)
 {
-  struct timeval tv;
-  gettimeofday(&tv,NULL);
-  
+
   std::stringstream fileNameGenerator;
-  fileNameGenerator << directory_;
+  fileNameGenerator << directory_[index];
   fileNameGenerator << prefix_;
-  fileNameGenerator << std::setw(10) << std::setfill('0') << tv.tv_sec;
+  fileNameGenerator << std::setw(10) << std::setfill('0') << timestamp->tv_sec;
   fileNameGenerator << "_";
-  fileNameGenerator << std::setw(6) << std::setfill('0') << tv.tv_usec;//picCounter;
+  fileNameGenerator << std::setw(6) << std::setfill('0') << timestamp->tv_usec;//picCounter;
   fileNameGenerator << postfix_;
   std::string fullFileName = fileNameGenerator.str();
   
-  if(checkAndFreeSpace())
+  if(checkAndFreeSpace(index))
   {
     try
     {
-      writeFile(fullFileName, mem, size);
+      writeFile(fullFileName, mem, size, index);
     }
     catch (std::exception const &e)
     {
@@ -204,5 +212,20 @@ void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint
   else
   {
     std::cerr << "Not enough space. Deleting old files and retrying." << std::endl;
+  }
+}
+
+void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
+{
+  struct timeval tv;
+  gettimeofday(&tv,NULL);
+  
+  if(directory_[0] != "")
+  {
+    wrapAndWrite(mem, size, &tv, 0);
+  }
+  if(directory_[1] != "")
+  {    
+    wrapAndWrite(mem, size, &tv, 1);
   }
 }

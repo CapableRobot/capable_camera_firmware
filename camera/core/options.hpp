@@ -19,6 +19,8 @@
 #include <libcamera/control_ids.h>
 #include <libcamera/transform.h>
 
+#include <nlohmann/json.hpp>
+
 struct Options
 {
   Options() : options_("Valid options are", 120, 80)
@@ -51,12 +53,22 @@ struct Options
        "Time (in ms) for which program runs")
       ("output,o", value<std::string>(&output),
        "Set the output file directory or socket endpoint")
+      ("output_2nd", value<std::string>(&output_2nd)->default_value(""),
+       "Set the output file directory or socket endpoint")
       ("prefix", value<std::string>(&prefix)->default_value(""),
        "Set the beginning of output file names if provided")
       ("minfreespace", value<std::uint64_t>(&minfreespace)->default_value(268435456),
-       "Minimum free space the partition must have, otherwise delete photos. Default to 256MiB")
-      ("maxusedspace", value<std::uint64_t>(&maxusedspace)->default_value(2147483648),
-       "Maximum amount of space photos can occupy otherwise delete them. Default to 2GiB")      
+       "Minimum free space the partition must have in the primary space, otherwise delete photos."
+       "Default to 256MiB. Set to zero for unlimited")
+      ("maxusedspace", value<std::uint64_t>(&maxusedspace)->default_value(0),
+       "Maximum amount of space photos can occupy in the primary space, otherwise delete them."
+       "Default to 2GiB. Set to 0 for unlimited.")
+      ("minfreespace2", value<std::uint64_t>(&minfreespace_2nd)->default_value(33554432),
+       "Minimum free space the partition must have in removable media, otherwise delete photos."
+       "Default to 256MiB. Set to zero for unlimited")
+      ("maxusedspace2", value<std::uint64_t>(&maxusedspace_2nd)->default_value(0),
+       "Maximum amount of space photos can occupy in removable media, otherwise delete them."
+       "Default to 2GiB. Set to zero for unlimited")        
       ("post-process-file", value<std::string>(&post_process_file),
        "Set the file name for configuring the post-processing")
       ("rawfull", value<bool>(&rawfull)->default_value(false)->implicit_value(true),
@@ -120,8 +132,11 @@ struct Options
   std::string config_file;
   std::string prefix;
   std::string output;
+  std::string output_2nd;
   uint64_t minfreespace;
   uint64_t maxusedspace;
+  uint64_t minfreespace_2nd;
+  uint64_t maxusedspace_2nd;
   std::string post_process_file;
   unsigned int width;
   unsigned int height;
@@ -156,13 +171,21 @@ struct Options
   unsigned int lores_width;
   unsigned int lores_height;
 
-  virtual bool JSONParse();
+  virtual bool JSON_Option_Parse(nlohmann::json new_cfg);
 
   virtual bool Parse(int argc, char *argv[]);
   virtual void Print() const;
 
 protected:
   boost::program_options::options_description options_;
+
+  void json_manage_cx_cfg(nlohmann::json connection_cfg);
+  void json_manage_fs_cfg(nlohmann::json fileinfo_cfg);
+  void json_manage_rec_cfg(nlohmann::json recording_cfg);
+  void json_manage_enc_cfg(nlohmann::json encoding_cfg);
+  void json_manage_cb_cfg(nlohmann::json color_cfg);
+  void json_manage_exp_cfg(nlohmann::json exposure_cfg);
+  void json_manage_cam_cfg(nlohmann::json camera_cfg);
 
 private:
   bool hflip_;
