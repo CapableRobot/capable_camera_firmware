@@ -14,10 +14,10 @@
 
 #include "gps.h"
 
-#define GPS_WAIT_TIME   1000 // microseconds
+#define GPS_WAIT_TIME   250000 // microseconds
 
 GnssData::GnssData(AppOptions *opts) : Thread(opts), mStreaming(false),
-    mConnected(false), mLocked(false)
+    mConnected(false), mMode(0)
 {
     if ((mOptions->verbose == true) && (mOptions->help == false))
     {
@@ -142,6 +142,29 @@ void GnssData::SignalGnssLock()
     //TODO
     return;
 }
+
+bool GnssData::IsFixed()
+{
+    bool fixed = false;
+    switch (mMode)
+    {
+        case MODE_2D:
+        case MODE_3D:
+        {
+            fixed = true;
+            break;
+        }
+        case MODE_NOT_SEEN:
+        case MODE_NO_FIX:
+        default:
+        {
+            // Do nothing
+            break;
+        }
+    }
+
+    return fixed;
+}
     
 void GnssData::SetLogFunc(DataFunc func)
 {
@@ -182,40 +205,27 @@ void GnssData::ThreadFunc()
             if ((MODE_SET & mGpsData.set) != 0)
             {
                 // Determine what the lock state is
-                bool oldLockState = mLocked;
-                switch (mGpsData.fix.mode)
-                {
-                    case MODE_NOT_SEEN:
-                    case MODE_NO_FIX:
-                    {
-                        if (mLocked == true)
-                        {
-                            mLocked = false;
-                        }
-                        break;
-                    }
-                    case MODE_2D:
-                    case MODE_3D:
-                    {
-                        if (mLocked == false)
-                        {
-                            mLocked = true;
-                            SignalGnssLock();
-                        }
-                        break;
-                    }
-                }
+                bool oldFixState = IsFixed();
+                mMode = mGpsData.fix.mode;
+                bool currFixState = IsFixed();
 
-                if (mOptions->verbose == true && oldLockState != mLocked)
+                if (mOptions->verbose == true && oldFixState != currFixState)
                 {
-                    std::cerr << "Lock state changed: " <<
-                                ((mLocked == true) ? "Locked" : "No Fix") <<
+                    std::cerr << "Fix state changed: " <<
+                                ((currFixState == true) ? "Fixed" : "No Fix") <<
                                 std::endl;
                 }
 
                 // If there is a lock, pass on the data
-                if (mLocked == true)
+                if (mMode >= mOptions->minMode)
                 {
+                    // If there is no fix, update with the current system time
+                    if (currFixState == false)
+                    {
+                        timespec_get(&mGpsData.fix.time, TIME_UTC);
+                    }
+
+                    // Add data to be logged
                     mDataFunc(mGpsData);
                 }
             }

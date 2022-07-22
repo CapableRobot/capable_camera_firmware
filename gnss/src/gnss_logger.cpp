@@ -49,7 +49,8 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     }
 
     // Add the time stamp
-    if ((data.set & TIME_SET) != 0)
+    if (((data.set & TIME_SET) != 0) || 
+        (data.fix.mode == mOptions->minMode))
     {
         dataObject["timestamp"] = GetDateTimeString(data.fix.time);
     }
@@ -121,8 +122,31 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     // Adding satellite data
     if ((data.set & SATELLITE_SET) != 0)
     {
-        dataObject["satellites"]["used"] = data.satellites_used;
-        dataObject["satellites"]["seen"] = data.satellites_visible;
+        std::string parentKey = "satellites";
+        int numVisible = data.satellites_visible;
+        dataObject[parentKey]["seen"] = numVisible;
+        dataObject[parentKey]["used"] = data.satellites_used;
+
+        if (mOptions->logSnr == true)
+        {
+            int sum = 0;
+            int count = 0;
+            dataObject[parentKey]["data"] = json::array();
+            for (int index = 0; index < numVisible; index++)
+            {
+                json satelliteData = json::object();
+                satellite_t &currSat = data.skyview[index];
+                satelliteData["snr"] = currSat.ss;
+                satelliteData["used"] = currSat.used;
+                if (currSat.used == true)
+                {
+                    sum += currSat.ss;
+                    count++;
+                }
+                dataObject[parentKey]["data"].push_back(satelliteData);
+            }
+            dataObject[parentKey]["snrAaverage"] = sum / count;
+        }
     }
 
     return dataObject;

@@ -7,8 +7,8 @@ find_package(nlohmann_json REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
 
-file(GLOB PROJECT_SRC ${CMAKE_SOURCE_DIR}/src/*.cpp)
-include_directories(${CMAKE_SOURCE_DIR}/inc)
+file(GLOB PROJECT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
 add_executable(${PROJECT_NAME}
     ${PROJECT_SRC}

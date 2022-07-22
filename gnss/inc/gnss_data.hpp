@@ -29,6 +29,8 @@ public:
     void StopStream();
     void SignalGnssLock();
 
+    bool IsFixed();
+
     typedef std::function<void(gps_data_t&)> DataFunc;
     void SetLogFunc(DataFunc func);
 
@@ -39,7 +41,7 @@ protected:
     
     bool            mConnected;
     bool            mStreaming;
-    bool            mLocked;
+    int             mMode;
 
     gps_data_t      mGpsData;
     DataFunc        mDataFunc;
