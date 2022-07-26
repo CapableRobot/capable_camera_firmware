@@ -31,6 +31,7 @@ public:
     Logger(AppOptions *opts);
     virtual ~Logger();
 
+    void ResetFileDuration();
     void SetFileDuration(seconds &&duration);
     
 protected:

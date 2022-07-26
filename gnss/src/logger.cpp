@@ -30,10 +30,11 @@ using json = nlohmann::json;
 #include "thread.hpp"
 
 Logger::Logger(AppOptions *opts) : 
-    Thread(opts),  mDuration(1min), mQueueIndex(0), mLogOpen(false),
+    Thread(opts), mQueueIndex(0), mLogOpen(false),
     mTotalLogSize(0), mCurrLogSize(0)
 {
     SetInterval(1s);
+    ResetFileDuration();
 
     std::stringstream path(mOptions->path);
     std::string currPath = "/";
@@ -79,11 +80,17 @@ Logger::Logger(AppOptions *opts) :
 }
 Logger::~Logger() = default;
 
+void Logger::ResetFileDuration()
+{
+    SetFileDuration(seconds(mOptions->logDuration));
+}
+
 void Logger::SetFileDuration(seconds &&duration)
 {
     // Set the duration internally
     mDuration = duration;
 }
+
 std::string Logger::GetDateTimeString(timespec time)
 {
     // Set up string for formatting
@@ -245,11 +252,11 @@ void Logger::RotateLogs()
     {
         std::cerr << "Total log size: " << (mTotalLogSize / 1000) <<
             "kB"<< std::endl;
-        std::cerr << "Config size: " << mOptions->logSize << "kB"<< std::endl;
+        std::cerr << "Config size: " << mOptions->maxSize << "kB"<< std::endl;
     }
 
     // Remove logs until we're smaller than the limit or we only have one file
-    while (((mTotalLogSize / 1000) >= mOptions->logSize) &&
+    while (((mTotalLogSize / 1000) >= mOptions->maxSize) &&
         (mLogFileQueue.size() != 1))
     {
         // Get the full path of the front item

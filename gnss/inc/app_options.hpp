@@ -25,8 +25,9 @@ struct AppOptions
   bool verbose;
   bool logSnr;
   int debugLevel;
-  int logSize;
+  int maxSize;
   int minMode;
+  int logDuration;
   std::string path;
   std::string ext;
   std::string config_file;
