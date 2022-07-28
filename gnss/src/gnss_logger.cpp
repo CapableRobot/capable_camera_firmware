@@ -22,7 +22,11 @@ static const char *modeStrings[NUM_MODE_STRINGS] = {
     "3D"
 };
 
-GnssLogger::GnssLogger(AppOptions *opts) : Logger(opts) {};
+GnssLogger::GnssLogger(bool verbose, int debugLevel, std::string &path,
+    std::string &ext, int maxSize, int fileDuration, bool logSnr, int minMode) :
+    Logger(verbose, debugLevel, path, ext, maxSize, fileDuration),
+    mLogSnr(logSnr),
+    mMinMode(minMode) {};
 
 GnssLogger::~GnssLogger() = default;
 
@@ -50,7 +54,7 @@ json GnssLogger::OrganizeData(gps_data_t &data)
 
     // Add the time stamp
     if (((data.set & TIME_SET) != 0) || 
-        (data.fix.mode == mOptions->minMode))
+        (data.fix.mode == mMinMode))
     {
         dataObject["timestamp"] = GetDateTimeString(data.fix.time);
     }
@@ -127,7 +131,7 @@ json GnssLogger::OrganizeData(gps_data_t &data)
         dataObject[parentKey]["seen"] = numVisible;
         dataObject[parentKey]["used"] = data.satellites_used;
 
-        if (mOptions->logSnr == true)
+        if (mLogSnr == true)
         {
             int sum = 0;
             int count = 0;

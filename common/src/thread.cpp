@@ -11,11 +11,12 @@
 #include <iostream>
 #include <thread>
 
-#include "app_options.hpp"
-
 using namespace std::chrono_literals;
 
-Thread::Thread(AppOptions *opts) : mOptions(opts), mStop(false), 
+Thread::Thread(bool verbose, int debugLevel) : 
+    mVerbose(verbose),
+    mDebugLevel(debugLevel),
+    mStop(false), 
     mInterval(0us) {};
 
 Thread::~Thread()
@@ -43,7 +44,7 @@ void Thread::Stop()
     // If there is no thread running
     if (IsRunning() == true)
     {
-        if (mOptions->verbose == true)
+        if (mVerbose == true)
         {
             std::cerr << "Stopping loop thread." << std::endl;
         }
@@ -52,7 +53,7 @@ void Thread::Stop()
         mStop = true;
         mThread.join();
 
-        if (mOptions->verbose == true)
+        if (mVerbose == true)
         {
             std::cerr << "Thread joined." << std::endl;
         }
@@ -90,7 +91,7 @@ void Thread::ThreadLoop()
         }
     }
 
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Stopped data thread." << std::endl;
     }

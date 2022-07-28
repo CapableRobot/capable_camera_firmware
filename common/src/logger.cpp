@@ -26,63 +26,34 @@ using namespace std::chrono;
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
 
-#include "app_options.hpp"
 #include "thread.hpp"
 
-Logger::Logger(AppOptions *opts) : 
-    Thread(opts), mQueueIndex(0), mLogOpen(false),
-    mTotalLogSize(0), mCurrLogSize(0)
+Logger::Logger(bool verbose, int debugLevel, std::string &path, std::string &ext,
+    int maxSize, int fileDuration) :
+    Thread(verbose, debugLevel),
+    mPath(path),
+    mExt(ext),
+    mMaxSize(maxSize),
+    mResetDuration(seconds(fileDuration)),
+    mQueueIndex(0),
+    mLogOpen(false),
+    mTotalLogSize(0),
+    mCurrLogSize(0)
 {
     SetInterval(1s);
     ResetFileDuration();
 
-    std::stringstream path(mOptions->path);
-    std::string currPath = "/";
-    int status = 0;
-    for (std::string token; std::getline(path, token, '/');)
-    {
-        if (token.empty() == false)
-        {
-            currPath += token + "/";
-
-            // Check to see if the directory exists
-            DIR *dir = opendir(currPath.c_str());
-            if (dir != nullptr)
-            {
-                closedir(dir);
-            }
-            // The directory doesn't exist, so make it
-            else
-            {
-                status = mkdir(currPath.c_str(), S_IRWXU | S_IRWXG);
-                if (status != 0)
-                {
-                    // Something failed, so fall back to a default (safe) location
-                    currPath = "/temp/";
-                    mOptions->path = currPath;
-
-                    if (mOptions->verbose)
-                    {
-                        std::cerr << "Failed to create needed directory." << std::endl;
-                        std::cerr << "Falling back to " << currPath << std::endl;
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
     // Check to make sure there is a final slash on the path, if not add it
-    if (mOptions->path.back() != '/')
+    if (mPath.back() != '/')
     {
-        mOptions->path += "/";
+        mPath += "/";
     }
 }
 Logger::~Logger() = default;
 
 void Logger::ResetFileDuration()
 {
-    SetFileDuration(seconds(mOptions->logDuration));
+    mDuration = mResetDuration;
 }
 
 void Logger::SetFileDuration(seconds &&duration)
@@ -111,22 +82,64 @@ std::string Logger::GetDateTimeString(timespec time)
     return dtString;
 }
 
+void Logger::SetupParentDir()
+{
+    std::stringstream path(mPath);
+    std::string currPath = "/";
+    int status = 0;
+
+    // Iterate through all elements in path
+    for (std::string token; std::getline(path, token, '/');)
+    {
+        // If the token is empty there was a "//" and nothing needs to be done
+        if (token.empty() == false)
+        {
+            currPath += token + "/";
+
+            // Check to see if the directory exists
+            DIR *dir = opendir(currPath.c_str());
+            if (dir != nullptr)
+            {
+                closedir(dir);
+            }
+            // The directory doesn't exist, so make it
+            else
+            {
+                status = mkdir(currPath.c_str(), S_IRWXU | S_IRWXG);
+                if (status != 0)
+                {
+                    // Something failed, so fall back to a default (safe) location
+                    currPath = "/temp/";
+                    mPath = currPath;
+
+                    if (mVerbose)
+                    {
+                        std::cerr << "Failed to create needed directory." << std::endl;
+                        std::cerr << "Falling back to " << currPath << std::endl;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
 void Logger::OpenLog()
 {
     // Get time and create date string
     timespec time;
     timespec_get(&time, TIME_UTC);
-    mFileName = GetDateTimeString(time) + "." + mOptions->ext;
+    mFileName = GetDateTimeString(time) + "." + mExt;
 
     // Create full path
-    std::string fullPath = mOptions->path + mFileName;
+    std::string fullPath = mPath + mFileName;
 
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Opening log file: " << fullPath << std::endl;
     }
 
-    // Open log file and check that it opened successfullt
+    // Open log file and check that it opened successfully
     mLogFile.open(fullPath, std::ios_base::trunc | std::ios_base::out);
     mLogOpen = mLogFile.is_open();
     if (mLogOpen == true)
@@ -144,7 +157,7 @@ void Logger::OpenLog()
         mCurrLogSize = 0;
     }
 
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Log file status: " << 
             ((mLogOpen == true) ? "Open" : "Error") << 
@@ -166,7 +179,7 @@ void Logger::CheckLogStatus()
         {
             mLogFile.close();
 
-            if (mOptions->verbose)
+            if (mVerbose)
             {
                 std::cerr << "Closing log \"" << mFileName << "\"" << std::endl;
             }
@@ -183,7 +196,7 @@ void Logger::CheckLogStatus()
 void Logger::GetLogData()
 {
     // Open directory to information about files in it
-    DIR *logDir = opendir(mOptions->path.c_str());
+    DIR *logDir = opendir(mPath.c_str());
 
     // If the directory opened appropriately
     if (logDir != nullptr)
@@ -202,12 +215,12 @@ void Logger::GetLogData()
                 std::string currItemName = currItem->d_name;
 
                 // Determine if the file has the appropriate extension
-                size_t findPos = currItemName.find_last_of(mOptions->ext);
+                size_t findPos = currItemName.find_last_of(mExt);
                 if ((findPos != std::string::npos) &&
                     (findPos == (currItemName.size() - 1)))
                 {
                     // Get the full path of the file and get stats on it
-                    std::string currFilePath = mOptions->path + 
+                    std::string currFilePath = mPath + 
                         currItemName;
                     stat(currFilePath.c_str(), &fileStat);
 
@@ -218,7 +231,7 @@ void Logger::GetLogData()
                         fileStat.st_mtime
                     });
 
-                    if (mOptions->verbose == true)
+                    if (mVerbose == true)
                     {
                         std::cerr << "Tracking log file " << currItemName <<
                             std::endl;
@@ -248,26 +261,26 @@ void Logger::RotateLogs()
         GetLogData();
     }
 
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Total log size: " << (mTotalLogSize / 1000) <<
             "kB"<< std::endl;
-        std::cerr << "Config size: " << mOptions->maxSize << "kB"<< std::endl;
+        std::cerr << "Config size: " << mMaxSize << "kB"<< std::endl;
     }
 
     // Remove logs until we're smaller than the limit or we only have one file
-    while (((mTotalLogSize / 1000) >= mOptions->maxSize) &&
+    while (((mTotalLogSize / 1000) >= mMaxSize) &&
         (mLogFileQueue.size() != 1))
     {
         // Get the full path of the front item
         FileData &frontData = mLogFileQueue.front();
-        std::string fullPath = mOptions->path + frontData.name;
+        std::string fullPath = mPath + frontData.name;
 
         // Remove the file and remove the size from the running total
         unlink(fullPath.c_str());
         mTotalLogSize -= frontData.size;
 
-        if (mOptions->verbose == true)
+        if (mVerbose == true)
         {
             std::cerr << "Removing log file " << frontData.name << std::endl;
         }
@@ -287,7 +300,7 @@ void Logger::ProcessData(short queueIndex)
     // Remove the current file size from the total
     mTotalLogSize -= mCurrLogSize;
 
-    if ((mOptions->verbose == true) && (mOptions->debugLevel > 0))
+    if ((mVerbose == true) && (mDebugLevel > 0))
     {
         std::cerr << "Writing data to file:" << std::endl;
     }
@@ -295,7 +308,7 @@ void Logger::ProcessData(short queueIndex)
     std::queue<json> &dataQueue = mDataQueue[queueIndex];
     while (dataQueue.empty() == false)
     {
-        if ((mOptions->verbose == true) && (mOptions->debugLevel > 0))
+        if ((mVerbose == true) && (mDebugLevel > 0))
         {
             std::cerr << dataQueue.front() << std::endl;
         }

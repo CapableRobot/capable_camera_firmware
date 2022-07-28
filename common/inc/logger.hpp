@@ -20,7 +20,6 @@ using namespace std::chrono_literals;
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
 
-#include "app_options.hpp"
 #include "thread.hpp"
 
 #define NUM_QUEUES  2
@@ -28,7 +27,8 @@ using json = nlohmann::json;
 class Logger : public Thread
 {
 public:
-    Logger(AppOptions *opts);
+    Logger(bool verbose, int debugLevel, std::string &path, std::string &ext,
+        int maxSize, int fileDuration);
     virtual ~Logger();
 
     void ResetFileDuration();
@@ -39,7 +39,7 @@ protected:
     
     static std::string GetDateTimeString(timespec time);
 
-    short           mQueueIndex;
+    short               mQueueIndex;
 
 private:
     struct FileData
@@ -49,6 +49,7 @@ private:
         time_t          epoch;
     };
 
+    void SetupParentDir();
     void OpenLog();
     void CheckLogStatus();
     void GetLogData();
@@ -57,17 +58,22 @@ private:
 
     virtual void ThreadFunc() override;
 
-    bool            mLogOpen;
+    const int           mMaxSize;
+    const std::string   mExt;
+    const seconds       mResetDuration;
 
-    seconds         mDuration;
+    bool                mLogOpen;
 
-    std::string     mFileName;
-    std::fstream    mLogFile;
+    int                 mCurrLogSize;
+    int                 mTotalLogSize;
 
-    int             mCurrLogSize;
-    int             mTotalLogSize;
+    std::string         mPath;
+    std::string         mFileName;
+    std::fstream        mLogFile;
 
-    json            mOutput;
+    seconds             mDuration;
+
+    json                mOutput;
 
     std::deque<FileData>        mLogFileQueue;
     std::queue<json>            mDataQueue[NUM_QUEUES];

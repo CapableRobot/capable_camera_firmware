@@ -12,14 +12,13 @@
 
 #include "gps.h"
 
-#include "app_options.hpp"
 #include "thread.hpp"
 
 class GnssData : protected Thread
 {
 public:
 
-    GnssData(AppOptions *opts);
+    GnssData(bool verbose, int debugLevel, int minMode);
     ~GnssData();	
     
     void SetupGpsdConnect();
@@ -34,10 +33,10 @@ public:
     typedef std::function<void(gps_data_t&)> DataFunc;
     void SetLogFunc(DataFunc func);
 
-    AppOptions* GetOptions() { return mOptions; }
-
 protected:
     virtual void ThreadFunc() override;
+
+    const int       mMinMode;
     
     bool            mConnected;
     bool            mStreaming;

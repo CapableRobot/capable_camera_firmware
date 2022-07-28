@@ -10,16 +10,19 @@
 #include <thread>
  
 #include "gnss_data.hpp"
-#include "app_options.hpp"
 
 #include "gps.h"
 
 #define GPS_WAIT_TIME   250000 // microseconds
 
-GnssData::GnssData(AppOptions *opts) : Thread(opts), mStreaming(false),
-    mConnected(false), mMode(0)
+GnssData::GnssData(bool verbose, int debugLevel, int minMode) :
+    Thread(verbose, debugLevel),
+    mMinMode(minMode),
+    mStreaming(false),
+    mConnected(false),
+    mMode(0)
 {
-    if ((mOptions->verbose == true) && (mOptions->help == false))
+    if (mVerbose == true)
     {
         std::cerr << "Created..." << std::endl;
     }
@@ -27,7 +30,7 @@ GnssData::GnssData(AppOptions *opts) : Thread(opts), mStreaming(false),
 
 GnssData::~GnssData()
 {
-    if ((mOptions->verbose == true) && (mOptions->help == false))
+    if (mVerbose == true)
     {
         std::cerr << "Closing GNSS Serial" << std::endl;
     }
@@ -36,7 +39,7 @@ GnssData::~GnssData()
 
 void GnssData::SetupGpsdConnect()
 {
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Opening gpsd connection..." << std::endl;
     }
@@ -48,7 +51,7 @@ void GnssData::SetupGpsdConnect()
         mConnected = true;
     }
 
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Connection status: " << 
                     ((mConnected == true) ? "success" : "fail") <<
@@ -60,7 +63,7 @@ void GnssData::SetupGpsdConnect()
 
 void GnssData::TeardownGpsdConnect()
 {
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Closing gpsd connection..." << std::endl;
     }
@@ -73,7 +76,7 @@ void GnssData::TeardownGpsdConnect()
         gps_close(&mGpsData);
         mConnected = false;
         
-        if (mOptions->verbose == true)
+        if (mVerbose == true)
         {
             std::cerr << "Closed gpsd connection." << std::endl;
         }
@@ -84,7 +87,7 @@ void GnssData::TeardownGpsdConnect()
 
 void GnssData::StartStream()
 {
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Starting log..." << std::endl;
     }
@@ -101,7 +104,7 @@ void GnssData::StartStream()
             mStreaming = true;
         }
 
-        if (mOptions->verbose == true)
+        if (mVerbose == true)
         {
             std::cerr << "Closed gpsd stream." << std::endl;
         }
@@ -111,7 +114,7 @@ void GnssData::StartStream()
 
 void GnssData::StopStream()
 {
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "Stopping log..." << std::endl;
     }
@@ -125,7 +128,7 @@ void GnssData::StopStream()
         gps_stream(&mGpsData, WATCH_DISABLE, NULL);
         mStreaming = false;
 
-        if (mOptions->verbose == true)
+        if (mVerbose == true)
         {
             std::cerr << "Closed gpsd stream." << std::endl;
         }
@@ -135,7 +138,7 @@ void GnssData::StopStream()
 
 void GnssData::SignalGnssLock()
 {
-    if (mOptions->verbose == true)
+    if (mVerbose == true)
     {
         std::cerr << "GNSS Lock" << std::endl;
     }
@@ -184,7 +187,7 @@ void GnssData::ThreadFunc()
         int msgSize = 0;
 
         // If we're in verbose mode, setup output the data we receive
-        if (mOptions->verbose == true)
+        if (mVerbose == true)
         {
             msg.resize(1024);
             msgPtr = msg.data();
@@ -194,7 +197,7 @@ void GnssData::ThreadFunc()
         // Read data and validate the read was successful
         int status = gps_read(&mGpsData, msgPtr, msgSize);
         if (status != -1) {
-            if ((mOptions->verbose == true) && (mOptions->debugLevel > 0))
+            if ((mVerbose == true) && (mDebugLevel > 0))
             {
                 // Resize to the amount of data we read
                 msg.resize(status);
@@ -209,7 +212,7 @@ void GnssData::ThreadFunc()
                 mMode = mGpsData.fix.mode;
                 bool currFixState = IsFixed();
 
-                if (mOptions->verbose == true && oldFixState != currFixState)
+                if ((mVerbose == true) && (oldFixState != currFixState))
                 {
                     std::cerr << "Fix state changed: " <<
                                 ((currFixState == true) ? "Fixed" : "No Fix") <<
@@ -217,7 +220,7 @@ void GnssData::ThreadFunc()
                 }
 
                 // If there is a lock, pass on the data
-                if (mMode >= mOptions->minMode)
+                if (mMode >= mMinMode)
                 {
                     // If there is no fix, update with the current system time
                     if (currFixState == false)

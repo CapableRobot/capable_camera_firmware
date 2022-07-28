@@ -61,8 +61,21 @@ int main(int argc, char *argv[])
         signal(SIGINT, &SigHandle);
 
         // Setup objects
-        GnssData data(&options);
-        GnssLogger logger(&options);
+        GnssData data(
+            options.verbose,
+            options.debugLevel,
+            options.minMode
+        );
+        GnssLogger logger(
+            options.verbose,
+            options.debugLevel,
+            options.path,
+            options.ext,
+            options.maxSize,
+            options.logDuration,
+            options.logSnr,
+            options.minMode
+        );
 
         // Setup connection/stream and prepare for data handling
         data.SetupGpsdConnect();

@@ -11,12 +11,10 @@
 #include <chrono>
 #include <thread>
 
-#include "app_options.hpp"
-
 class Thread
 {
 public:
-    Thread(AppOptions *opts);
+    Thread(bool verbose, int debugLevel);
     ~Thread();
 
     bool IsRunning();
@@ -28,7 +26,8 @@ public:
 protected:
     virtual void ThreadFunc() = 0;
 
-    AppOptions                  *mOptions;
+    const bool                  mVerbose;
+    const int                   mDebugLevel;
 
 private:
     void ThreadLoop();
