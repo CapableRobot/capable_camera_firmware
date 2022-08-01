@@ -34,6 +34,11 @@ void Thread::Start()
     // If the thread isn't joinable there is no thread running
     if (mThread.joinable() == false)
     {
+        if (mVerbose == true)
+        {
+            std::cerr << "Starting loop thread..." << std::endl;
+        }
+
         // Create a new thread
         mThread = std::thread(&Thread::ThreadLoop, this);
     }

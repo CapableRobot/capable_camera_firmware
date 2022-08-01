@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6)
 
-project(gnss-logger)
+project(led-controller)
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(nlohmann_json REQUIRED)
@@ -20,7 +20,6 @@ target_link_libraries(${PROJECT_NAME}
     ${Boost_LIBRARIES}
     ${nlohmann_json_LIBRARIES}
     common
-    gps
     pthread
 )
 

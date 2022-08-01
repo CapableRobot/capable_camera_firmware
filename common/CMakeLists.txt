@@ -8,10 +8,13 @@ find_package(nlohmann_json REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 
 file(GLOB PROJECT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
 add_library(${PROJECT_NAME}
     ${PROJECT_SRC}
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/inc
 )
 
 target_link_libraries(${PROJECT_NAME}
