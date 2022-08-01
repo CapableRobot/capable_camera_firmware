@@ -29,9 +29,9 @@
 
 const LedCtrlr::LedData Is31fl3199::mLedRegs[NUM_LEDS] =
 {
-    {   LED_PWM1_REG,   LED_PWM2_REG,   LED_PWM3_REG},
-    {   LED_PWM4_REG,   LED_PWM5_REG,   LED_PWM6_REG},
-    {   LED_PWM7_REG,   LED_PWM8_REG,   LED_PWM9_REG}
+    {   LED_PWM1_REG,   LED_PWM3_REG,   LED_PWM2_REG},
+    {   LED_PWM4_REG,   LED_PWM6_REG,   LED_PWM5_REG},
+    {   LED_PWM7_REG,   LED_PWM9_REG,   LED_PWM8_REG}
 };
 
 const Is31fl3199::EnableData Is31fl3199::mEnableData[NUM_LEDS] =
@@ -57,6 +57,11 @@ void Is31fl3199::Init()
 {
     Interface::DataArray init{0x01u};
     mIface->Write(init, SHUTDOWN_REG);
+
+    for (unsigned char index = 0; index < NUM_LEDS; index++)
+    {
+        mLedEnable[index] = false;
+    }
 }
 
 void Is31fl3199::Reset()
@@ -84,7 +89,13 @@ void Is31fl3199::DoSetState(Value index, bool enable)
     Interface::DataArray value(1);
 
     // Update LED state register
-    value[0] = (enable == true) ? mEnableData[index].mask : 0x00u;
+    mLedEnable[index] = enable;
+    value[0] = (mLedEnable[index] == true) ? mEnableData[index].mask : 0x00u;
+    if ((index == 0) || (index == 1))
+    {
+        Value otherIndex = index ^ 1;
+        value[0] |= (mLedEnable[otherIndex] == true) ? mEnableData[otherIndex].mask : 0x00u;
+    }
     mIface->Write(value, mEnableData[index].reg);
 
     UpdateData();

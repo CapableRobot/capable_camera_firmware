@@ -37,5 +37,5 @@ private:
 
     static const LedData    mLedRegs[NUM_LEDS];
     static const EnableData mEnableData[NUM_LEDS];
-    
+    bool                    mLedEnable[NUM_LEDS];
 };
