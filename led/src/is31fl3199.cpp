@@ -13,8 +13,9 @@
 #define NUM_COLORS  3
 
 #define SHUTDOWN_REG    0x00u
-#define LED_CTRL_1_REG  0x01u
-#define LED_CTRL_2_REG  0x02u
+#define LED_CTRL1_REG   0x01u
+#define LED_CTRL2_REG   0x02u
+#define LED_CFG2_REG    0x04u
 #define LED_PWM1_REG    0x07u
 #define LED_PWM2_REG    0x08u
 #define LED_PWM3_REG    0x09u
@@ -36,9 +37,9 @@ const LedCtrlr::LedData Is31fl3199::mLedRegs[NUM_LEDS] =
 
 const Is31fl3199::EnableData Is31fl3199::mEnableData[NUM_LEDS] =
 {
-    {.reg = LED_CTRL_1_REG, .mask = 0x07u},
-    {.reg = LED_CTRL_1_REG, .mask = 0x70u},
-    {.reg = LED_CTRL_2_REG, .mask = 0x07u}
+    {.reg = LED_CTRL1_REG, .mask = 0x07u},
+    {.reg = LED_CTRL1_REG, .mask = 0x70u},
+    {.reg = LED_CTRL2_REG, .mask = 0x07u}
 };
 
 Is31fl3199::Is31fl3199(Interface::IfacePtr &iface) :
@@ -55,19 +56,23 @@ Is31fl3199::~Is31fl3199()
 
 void Is31fl3199::Init()
 {
-    Interface::DataArray init{0x01u};
-    mIface->Write(init, SHUTDOWN_REG);
+    Interface::DataArray enable{0x01u};
+    mIface->Write(enable, SHUTDOWN_REG);
 
     for (unsigned char index = 0; index < NUM_LEDS; index++)
     {
         mLedEnable[index] = false;
     }
+
+    // Update the max current for the led's to the lowest setting
+    Interface::DataArray current{0x30u};
+    mIface->Write(current, LED_CFG2_REG);
 }
 
 void Is31fl3199::Reset()
 {
-    Interface::DataArray init{0x00u};
-    mIface->Write(init, RESET_REG);
+    Interface::DataArray disable{0x00u};
+    mIface->Write(disable, RESET_REG);
 }
 
 void Is31fl3199::DoSetColor(Value index, LedData &newColor)
