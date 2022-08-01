@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 file(GLOB PROJECT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
-add_library(${PROJECT_NAME}
+add_library(${PROJECT_NAME} STATIC
     ${PROJECT_SRC}
 )
 
