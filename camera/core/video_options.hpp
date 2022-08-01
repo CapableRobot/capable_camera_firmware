@@ -71,10 +71,46 @@ struct VideoOptions : public Options
 	uint32_t segment;
 	bool circular;
 
+        void json_manage_cam_cfg(nlohmann::json camera_cfg)
+        {
+            if(camera_cfg.contains("encoding"))
+            {
+                json_manage_enc_cfg(camera_cfg.at("encoding"));
+            }
+        }
+
+        void json_manage_enc_cfg(nlohmann::json encoding_cfg)
+        {
+            if(encoding_cfg.contains("codec"))
+            {   
+                codec = encoding_cfg.at("codec");
+            }
+        }
+        
+        virtual bool JSON_Option_Parse(nlohmann::json new_cfg) override
+        {
+            if (Options::JSON_Option_Parse(new_cfg) == false)
+            {
+                return false;
+            }
+            if(new_cfg.contains("camera"))
+            {
+                json_manage_cam_cfg(new_cfg.at("camera"));    
+            }
+            return true;
+        }
+        
 	virtual bool Parse(int argc, char *argv[]) override
 	{
 		if (Options::Parse(argc, argv) == false)
 			return false;
+
+               std::ifstream ifs(config_file.c_str());
+               if (ifs)
+               {
+                   nlohmann::json new_cfg = nlohmann::json::parse(ifs);
+                   JSON_Option_Parse(new_cfg);
+               }
 
 		if (width == 0)
 			width = 640;

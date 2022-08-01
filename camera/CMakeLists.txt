@@ -45,17 +45,17 @@ include_directories(${CMAKE_SOURCE_DIR} ${LIBCAMERA_INCLUDE_DIRS})
 
 add_subdirectory(core)
 add_subdirectory(encoder)
-add_subdirectory(output)
+add_subdirectory(network)
 add_subdirectory(post_processing_stages)
 
 
 project(libcamera-bridge)
 add_executable(libcamera-bridge app.cpp)
-target_link_libraries(libcamera-bridge libcamera_app encoders outputs)
+target_link_libraries(libcamera-bridge libcamera_app encoders network)
 
 set(EXECUTABLES libcamera-bridge)
 set(EXEC_SCRIPTS bridge.sh)
-set(SUPPORT_FILES imx477.json)
+set(SUPPORT_FILES imx477.json config.json)
 
 install(TARGETS ${EXECUTABLES} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(PROGRAMS ${EXEC_SCRIPTS} DESTINATION ${CMAKE_INSTALL_BINDIR})

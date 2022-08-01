@@ -12,10 +12,14 @@
 #include <sys/stat.h>
 
 #include <iomanip>
+#include <chrono>
+#include <thread>
 
 #include "core/libcamera_encoder.hpp"
-#include "output/output.hpp"
+#include "network/output.hpp"
+#include "network/net_input.hpp"
 
+using json = nlohmann::json;
 using namespace std::placeholders;
 
 // Some keypress/signal handling.
@@ -52,10 +56,9 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
 }
 
 // The main even loop for the application.
-
-static void event_loop(LibcameraEncoder &app)
+static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
 {
-  VideoOptions const *options = app.GetOptions();
+
   std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
   app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
   app.StartEncoder();
@@ -63,6 +66,8 @@ static void event_loop(LibcameraEncoder &app)
   app.OpenCamera();
   app.ConfigureVideo();
   app.StartCamera();
+
+  std::cout << "Stream created" << std::endl;
 
   // Monitoring for keypresses and signals.
   signal(SIGUSR1, default_signal_handler);
@@ -72,7 +77,9 @@ static void event_loop(LibcameraEncoder &app)
   auto start_time = std::chrono::high_resolution_clock::now();
   auto last_time = std::chrono::high_resolution_clock::now();
 
-  for (unsigned int count = 0; ; count++)
+  bool end_early = false;
+
+  for (unsigned int count = 0; !end_early; count++)
   {
     LibcameraEncoder::Msg msg = app.Wait();
     if (msg.type == LibcameraEncoder::MsgType::Quit)
@@ -83,25 +90,37 @@ static void event_loop(LibcameraEncoder &app)
     if (key == '\n')
       output->Signal();
 
+
     auto this_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = this_time - last_time;
     std::chrono::duration<double> elapsed = this_time - start_time;
 
-    std::cout << "Frame " << std::setw(6) << count << " delta " << diff.count() << std::endl;
-    last_time = this_time;
-
-    auto now = std::chrono::high_resolution_clock::now();
-    if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)) || key == 'x' ||
-      key == 'X')
+    if (options->verbose)
     {
-      app.StopCamera(); // stop complains if encoder very slow to close
-      app.StopEncoder();
-      return;
+      std::cout << "Frame " << std::setw(6) << count << " delta " << diff.count() << std::endl;
+    }
+    
+    last_time = this_time;
+    auto now = std::chrono::high_resolution_clock::now();
+    
+    if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)))
+    {
+      //end_early = true;
+      std::cout << "Timeout is deprecated" << std::endl;
+    }
+    if(key == 'x' || key == 'X')
+    {
+      end_early = true;
+      std::cout << "Got exit key signal" << std::endl;
     }
 
     CompletedRequestPtr &completed_request = std::get<CompletedRequestPtr>(msg.payload);
     app.EncodeBuffer(completed_request, app.VideoStream());
   }
+  
+  app.StopCamera();
+  app.StopEncoder();
+  std::cout << "Stream destroyed" << std::endl;
 }
 
 int main(int argc, char *argv[])
@@ -110,13 +129,17 @@ int main(int argc, char *argv[])
   {
     LibcameraEncoder app;
     VideoOptions *options = app.GetOptions();
+    
     if (options->Parse(argc, argv))
     {
       if (options->verbose)
+      {
         options->Print();
-
-      event_loop(app);
+      }
     }
+    execute_stream(app, options);
+    app.Teardown();
+    app.CloseCamera(); 
   }
   catch (std::exception const &e)
   {

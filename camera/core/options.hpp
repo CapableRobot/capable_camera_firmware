@@ -19,6 +19,8 @@
 #include <libcamera/control_ids.h>
 #include <libcamera/transform.h>
 
+#include <nlohmann/json.hpp>
+
 struct Options
 {
   Options() : options_("Valid options are", 120, 80)
@@ -35,6 +37,9 @@ struct Options
        "Read the options from a file. If no filename is specified, default to config.txt. "
        "In case of duplicate options, the ones provided on the command line will be used. "
        "Note that the config file must only contain the long form options.")
+      ("netconfig,n", value<bool>(&netconfig)->default_value(false)->implicit_value(true), 
+        "Connect to the network endpoint of the camera firmware and listen for configuration "
+        "changes over the network")
       ("info-text", value<std::string>(&info_text)->default_value("#%frame (%fps fps) exp %exp ag %ag dg %dg"),
        "Sets the information string on the titlebar. Available values:\n"
        "%frame (frame number)\n%fps (framerate)\n%exp (shutter speed)\n%ag (analogue gain)"
@@ -44,10 +49,26 @@ struct Options
        "Set the output image width (0 = use default value)")
       ("height", value<unsigned int>(&height)->default_value(0),
        "Set the output image height (0 = use default value)")
-      ("timeout,t", value<uint64_t>(&timeout)->default_value(5000),
+      ("timeout,t", value<uint64_t>(&timeout)->default_value(0),
        "Time (in ms) for which program runs")
       ("output,o", value<std::string>(&output),
-       "Set the output file name")
+       "Set the output file directory or socket endpoint")
+      ("output_2nd", value<std::string>(&output_2nd)->default_value(""),
+       "Set the output file directory or socket endpoint")
+      ("prefix", value<std::string>(&prefix)->default_value(""),
+       "Set the beginning of output file names if provided")
+      ("minfreespace", value<std::uint64_t>(&minfreespace)->default_value(268435456),
+       "Minimum free space the partition must have in the primary space, otherwise delete photos."
+       "Default to 256MiB. Set to zero for unlimited")
+      ("maxusedspace", value<std::uint64_t>(&maxusedspace)->default_value(0),
+       "Maximum amount of space photos can occupy in the primary space, otherwise delete them."
+       "Default to 2GiB. Set to 0 for unlimited.")
+      ("minfreespace2", value<std::uint64_t>(&minfreespace_2nd)->default_value(33554432),
+       "Minimum free space the partition must have in removable media, otherwise delete photos."
+       "Default to 256MiB. Set to zero for unlimited")
+      ("maxusedspace2", value<std::uint64_t>(&maxusedspace_2nd)->default_value(0),
+       "Maximum amount of space photos can occupy in removable media, otherwise delete them."
+       "Default to 2GiB. Set to zero for unlimited")        
       ("post-process-file", value<std::string>(&post_process_file),
        "Set the file name for configuring the post-processing")
       ("rawfull", value<bool>(&rawfull)->default_value(false)->implicit_value(true),
@@ -70,7 +91,7 @@ struct Options
        "Set the EV exposure compensation, where 0 = no change")
       ("awb", value<std::string>(&awb)->default_value("auto"),
        "Set the AWB mode (auto, incandescent, tungsten, fluorescent, indoor, daylight, cloudy, custom)")
-      ("awbgains", value<std::string>(&awbgains)->default_value("0,0"),
+      ("awbgains", value<std::string>(&awbgains)->default_value("0.0,0.0"),
        "Set explict red and blue gains (disable the automatic AWB algorithm)")
       ("flush", value<bool>(&flush)->default_value(false)->implicit_value(true),
        "Flush output data as soon as possible")
@@ -106,9 +127,16 @@ struct Options
   bool help;
   bool version;
   bool verbose;
+  bool netconfig;
   uint64_t timeout; // in ms
   std::string config_file;
+  std::string prefix;
   std::string output;
+  std::string output_2nd;
+  uint64_t minfreespace;
+  uint64_t maxusedspace;
+  uint64_t minfreespace_2nd;
+  uint64_t maxusedspace_2nd;
   std::string post_process_file;
   unsigned int width;
   unsigned int height;
@@ -143,11 +171,21 @@ struct Options
   unsigned int lores_width;
   unsigned int lores_height;
 
+  virtual bool JSON_Option_Parse(nlohmann::json new_cfg);
+
   virtual bool Parse(int argc, char *argv[]);
   virtual void Print() const;
 
 protected:
   boost::program_options::options_description options_;
+
+  void json_manage_cx_cfg(nlohmann::json connection_cfg);
+  void json_manage_fs_cfg(nlohmann::json fileinfo_cfg);
+  void json_manage_rec_cfg(nlohmann::json recording_cfg);
+  void json_manage_enc_cfg(nlohmann::json encoding_cfg);
+  void json_manage_cb_cfg(nlohmann::json color_cfg);
+  void json_manage_exp_cfg(nlohmann::json exposure_cfg);
+  void json_manage_cam_cfg(nlohmann::json camera_cfg);
 
 private:
   bool hflip_;

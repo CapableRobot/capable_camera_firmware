@@ -22,6 +22,7 @@ const status = @import("handlers/status.zig");
 const info = @import("handlers/info.zig");
 const imu = @import("handlers/imu.zig");
 const configure = @import("handlers/configure.zig");
+const fileAPI = @import("handlers/fileAPI.zig");
 const threads = @import("threads.zig");
 const recording = @import("recording.zig");
 
@@ -29,6 +30,8 @@ pub const routes = [_]web.Route{
     web.Route.create("", "/", MainHandler),
     web.Route.create("api", "/api", MainHandler),
     web.Route.create("api", "/api/", MainHandler),
+    web.Route.create("api", "/api/v1/start_stream", configure.PreviewHandler),
+    web.Route.create("api", "/api/v1/stop_stream",  configure.StopPreviewHandler),
     web.Route.create("api", "/api/config/img", configure.ImgCfgHandler),
     web.Route.create("api/status", "/api/status", status.Handler),
     web.Route.create("api/info", "/api/info", info.Handler),
@@ -38,6 +41,7 @@ pub const routes = [_]web.Route{
     web.Route.create("api/recordings", "/api/recordings", RecordingIndexHandler),
     web.Route.create("api/recordings", "/api/recordings/last.jpg", RecordingLastHandler),
     web.Route.create("api/recordings", "/api/recordings/(.+)", RecordingFileHandler),
+    //web.Route.create("api/fetch_gnssfilenames","api/fetch_gnssfilenames/(.+)/(.+)",fileAPI.Handler),
     web.Route.static("static", "/static/", "static/"),
 };
 
