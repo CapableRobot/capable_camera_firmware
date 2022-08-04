@@ -186,6 +186,7 @@ protected:
   void json_manage_cb_cfg(nlohmann::json color_cfg);
   void json_manage_exp_cfg(nlohmann::json exposure_cfg);
   void json_manage_cam_cfg(nlohmann::json camera_cfg);
+  void json_manage_adj_cfg(nlohmann::json adjustment_cfg); 
 
 private:
   bool hflip_;

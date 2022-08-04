@@ -95,6 +95,22 @@ void Options::json_manage_enc_cfg(nlohmann::json encoding_cfg)
   }    
 }
 
+void Options::json_manage_adj_cfg(nlohmann::json adjustment_cfg)
+{
+  if(adjustment_cfg.contains("rotation"))
+  {
+    rotation_ = adjustment_cfg.at("rotation");
+  }
+  if(adjustment_cfg.contains("hflip"))
+  {
+    hflip_ = adjustment_cfg.at("hflip");
+  } 
+  if(adjustment_cfg.contains("vflip"))
+  {
+    vflip_ = adjustment_cfg.at("vflip");
+  }  
+}
+
 void Options::json_manage_cb_cfg(nlohmann::json color_cfg)
 {
   if(color_cfg.contains("awb"))
@@ -159,17 +175,21 @@ void Options::json_manage_cam_cfg(nlohmann::json camera_cfg)
   {
     json_manage_exp_cfg(camera_cfg.at("exposure"));
   }
+  if(camera_cfg.contains("adjustment"))
+  {
+    json_manage_adj_cfg(camera_cfg.at("adjustment"));
+  }
 }
 
 bool Options::JSON_Option_Parse(nlohmann::json new_cfg)
 {
-    if(new_cfg.contains("recording"))
-    {
-      json_manage_rec_cfg(new_cfg.at("recording"));
-    }
     if(new_cfg.contains("camera"))
     {
       json_manage_cam_cfg(new_cfg.at("camera"));    
+    }
+    if(new_cfg.contains("recording"))
+    {
+      json_manage_rec_cfg(new_cfg.at("recording"));
     }
     return true;
 }

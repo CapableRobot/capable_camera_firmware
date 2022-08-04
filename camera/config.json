@@ -14,6 +14,11 @@
       "width": 4056,
       "height": 2160,
       "codec":"mjpeg"
+    },
+    "adjustment":{
+      "hflip": false,
+      "vflip": false,
+      "rotation": 0
     }
   } 
 }

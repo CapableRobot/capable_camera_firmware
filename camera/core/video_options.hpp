@@ -77,6 +77,7 @@ struct VideoOptions : public Options
             {
                 json_manage_enc_cfg(camera_cfg.at("encoding"));
             }
+            
         }
 
         void json_manage_enc_cfg(nlohmann::json encoding_cfg)
@@ -84,6 +85,10 @@ struct VideoOptions : public Options
             if(encoding_cfg.contains("codec"))
             {   
                 codec = encoding_cfg.at("codec");
+            }
+            if(encoding_cfg.contains("quality"))
+            {   
+                quality = encoding_cfg.at("quality");
             }
         }
         
