@@ -231,7 +231,7 @@ void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint
 {
   struct timeval tv;
   gettimeofday(&tv,NULL);
-  
+  std::cerr << "64bit timestamp: " << timestamp_us << std::endl;
   if(directory_[0] != "")
   {
     wrapAndWrite(mem, size, &tv, 0);
