@@ -69,5 +69,7 @@ json ImuLogger::OrganizeData(ImuData::Data &data)
         dataObject[key] = data.temp;
     }
 
+    dataObject["time"] = GetDateTimeString(data.time);
+
     return dataObject;
 }
