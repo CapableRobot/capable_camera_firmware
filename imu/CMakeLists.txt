@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.6)
 
-project(imu-controller)
+project(imu-logger)
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(nlohmann_json REQUIRED)

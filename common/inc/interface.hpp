@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <iomanip>
-#include <iostream>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -37,11 +35,13 @@ public:
     void            Close();
     void            Reconnect();
 
-    int             Read(DataArray &data, Value other);
-    int             Write(DataArray &data, Value other);
-
-    virtual int     Read(DataArray &data) = 0;
-    virtual int     Write (DataArray &data) = 0;
+    virtual int     Read(DataArray &data, Value other);
+    virtual int     Write(DataArray &data, Value other);
+    virtual int     Transfer(DataArray &write, DataArray &read, Value other);
+    
+    virtual int     Read(DataArray &data);
+    virtual int     Write (DataArray &data);
+    virtual int     Transfer(DataArray &write, DataArray &read);
     
     void            PrintBuf(
                         std::ostream &stream,

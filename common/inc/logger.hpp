@@ -27,8 +27,14 @@ using json = nlohmann::json;
 class Logger : public Thread
 {
 public:
-    Logger(bool verbose, int debugLevel, std::string &path, std::string &ext,
-        int maxSize, int fileDuration);
+    Logger(
+        std::string &path,
+        std::string &ext,
+        int maxSize,
+        int fileDuration,
+        bool verbose = false,
+        int debugLevel = 0
+    );
     virtual ~Logger();
 
     void ResetFileDuration();
@@ -37,7 +43,8 @@ public:
 protected:
     void QueueData(json &data);
     
-    static std::string GetDateTimeString(timespec time);
+    static std::string  GetDateTimeString(timespec time);
+    float               ReducePrecision(float value, unsigned char precision = 3);
 
     short               mQueueIndex;
 

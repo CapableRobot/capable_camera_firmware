@@ -22,11 +22,66 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Displays the build version number")
         ("verbose,v", value<bool>(&verbose)->default_value(false)->implicit_value(true),
             "Output extra debug and diagnostics")
-        ("config_path,p", value<std::string>(&config_path)->default_value("/tmp/"),
-            "Path to look for LED configuration file")
-        ("config_file,f", value<std::string>(&config_file)->default_value("imu.json"),
-            "LED configuration file")
-
+        ("debugLevel,d", value<int>(&debugLevel)->default_value(0)->implicit_value(true),
+            "Debug output level")
+        ("gyroScale,gs", value<unsigned char>(&gyroFs)->default_value(0)->implicit_value(true),
+            "Gyroscope out scale enum. Enum values:\n"
+            "     0 - +/- 2000dps (default)\n"
+            "     1 - +/- 1000dps\n"
+            "     2 - +/- 500dps\n"
+            "     3 - +/- 250dps\n"
+            "     4 - +/- 125dps\n"
+            "     5 - +/- 62.5dps\n"
+            "     6 - +/- 31.25dps\n"
+            "     7 - +/- 15.62dps\n")
+        ("gyroRate,gr", value<unsigned char>(&gyroOdr)->default_value(6)->implicit_value(true),
+            "Gyroscope out rate enum. Enum values:\n"
+            "     1 - 32kHz\n"
+            "     2 - 16kHz\n"
+            "     3 - 8kHz\n"
+            "     4 - 4kHz\n"
+            "     5 - 2kHz\n"
+            "     6 - 1kHz (default)\n"
+            "     7 - 200Hz\n"
+            "     8 - 100Hz\n"
+            "     9 - 50Hz\n"
+            "    10 - 25Hz\n"
+            "    11 - 12.5Hz\n"
+            "    15 - 500Hz\n")
+        ("accelScale,as", value<unsigned char>(&accelFs)->default_value(0)->implicit_value(true),
+            "Gyroscope out scale enum. Enum values:\n"
+            "     0 - +/- 16g (default)\n"
+            "     1 - +/- 8g\n"
+            "     2 - +/- 4g\n"
+            "     3 - +/- 2g\n")
+        ("accelRate,ar", value<unsigned char>(&accelOdr)->default_value(6)->implicit_value(true),
+            "Gyroscope out rate enum. Enum values:\n"
+            "     1 - 32kHz\n"
+            "     2 - 16kHz\n"
+            "     3 - 8kHz\n"
+            "     4 - 4kHz\n"
+            "     5 - 2kHz\n"
+            "     6 - 1kHz (default)\n"
+            "     7 - 200Hz\n"
+            "     8 - 100Hz\n"
+            "     9 - 50Hz\n"
+            "    10 - 25Hz\n"
+            "    11 - 12.5Hz\n"
+            "    15 - 500Hz\n")
+        ("maxSize,s", value<unsigned int>(&maxSize)->default_value(30000)->implicit_value(true),
+            "Max size of all logs in kilobytes")
+        ("logInterval,i", value<unsigned int>(&logInterval)->default_value(100)->implicit_value(true),
+            "Interval duration, in milliseconds, data collection")
+        ("logDuration,l", value<unsigned int>(&logDuration)->default_value(60)->implicit_value(true),
+            "Duration of each log file in seconds")
+        ("path,p", value<std::string>(&path)->default_value("/tmp/"),
+            "Path to for data log")
+        ("extension,e", value<std::string>(&ext)->default_value("ext"),
+            "Extension to use for data log")
+        ("config,c", value<std::string>(&configFile)->implicit_value("config.txt"),
+            "Read the options from a file. If no filename is specified, default to config.txt. "
+            "In case of duplicate options, the ones provided on the command line will be used. "
+            "Note that the config file must only contain the long form options.")
         ;
 }
 

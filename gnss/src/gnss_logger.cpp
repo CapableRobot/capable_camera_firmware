@@ -22,9 +22,17 @@ static const char *modeStrings[NUM_MODE_STRINGS] = {
     "3D"
 };
 
-GnssLogger::GnssLogger(bool verbose, int debugLevel, std::string &path,
-    std::string &ext, int maxSize, int fileDuration, bool logSnr, int minMode) :
-    Logger(verbose, debugLevel, path, ext, maxSize, fileDuration),
+GnssLogger::GnssLogger(
+    std::string &path,
+    std::string &ext,
+    int maxSize,
+    int fileDuration,
+    bool logSnr,
+    int minMode,
+    bool verbose,
+    int debugLevel
+    ) :
+    Logger(path, ext, maxSize, fileDuration, verbose, debugLevel),
     mLogSnr(logSnr),
     mMinMode(minMode) {};
 

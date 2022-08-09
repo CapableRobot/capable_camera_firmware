@@ -8,3 +8,4 @@ add_subdirectory(common)
 
 add_subdirectory(led)
 add_subdirectory(gnss)
+add_subdirectory(imu)

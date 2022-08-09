@@ -9,6 +9,7 @@
 #include "logger.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -28,8 +29,14 @@ using json = nlohmann::json;
 
 #include "thread.hpp"
 
-Logger::Logger(bool verbose, int debugLevel, std::string &path, std::string &ext,
-    int maxSize, int fileDuration) :
+Logger::Logger(
+    std::string &path,
+    std::string &ext,
+    int maxSize,
+    int fileDuration,
+    bool verbose,
+    int debugLevel
+    ) :
     Thread(verbose, debugLevel),
     mPath(path),
     mExt(ext),
@@ -80,6 +87,12 @@ std::string Logger::GetDateTimeString(timespec time)
     dtString += msAppend;
 
     return dtString;
+}
+
+float Logger::ReducePrecision(float value, unsigned char precision)
+{
+    const unsigned int multiplier = pow(10, precision);
+    return (roundf(value * multiplier) / multiplier);
 }
 
 void Logger::SetupParentDir()
