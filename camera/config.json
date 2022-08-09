@@ -2,7 +2,7 @@
   "recording":{
     "directory":{
       "prefix":"",
-      "output":"/tmp/recording/pic",
+      "output":"/tmp/recording/pic/",
       "minfreespace": 64000000,
       "output2":"/media/usb0/recording/",
       "minfreespace2": 32000000
