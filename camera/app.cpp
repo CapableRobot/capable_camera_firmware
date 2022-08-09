@@ -67,7 +67,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
   app.ConfigureVideo();
   app.StartCamera();
 
-  std::cout << "Stream created" << std::endl;
+  std::cout << "Starting Stream" << std::endl;
 
   // Monitoring for keypresses and signals.
   signal(SIGUSR1, default_signal_handler);

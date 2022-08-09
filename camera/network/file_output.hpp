@@ -9,6 +9,7 @@
 
 #include <netinet/in.h>
 #include <sys/un.h>
+#include <sys/time.h>
 
 #include <queue>
 #include "output.hpp"
@@ -32,6 +33,8 @@ protected:
     void wrapAndWrite(void *mem, size_t size, struct timeval *timestamp, int index);
     void outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags) override;
 
+    struct timeval getAdjustedTime(int64_t timestamp_us);
+
 private:
     bool verbose_;
     std::string directory_[2];
@@ -46,4 +49,6 @@ private:
     size_t minFreeSizeThresh_[2];
     size_t maxUsedSizeThresh_[2];
     size_t currentUsedSize_[2];
+    
+    struct timeval baseTime_;
 };

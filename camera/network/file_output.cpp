@@ -7,8 +7,6 @@
 #include <iostream>
 #include <iomanip>
 
-
-#include <sys/time.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/un.h>
@@ -151,7 +149,7 @@ void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size, int
   
   if (verbose_)
   {
-    std::cerr << "wrote " << ret << " bytes to ";
+    std::cerr << "writing " << ret << " bytes to ";
     std::cerr << fullFileName << std::endl;
   }
 }
@@ -227,17 +225,59 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
   }
 }
 
+struct timeval FileOutput::getAdjustedTime(int64_t timestamp_us)
+{
+  static bool firstRun = false;
+  struct timeval tv;
+  time_t   fullSec  = timestamp_us / 1000000;
+  long int microSec = timestamp_us % 1000000;
+  
+  if(!firstRun)
+  {
+    firstRun = true;
+    gettimeofday(&baseTime_, NULL);
+    if(baseTime_.tv_usec < microSec)
+    {
+      baseTime_.tv_usec = 1000000 + baseTime_.tv_usec - microSec;
+      baseTime_.tv_sec  = baseTime_.tv_sec - fullSec - 1;
+    } else
+    {
+      baseTime_.tv_usec = baseTime_.tv_usec - microSec;
+      baseTime_.tv_sec  = baseTime_.tv_sec - fullSec;
+    }
+  }
+
+  tv.tv_sec = baseTime_.tv_sec + fullSec;
+  tv.tv_usec = baseTime_.tv_usec + microSec;
+  if(tv.tv_usec > 1000000)
+  {
+    tv.tv_usec -= 1000000;
+    tv.tv_sec  += 1;
+  }
+  return tv;
+}
+
 void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
 {
   struct timeval tv;
-  gettimeofday(&tv,NULL);
+  gettimeofday(&tv, NULL);
+      
+  try
+  {
+    tv = getAdjustedTime(timestamp_us);
+  }
+  catch (std::exception const &e)
+  {
+    std::cerr << "Time recording issues" << std::endl;
+
+  }
   
   if(directory_[0] != "")
   {
     wrapAndWrite(mem, size, &tv, 0);
   }
   if(directory_[1] != "")
-  {    
+  {  
     wrapAndWrite(mem, size, &tv, 1);
   }
 }

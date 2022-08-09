@@ -558,27 +558,30 @@ void LibcameraApp::makeRequests()
 
 void LibcameraApp::requestComplete(Request *request)
 {
-	if (request->status() == Request::RequestCancelled)
-		return;
+    if (request->status() == Request::RequestCancelled)
+    {
+        return;
+    }
 
-	CompletedRequest *r = new CompletedRequest(sequence_++, request->buffers(), request->metadata());
- 	CompletedRequestPtr payload(r, [this](CompletedRequest *cr) { this->queueRequest(cr); });
- 	known_completed_requests_.insert(r);
-	{
-		request->reuse();
-		std::lock_guard<std::mutex> lock(free_requests_mutex_);
-		free_requests_.push(request);
-	}
-
-	// We calculate the instantaneous framerate in case anyone wants it.
-	uint64_t timestamp = payload->buffers.begin()->second->metadata().timestamp;
-	if (last_timestamp_ == 0 || last_timestamp_ == timestamp)
-		payload->framerate = 0;
-	else
-		payload->framerate = 1e9 / (timestamp - last_timestamp_);
-	last_timestamp_ = timestamp;
-
-	post_processor_.Process(payload); // post-processor can re-use our shared_ptr
+    CompletedRequest *r = new CompletedRequest(sequence_++, request->buffers(), request->metadata());
+    CompletedRequestPtr payload(r, [this](CompletedRequest *cr) { this->queueRequest(cr); });
+    known_completed_requests_.insert(r);
+    {
+        request->reuse();
+        std::lock_guard<std::mutex> lock(free_requests_mutex_);
+        free_requests_.push(request);
+    }
+    
+    // We calculate the instantaneous framerate in case anyone wants it.
+    uint64_t timestamp = payload->buffers.begin()->second->metadata().timestamp;
+    if (last_timestamp_ == 0 || last_timestamp_ == timestamp)
+    {
+        payload->framerate = 0;
+    } else {
+        payload->framerate = 1e9 / (timestamp - last_timestamp_);
+    }
+    last_timestamp_ = timestamp;
+    post_processor_.Process(payload); // post-processor can re-use our shared_ptr
 }
 
 void LibcameraApp::configureDenoise(const std::string &denoise_mode)
