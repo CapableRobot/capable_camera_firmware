@@ -89,12 +89,6 @@ std::string Logger::GetDateTimeString(timespec time)
     return dtString;
 }
 
-float Logger::ReducePrecision(float value, unsigned char precision)
-{
-    const unsigned int multiplier = pow(10, precision);
-    return (roundf(value * multiplier) / multiplier);
-}
-
 void Logger::SetupParentDir()
 {
     std::stringstream path(mPath);

@@ -34,8 +34,10 @@ void ImuLogger::AddData(ImuData::Data &data)
 json ImuLogger::OrganizeData(ImuData::Data &data)
 {
     json dataObject = json::object();
-
     std::string key;
+
+    // Check whether accelerometer data is available.  If it is add it
+    // to the json object
     if ((data.status & ImuData::DataStatus::AccelAvailable) > 0)
     {
         key = "accel";
@@ -45,6 +47,8 @@ json ImuLogger::OrganizeData(ImuData::Data &data)
         dataObject[key]["z"] = data.accel[2];
     }
     
+    // Check whether gyroscope data is available.  If it is add it
+    // to the json object
     if ((data.status & ImuData::DataStatus::GyroAvailable) > 0)
     {
         key = "gyro";
@@ -54,6 +58,8 @@ json ImuLogger::OrganizeData(ImuData::Data &data)
         dataObject[key]["z"] = data.gyro[2];
     }
     
+    // Check whether magnetometer data is available.  If it is add it
+    // to the json object
     if ((data.status & ImuData::DataStatus::MagAvailable) > 0)
     {
         key = "mag";
@@ -63,12 +69,15 @@ json ImuLogger::OrganizeData(ImuData::Data &data)
         dataObject[key]["z"] = data.mag[2];
     }
     
+    // Check whether temperature data is available.  If it is add it
+    // to the json object
     if ((data.status & ImuData::DataStatus::TempAvailable) > 0)
     {
         key = "temp";
         dataObject[key] = data.temp;
     }
 
+    // Add the time to the json object
     dataObject["time"] = GetDateTimeString(data.time);
 
     return dataObject;

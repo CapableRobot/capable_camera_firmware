@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 Chris Niessl for Hellbender, Inc.
+ * Copyright 2022 Gunnar Ryder for Hellbender, Inc.
  * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
  * 
- * spi.cpp - SPI wrapper for IMU Userspace driver
+ * spi.h - Implementation for SPI interface class
  */
 
 #include "spi.hpp"

@@ -21,6 +21,7 @@ ImuData::ImuData(
     Thread(verbose, debugLevel),
     mImuPtr(imuPtr)
 {
+    // Set timeout output logging
     std::chrono::milliseconds interval{sampleInterval};
     SetInterval(interval);
 }
@@ -34,26 +35,39 @@ void ImuData::SetLogFunc(DataFunc func)
 
 void ImuData::ThreadFunc()
 {
+    // Verify that the IMU driver has prepared the IMU and the data handling
+    // function has been passed in.
     if ((mImuPtr->IsReady() == true) && mDataFunc)
     {
+        // Prepare the object to pass data around
+        bool success = false;
         Data newData;
         memset(&newData, 0, sizeof(Data));
-        if (mImuPtr->GetAccelValues(newData.accel) == true)
+
+        // Try to get accelerometer data, if we do update the flag
+        success = mImuPtr->GetAccelValues(newData.accel);
+        if (success == true)
         {
             newData.status |= DataStatus::AccelAvailable;
         }
 
-        if (mImuPtr->GetGyroValues(newData.gyro) == true)
+        // Try to get gyroscope data, if we do update the flag
+        success = mImuPtr->GetGyroValues(newData.gyro);
+        if (success == true)
         {
             newData.status |= DataStatus::GyroAvailable;
         }
 
-        if (mImuPtr->GetMagValues(newData.mag) == true)
+        // Try to get magnetometer data, if we do update the flag
+        success = mImuPtr->GetMagValues(newData.mag);
+        if (success == true)
         {
             newData.status |= DataStatus::MagAvailable;
         }
 
-        if (mImuPtr->GetTempValue(newData.temp) == true)
+        // Try to get temp data, if we do update the flag
+        success = mImuPtr->GetTempValue(newData.temp);
+        if (success == true)
         {
             newData.status |= DataStatus::TempAvailable;
         }

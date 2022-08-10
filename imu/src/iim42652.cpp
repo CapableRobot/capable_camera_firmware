@@ -81,10 +81,11 @@ void Iim42652::Init()
 
     if (mVerbose == true)
     {
+        // If we got a result size of one and the value we read is the same
+        // as the value we wrote, the device is set up.
         if ((count == 1) && (result[0] == writeEnable[0]))
         {
             std::cout << "IMU devices powered on!" << std::endl;
-            mReady = true;
         }
         else
         {
@@ -92,6 +93,10 @@ void Iim42652::Init()
         }
     } 
 
+    // Update ready status
+    mReady = true;
+
+    // Set default scale values
     mAccelScale = mDefaultAccelScale;
     mGyroScale = mDefaultGyroScale;
 
@@ -103,6 +108,7 @@ void Iim42652::Init()
 
 void Iim42652::Reset()
 {
+    // Write the reset flag
     Interface::DataArray resetData{0x01u};
     int count = mIface->Write(resetData, DEV_CFG_REG);
 
@@ -114,8 +120,11 @@ bool Iim42652::GetAccelData(AxisData &result)
 {
     bool success = false;
 
+    // Prepare write and result variables
     Interface::DataArray writeData{READ_MASK | ACCEL_DATA_X1_REG};
     Interface::DataArray accelData(ACCEL_DATA_SIZE, 0);
+
+    // Do the transfer and handle the results
     int count = mIface->Transfer(writeData, accelData);
     if (count == ACCEL_DATA_SIZE)
     {
@@ -132,8 +141,11 @@ bool Iim42652::GetGyroData(AxisData &result)
 {
     bool success = false;
 
+    // Prepare write and result variables
     Interface::DataArray writeData{READ_MASK | GYRO_DATA_X1_REG};
     Interface::DataArray gyroData(GYRO_DATA_SIZE, 0);
+    
+    // Do the transfer and handle the results
     int count = mIface->Transfer(writeData, gyroData);
     if (count == GYRO_DATA_SIZE)
     {
@@ -148,6 +160,7 @@ bool Iim42652::GetGyroData(AxisData &result)
 
 bool Iim42652::GetMagData(AxisData &result)
 {
+    // This device doesn't have a magnetometer, so there isn't anything to get
     return false;
 }
 
@@ -155,13 +168,15 @@ bool Iim42652::GetTempData(short &result)
 {
     bool success = false;
 
+    // Prepare write and result variables
     Interface::DataArray writeData{READ_MASK | TEMP_DATA1_REG};
     Interface::DataArray tempData(TEMP_DATA_SIZE, 0);
+    
+    // Do the transfer and handle the results
     int count = mIface->Transfer(writeData, tempData);
     if (count == TEMP_DATA_SIZE)
     {
-        unsigned short values = (tempData[0] << 8) | tempData[1];
-        result = ((float)values / 132.48) + 25;
+        result = (tempData[0] << 8) | tempData[1];
 
         success = true;
     }
@@ -172,8 +187,11 @@ bool Iim42652::GetTempData(short &result)
 
 bool Iim42652::GetAccelValues(AxisValues &results)
 {
+    // Get the raw data
     AxisData data;
     bool success = GetAccelData(data);
+
+    // If we got data, scale it based on stored values
     if (success == true)
     {
         results[0] = (float)data[0] * mAccelScales[mAccelScale];
@@ -186,8 +204,11 @@ bool Iim42652::GetAccelValues(AxisValues &results)
 
 bool Iim42652::GetGyroValues(AxisValues &results)
 {
+    // Get the raw data
     AxisData data;
     bool success = GetGyroData(data);
+    
+    // If we got data, scale it based on stored values
     if (success == true)
     {
         results[0] = (float)data[0] * mGyroScales[mGyroScale];
@@ -200,13 +221,17 @@ bool Iim42652::GetGyroValues(AxisValues &results)
 
 bool Iim42652::GetMagValues(AxisValues &results)
 {
+    // This device doesn't have a magnetometer so there's nothing to do
     return false;
 }
 
 bool Iim42652::GetTempValue(float &result)
 {
+    // Get the raw data
     short value = 0;
     bool success = GetTempData(value);
+    
+    // If we got data, scale it based on stored values
     if (success == true)
     {
         result = ((float)value / 132.48) + 25;
@@ -217,9 +242,11 @@ bool Iim42652::GetTempValue(float &result)
 
 void Iim42652::UpdateAccelConfig(Rates rate, AccelScale scale)
 {
+    // Validate the configuration values are valid
     if ((((rate > RESERVED_0) && (rate < RESERVED_12)) || (rate == HZ_500)) &&
         ((scale >= G_16) && (scale <= G_2)))
     {
+        // Prepare and write the data
         Interface::DataArray updateConfig{
             ACCEL_CONFIG0_REG,
             FormatConfig(rate, scale)
@@ -231,9 +258,11 @@ void Iim42652::UpdateAccelConfig(Rates rate, AccelScale scale)
 
 void Iim42652::UpdateGyroConfig(Rates rate, GyroScale scale)
 {
+    // Validate the configuration values are valid
     if ((((rate > RESERVED_0) && (rate < RESERVED_12)) || (rate == HZ_500)) &&
         ((scale >= DPS_2000) && (scale <= DPS_15_62)))
     {
+        // Prepare and write the data
         Interface::DataArray updateConfig{
             GYRO_CONFIG0_REG,
             FormatConfig(rate, scale)

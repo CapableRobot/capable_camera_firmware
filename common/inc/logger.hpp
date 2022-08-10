@@ -44,7 +44,6 @@ protected:
     void QueueData(json &data);
     
     static std::string  GetDateTimeString(timespec time);
-    float               ReducePrecision(float value, unsigned char precision = 3);
 
     short               mQueueIndex;
 

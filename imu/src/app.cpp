@@ -69,6 +69,7 @@ int main(int argc, char *argv[])
     // If the options are valid, continue with the application
     if(optionsValid)
     {
+        // Setup the SPI interface
         std::shared_ptr<Spi> spi = std::make_shared<Spi>("/dev/spidev0.0"s, options.verbose);
         Spi::SpiOptions spiOptions[] = {
             {SPI_IOC_WR_MODE,           SPI_MODE_0},
@@ -76,8 +77,9 @@ int main(int argc, char *argv[])
             {SPI_IOC_WR_MAX_SPEED_HZ,   1000000}
         };
         spi->UpdateOptions(spiOptions, sizeof(spiOptions)/sizeof(Spi::SpiOptions));
-
         Interface::IfacePtr iface = spi;
+
+        // Setup the IMU driver
         std::shared_ptr<Iim42652> iim42652 = std::make_shared<Iim42652>(iface, true);
         iim42652->UpdateAccelConfig(
             (Iim42652::Rates)options.accelOdr,
@@ -87,7 +89,9 @@ int main(int argc, char *argv[])
             (Iim42652::Rates)options.gyroOdr,
             (Iim42652::GyroScale)options.gyroFs
         );
+        ImuData::ImuPtr imu = iim42652;
 
+        // Setup the logger
         ImuLogger logger(
             options.path,
             options.ext,
@@ -97,7 +101,7 @@ int main(int argc, char *argv[])
             options.debugLevel
         );
 
-        ImuData::ImuPtr imu = iim42652;
+        // Setup the data aquisition
         ImuData dataHandler(
             imu,
             options.logInterval,
@@ -110,14 +114,17 @@ int main(int argc, char *argv[])
             }
         );
 
+        // Start the threads
         logger.Start();
         dataHandler.Start();
         
+        // Wait for the call to exit
         while (doExit == false)
         {
             usleep(10000);
         }
 
+        // Stop the threads
         dataHandler.Stop();
         logger.Stop();
     }

@@ -3,7 +3,7 @@
  * Copyright 2022 Gunnar Ryder for Hellbender, Inc.
  * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
  * 
- * imu.hpp - Definition for IMU base class
+ * imu.hpp - Implementation for IMU base class
  */
 
 #include "imu.hpp"
