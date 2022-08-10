@@ -16,50 +16,40 @@
 
 #include "file_output.hpp"
 
-FileOutput::FileOutput(VideoOptions const *options) : Output(options)
+FileManager::FileManager(VideoOptions const *options) :
     ,filenameQueue_()
     ,filesizeQueue_()
     ,oldFileQueue_()
 {
+  prefix_   = prefix;
+  postfix_  = ".jpg"; //postfix;
+  verbose_  = verbose;
+  canWrite_ = true;
+  
+  for(int ii = 0; ii < recordLocs_; ii += 1)
+  {
+    directory_[ii] = output[ii];
+    minFreeSizeThresh_[ii] = minFreeSizeThresh[ii];
+    maxUsedSiseThresh_[ii] = maxUsedSizeThresh[ii];
+    accountForExistingFiles(ii);
+  }
+
   directory_[0] = options_->output;
   directory_[1] = options_->output_2nd;
   prefix_ = options_->prefix;
-  
-  //TODO - Assume jpeg formate for now. Otherwise extract 
-  postfix_ = ".jpg";
-  
-  currentUsedSize_[0] = 0;
-  currentUsedSize_[1] = 0;
-  
-  minFreeSizeThresh_[0] = options_->minfreespace;
-  maxUsedSizeThresh_[0] = options_->maxusedspace;
-
-  minFreeSizeThresh_[1] = options_->minfreespace_2nd;
-  maxUsedSizeThresh_[1] = options_->maxusedspace_2nd;
-
-  verbose_ = options_->verbose;
-
-  //Check free space and mark files in the dest directory 
-  //for deletion if we need to...
-  accountForExistingFiles(0);
-  if(directory_[1] != "")
-  {
-    accountForExistingFiles(1);
-  }
+  	//std::mutex encode_mutex_;
 }
 
-FileOutput::~FileOutput()
+FileManager::~FileManager()
 {
 }
 
-void FileOutput::accountForExistingFiles(int index)
+void FileManager::accountForExistingFiles(int index)
 {
     using namespace boost::filesystem;
     try
     {
       path writeLocation(directory_[index]);
-    
-    
       directory_iterator logDirEnd;
 
       // cycle through the directory
@@ -93,7 +83,52 @@ void FileOutput::accountForExistingFiles(int index)
     }
 }
 
-bool FileOutput::checkAndFreeSpace(int index)
+bool FileManager::canWrite(int index)
+{
+  return canWrite_[index];
+}
+
+bool FileManager::checkFreeSpace(int index)
+{
+  bool freeSpaceAvail = true;
+  boost::filesystem::space_info freeSpace = boost::filesystem::space(directory_[index]);
+  std::unique_lock<std::mutex> lock(metric_mutex_);
+  if(verbose_)
+  {
+    std::cout << "Bytes available:" << freeSpace.available << std::endl;
+    std::cout << "Bytes used:" << currentUsedSize_[index] << std::endl;
+  }
+  if(currentUsedSize_[index] > maxUsedSizeThresh_[index] && 
+     maxUsedSizeThresh_[index] > 0)
+  {
+    freeSpaceAvail = false;
+  }
+  if(freeSpace.available < minFreeSizeThresh_[index] &&
+  minFreeSizeThresh_[index] > 0)
+  {
+    freeSpaceAvail = false;
+  }  
+  canWrite_[index] = freeSpaceAvail;
+  return freeSpaceAvail;
+}
+
+void FileManager::deleteThread()
+{
+  while(true)
+  {
+    std::unique_lock<std::mutex> lock(encode_mutex_);
+    for(int ii = 0; ii < recordLocs_; ii +=1)
+    {
+      if(!checkFreeSpace(ii))
+      {
+        deleteOldestFile(ii);
+      }
+    }
+    
+  }
+}
+
+bool FileManager::checkAndFreeSpace(int index)
 {
     bool doDelete  = false;
     bool freeSpaceAvail = false;
@@ -133,25 +168,14 @@ bool FileOutput::checkAndFreeSpace(int index)
     return freeSpaceAvail;
 }
 
-void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size, int index)
+void FileManager::addFile(int index)
 {
-  //open file name and assign fd
-  int fd, ret;
-  fd = open(fullFileName.c_str(), O_CREAT|O_WRONLY|O_TRUNC, 0644);
-  if ((ret = write(fd, mem, size)) < 0) {
-    throw std::runtime_error("failed to write data");
-  }
-  close(fd);
-  
-  if (verbose_)
-  {
-    std::cerr << "writing " << ret << " bytes to ";
-    std::cerr << fullFileName << std::endl;
-  }
-  
+  currentUsedSize_[index] += size;
+  filesizeQueue_[index].push(size);
+  filenameQueue_[index].push(fullFileName);
 }
 
-void FileOutput::deleteOldestFile(int index)
+void FileManager::deleteOldestFile(int index)
 {
   if(oldFileQueue_[index].size() > 0)
   {
@@ -193,88 +217,3 @@ void FileOutput::deleteOldestFile(int index)
   
 }
 
-void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp, int index)
-{
-
-  std::stringstream fileNameGenerator;
-  fileNameGenerator << directory_[index];
-  fileNameGenerator << prefix_;
-  fileNameGenerator << std::setw(10) << std::setfill('0') << timestamp->tv_sec;
-  fileNameGenerator << "_";
-  fileNameGenerator << std::setw(6) << std::setfill('0') << timestamp->tv_usec;//picCounter;
-  fileNameGenerator << postfix_;
-  std::string fullFileName = fileNameGenerator.str();
-  
-  if(checkAndFreeSpace(index))
-  {
-    try
-    {
-      writeFile(fullFileName, mem, size, index);
-    }
-    catch (std::exception const &e)
-    {
-      std::cerr << "Failed to write file" << std::endl;
-    }
-  }
-  else
-  {
-    std::cerr << "Not enough space. Deleting old files and retrying." << std::endl;
-  }
-}
-
-struct timeval FileOutput::getAdjustedTime(int64_t timestamp_us)
-{
-  static bool firstRun = false;
-  struct timeval tv;
-  time_t   fullSec  = timestamp_us / 1000000;
-  long int microSec = timestamp_us % 1000000;
-  
-  if(!firstRun)
-  {
-    firstRun = true;
-    gettimeofday(&baseTime_, NULL);
-    if(baseTime_.tv_usec < microSec)
-    {
-      baseTime_.tv_usec = 1000000 + baseTime_.tv_usec - microSec;
-      baseTime_.tv_sec  = baseTime_.tv_sec - fullSec - 1;
-    } else
-    {
-      baseTime_.tv_usec = baseTime_.tv_usec - microSec;
-      baseTime_.tv_sec  = baseTime_.tv_sec - fullSec;
-    }
-  }
-
-  tv.tv_sec = baseTime_.tv_sec + fullSec;
-  tv.tv_usec = baseTime_.tv_usec + microSec;
-  if(tv.tv_usec > 1000000)
-  {
-    tv.tv_usec -= 1000000;
-    tv.tv_sec  += 1;
-  }
-  return tv;
-}
-
-void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
-{
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-      
-  try
-  {
-    tv = getAdjustedTime(timestamp_us);
-  }
-  catch (std::exception const &e)
-  {
-    std::cerr << "Time recording issues" << std::endl;
-
-  }
-  
-  if(directory_[0] != "")
-  {
-    wrapAndWrite(mem, size, &tv, 0);
-  }
-  if(directory_[1] != "")
-  {  
-    wrapAndWrite(mem, size, &tv, 1);
-  }
-}

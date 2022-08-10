@@ -95,58 +95,63 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
 
 void MjpegEncoder::encodeThread(int num)
 {
-	struct jpeg_compress_struct cinfo;
-	struct jpeg_error_mgr jerr;
-	cinfo.err = jpeg_std_error(&jerr);
-	jpeg_create_compress(&cinfo);
-	std::chrono::duration<double> encode_time(0);
-	uint32_t frames = 0;
+  struct jpeg_compress_struct cinfo;
+  struct jpeg_error_mgr jerr;
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_compress(&cinfo);
+  std::chrono::duration<double> encode_time(0);
+  uint32_t frames = 0;
 
-	EncodeItem encode_item;
-	while (true)
+  EncodeItem encode_item;
+  while (true)
+  {
+    {
+      std::unique_lock<std::mutex> lock(encode_mutex_);
+      while (true)
+      {
+        using namespace std::chrono_literals;
+        if (abort_)
+        {
+          if (frames && options_->verbose)
+          {
+            std::cerr << "Encode " << frames << " frames, average time "
+                      << encode_time.count() * 1000 / frames << std::endl;
+          }
+          jpeg_destroy_compress(&cinfo);
+          return;
+        }
+        if (!encode_queue_.empty())
+        {
+          encode_item = encode_queue_.front();
+          encode_queue_.pop();
+          break;
+        }
+        else
 	{
-		{
-			std::unique_lock<std::mutex> lock(encode_mutex_);
-			while (true)
-			{
-				using namespace std::chrono_literals;
-				if (abort_)
-				{
-					if (frames && options_->verbose)
-						std::cerr << "Encode " << frames << " frames, average time "
-								  << encode_time.count() * 1000 / frames << std::endl;
-					jpeg_destroy_compress(&cinfo);
-					return;
-				}
-				if (!encode_queue_.empty())
-				{
-					encode_item = encode_queue_.front();
-					encode_queue_.pop();
-					break;
-				}
-				else
-					encode_cond_var_.wait_for(lock, 200ms);
-			}
-		}
-
-		// Encode the buffer.
-		uint8_t *encoded_buffer = nullptr;
-		size_t buffer_len = 0;
-		auto start_time = std::chrono::high_resolution_clock::now();
-		encodeJPEG(cinfo, encode_item, encoded_buffer, buffer_len);
-		encode_time += (std::chrono::high_resolution_clock::now() - start_time);
-		frames++;
-		// Don't return buffers until the output thread as that's where they're
-		// in order again.
-
-		// We push this encoded buffer to another thread so that our
-		// application can take its time with the data without blocking the
-		// encode process.
-		OutputItem output_item = { encoded_buffer, buffer_len, encode_item.timestamp_us, encode_item.index };
-		std::lock_guard<std::mutex> lock(output_mutex_);
-		output_queue_[num].push(output_item);
-		output_cond_var_.notify_one();
-	}
+	  encode_cond_var_.wait_for(lock, 200ms);
+        }
+      } 
+    }
+     
+    // Encode the buffer.
+    uint8_t *encoded_buffer = nullptr;
+    size_t buffer_len = 0;
+    auto start_time = std::chrono::high_resolution_clock::now();
+    encodeJPEG(cinfo, encode_item, encoded_buffer, buffer_len);
+    encode_time += (std::chrono::high_resolution_clock::now() - start_time);
+    frames += 1;
+     
+    // Don't return buffers until the output thread as that's where they're
+    // in order again.
+    // We push this encoded buffer to another thread so that our
+    // application can take its time with the data without blocking the
+    // encode process.
+     
+    OutputItem output_item = { encoded_buffer, buffer_len, encode_item.timestamp_us, encode_item.index };
+    std::lock_guard<std::mutex> lock(output_mutex_);
+    output_queue_[num].push(output_item);
+    output_cond_var_.notify_one();
+  }
 }
 
 void MjpegEncoder::outputThread()
