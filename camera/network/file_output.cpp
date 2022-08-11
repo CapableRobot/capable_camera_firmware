@@ -18,6 +18,7 @@
 
 FileOutput::FileOutput(VideoOptions const *options) : Output(options)
 {
+  std::cerr << "Initializing file writer..." << std::endl;
   std::vector<size_t>      minFreeSizes;
   std::vector<size_t>      maxUsedSizes;
   
