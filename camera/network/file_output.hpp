@@ -13,6 +13,7 @@
 
 #include <queue>
 #include "output.hpp"
+#include "file_manager.hpp"
 
 class FileOutput : public Output
 {
@@ -34,5 +35,6 @@ private:
     std::string prefix_;
     std::string postfix_;
     struct timeval baseTime_;
+    FileManager fileManager_;
     
 };
