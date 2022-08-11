@@ -21,10 +21,11 @@ typedef unsigned long jpeg_mem_len_t;
 MjpegEncoder::MjpegEncoder(VideoOptions const *options)
 	: Encoder(options), abort_(false), index_(0)
 {
-    for(int ii = 0; ii < NUM_OUT_THREADS; ii+=1)
-    {
-        output_thread_[ii] = std::thread(&MjpegEncoder::outputThread, this);
-    }
+    //for(int ii = 0; ii < NUM_OUT_THREADS; ii+=1)
+    //{
+    //    output_thread_[ii] = std::thread(&MjpegEncoder::outputThread, this);
+    //}
+    output_thread = std::thread(&MjpegEncoder::outputThread, this);
     for (int ii = 0; ii < NUM_ENC_THREADS; i+=1)
     {
         encode_thread_[ii] = std::thread(std::bind(&MjpegEncoder::encodeThread, this, i));
