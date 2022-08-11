@@ -38,7 +38,7 @@ protected:
 
     void accountForExistingFiles(int index);
     void deleteThread();
-    bool checkAndFreeSpace(int index);
+    bool checkFreeSpace(int index);
     void deleteOldestFile(int index);
 
 private:
