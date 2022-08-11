@@ -177,19 +177,20 @@ void MjpegEncoder::outputThread()
         {
 	      return;
 	    }
-	  }
-      // We look for the thread that's completed the frame we want next.
-      // If we don't find it, we wait.
-      for (auto &q : output_queue_)
-      {
-        if (!q.empty() && q.front().index == index)
+	  
+        // We look for the thread that's completed the frame we want next.
+        // If we don't find it, we wait.
+        for (auto &q : output_queue_)
         {
-          item = q.front();
-          q.pop();
-          goto got_item;
+          if (!q.empty() && q.front().index == index)
+          {
+            item = q.front();
+            q.pop();
+            goto got_item;
+          }
         }
+        output_cond_var_.wait_for(lock, 200ms);
       }
-      output_cond_var_.wait_for(lock, 200ms);
     }
   }
   got_item:
