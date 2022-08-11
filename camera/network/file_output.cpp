@@ -18,8 +18,6 @@
 
 FileOutput::FileOutput(VideoOptions const *options) : Output(options)
 {
-
-  std::vector<std::string> outputLocs;
   std::vector<size_t>      minFreeSizes;
   std::vector<size_t>      maxUsedSizes;
   

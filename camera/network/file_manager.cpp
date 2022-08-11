@@ -35,8 +35,8 @@ FileManager::FileManager(bool verbose,
     filesizeQueue_(),
     oldFileQueue_()
 {
-  init(verbose, prefix, minFreeSizeThresh, maxUsedSizeThresh,
-       directory, recordLocs);
+  initVars(verbose, prefix, minFreeSizeThresh, maxUsedSizeThresh,
+           directory, recordLocs);
 }
 
 FileManager::~FileManager()
@@ -44,12 +44,12 @@ FileManager::~FileManager()
     delete_thread_.join();
 }
 
-void FileManager::init(bool verbose, 
-                       std::string prefix,
-                       std::vector<size_t> minFreeSizeThresh,
-                       std::vector<size_t> maxUsedSizeThresh,
-                       std::string* directory,
-                       int recordLocs)
+void FileManager::initVars(bool verbose, 
+                           std::string prefix,
+                           std::vector<size_t> minFreeSizeThresh,
+                           std::vector<size_t> maxUsedSizeThresh,
+                           std::string* directory,
+                           int recordLocs)
 {
   prefix_   = prefix;
   postfix_  = ".jpg"; //postfix;

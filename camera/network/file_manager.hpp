@@ -36,14 +36,14 @@ public:
     bool canWrite(int index);
     void addFile(int index, size_t size, std::string fullFileName);
 
-protected:
+    void initVars(bool verbose, 
+                  std::string prefix,
+                  std::vector<size_t> minFreeSizeThresh,
+                  std::vector<size_t> maxUsedSizeThresh,
+                  std::string* directory,
+                  int recordLocs);
 
-    void init(bool verbose, 
-              std::string prefix,
-              std::vector<size_t> minFreeSizeThresh,
-              std::vector<size_t> maxUsedSizeThresh,
-              std::string* directory,
-              int recordLocs);
+protected:
 
     void accountForExistingFiles(int index);
     void deleteThread();
