@@ -22,9 +22,9 @@ FileManager::FileManager(bool verbose,
                          std::vector<size_t> maxUsedSizeThresh,
                          std::vector<std::string> directory,
                          int recordLocs) :
-    ,filenameQueue_()
-    ,filesizeQueue_()
-    ,oldFileQueue_()
+    filenameQueue_(),
+    filesizeQueue_(),
+    oldFileQueue_()
 {
   canWrite_ = true;
   prefix_   = prefix;
