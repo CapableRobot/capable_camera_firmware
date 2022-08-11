@@ -26,7 +26,6 @@ FileManager::FileManager(bool verbose,
     filesizeQueue_(),
     oldFileQueue_()
 {
-  canWrite_ = true;
   prefix_   = prefix;
   postfix_  = ".jpg"; //postfix;
   verbose_  = verbose;
@@ -34,6 +33,7 @@ FileManager::FileManager(bool verbose,
   
   for(int ii = 0; ii < recordLocs_; ii += 1)
   {
+    canWrite_[ii] = true;
     currentUsedSize_[ii] = 0;
     directory_[ii] = output[ii];
     minFreeSizeThresh_[ii] = minFreeSizeThresh[ii];
