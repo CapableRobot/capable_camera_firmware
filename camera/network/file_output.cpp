@@ -42,12 +42,12 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
     numLocs = 1;
   }  
     
-  fileManager_.init(verbose_, 
-                    prefix_,
-                    minFreeSizes,
-                    maxUsedSizes,
-                    directory_,
-                    numLocs);
+  fileManager_.initVars(verbose_, 
+                        prefix_,
+                        minFreeSizes,
+                        maxUsedSizes,
+                        directory_,
+                        numLocs);
 }
 
 FileOutput::~FileOutput()
