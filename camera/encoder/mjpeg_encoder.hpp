@@ -27,7 +27,7 @@ public:
 
 private:
 	// How many threads to use. Whichever thread is idle will pick up the next frame.
-	static const int NUM_ENC_THREADS = 8;
+	static const int NUM_ENC_THREADS = 4;
 
 	// These threads do the actual encoding.
 	void encodeThread(int num);

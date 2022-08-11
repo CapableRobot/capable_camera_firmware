@@ -75,10 +75,12 @@ void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint
   
   if(directory_[0] != "")
   {
+    std::cerr << "Writing to primary" << std::endl;
     wrapAndWrite(mem, size, &tv, 0);
   }
   if(directory_[1] != "")
-  {  
+  { 
+    std::cerr << "Writing to second" << std::endl; 
     wrapAndWrite(mem, size, &tv, 1);
   }
 }
