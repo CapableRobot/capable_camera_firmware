@@ -19,11 +19,17 @@
 typedef std::pair<size_t, std::string> fileInfo; 
 typedef std::pair<std::time_t, fileInfo> filePoint;
 
-class FileOutput : public Output
+class FileManager : public FileManager
 {
 public:
-    FileOutput(VideoOptions const *options);
-    ~FileOutput();
+    FileManager(bool verbose, 
+                std::string prefix,
+                std::vector<size_t> minFreeSizeThresh,
+                std::vector<size_t> maxUsedSizeThresh,
+                std::vector<std::string> directory,
+                int recordLocs);
+    
+    ~FileManager();
 
     bool canWrite(int index);
     void addFile(int index, size_t size, std::string fullFileName);
