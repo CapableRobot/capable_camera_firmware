@@ -6,6 +6,7 @@
  */
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -110,6 +111,7 @@ void FileManager::accountForExistingFiles(int index)
 
 void FileManager::deleteThread()
 {
+  using namespace std::chrono_literals;
   while(true)
   {
     std::unique_lock<std::mutex> lock(metric_mutex_);
