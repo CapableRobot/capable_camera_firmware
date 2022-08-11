@@ -29,7 +29,7 @@ FileManager::FileManager(bool verbose,
                          std::string prefix,
                          std::vector<size_t> minFreeSizeThresh,
                          std::vector<size_t> maxUsedSizeThresh,
-                         std::vector<std::string> directory,
+                         std::string* directory,
                          int recordLocs) :
     filenameQueue_(),
     filesizeQueue_(),
@@ -48,7 +48,7 @@ void FileManager::init(bool verbose,
                        std::string prefix,
                        std::vector<size_t> minFreeSizeThresh,
                        std::vector<size_t> maxUsedSizeThresh,
-                       std::vector<std::string> directory,
+                       std::string* directory,
                        int recordLocs)
 {
   prefix_   = prefix;
