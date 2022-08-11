@@ -28,7 +28,7 @@ public:
                 std::string prefix,
                 std::vector<size_t> minFreeSizeThresh,
                 std::vector<size_t> maxUsedSizeThresh,
-                std::vector<std::string> directory,
+                std::string* directory,
                 int recordLocs);
     
     ~FileManager();
@@ -42,7 +42,7 @@ protected:
               std::string prefix,
               std::vector<size_t> minFreeSizeThresh,
               std::vector<size_t> maxUsedSizeThresh,
-              std::vector<std::string> directory,
+              std::string* directory,
               int recordLocs);
 
     void accountForExistingFiles(int index);
