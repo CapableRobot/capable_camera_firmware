@@ -18,15 +18,17 @@
 
 FileOutput::FileOutput(VideoOptions const *options) : Output(options)
 {
-  std::cerr << "Initializing file writer..." << std::endl;
-  std::vector<size_t>      minFreeSizes;
-  std::vector<size_t>      maxUsedSizes;
+
+  std::vector<size_t> minFreeSizes = {0, 0};
+  std::vector<size_t> maxUsedSizes = {0, 0};
   
   directory_[0] = options_->output;
   directory_[1] = options_->output_2nd;
 
   minFreeSizes[0] = options_->minfreespace;
   minFreeSizes[1] = options_->minfreespace_2nd;
+  
+  std::cerr << "Initializing sizes.." << std::endl;
   
   maxUsedSizes[0] = options_->maxusedspace;
   maxUsedSizes[1] = options_->maxusedspace_2nd;
