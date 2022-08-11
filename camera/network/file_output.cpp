@@ -42,6 +42,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
     numLocs = 1;
   }  
     
+  std::cerr << "Initializing file handler..." << std::endl;
   fileManager_.initVars(verbose_, 
                         prefix_,
                         minFreeSizes,
