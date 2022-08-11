@@ -16,32 +16,52 @@
 
 #include "file_output.hpp"
 
-FileManager::FileManager(VideoOptions const *options) :
+FileManager::FileManager(bool verbose, 
+                         std::string prefix,
+                         std::vector<size_t> minFreeSizeThresh,
+                         std::vector<size_t> maxUsedSizeThresh,
+                         std::vector<std::string> directory,
+                         int recordLocs) :
     ,filenameQueue_()
     ,filesizeQueue_()
     ,oldFileQueue_()
 {
+  canWrite_ = true;
   prefix_   = prefix;
   postfix_  = ".jpg"; //postfix;
   verbose_  = verbose;
-  canWrite_ = true;
+  recordLocs_ = recordLocs;
   
   for(int ii = 0; ii < recordLocs_; ii += 1)
   {
+    currentUsedSize_[ii] = 0;
     directory_[ii] = output[ii];
     minFreeSizeThresh_[ii] = minFreeSizeThresh[ii];
     maxUsedSiseThresh_[ii] = maxUsedSizeThresh[ii];
     accountForExistingFiles(ii);
   }
-
-  directory_[0] = options_->output;
-  directory_[1] = options_->output_2nd;
-  prefix_ = options_->prefix;
-  	//std::mutex encode_mutex_;
+ 	
+  delete_thread_ = std::thread(&FileManager::deleteThread, this);
 }
 
 FileManager::~FileManager()
 {
+    delete_thread_.join();
+}
+
+bool FileManager::canWrite(int index)
+{
+  std::unique_lock<std::mutex> lock(metric_mutex_);
+  return canWrite_[index];
+}
+
+void FileManager::addFile(int index, size_t size, std::string fullFileName)
+{
+  std::unique_lock<std::mutex> lock(metric_mutex_);
+  currentUsedSize_[index] += size;
+  filesizeQueue_[index].push(size);
+  filenameQueue_[index].push(fullFileName);
+  free_cond_var_.notify_all();
 }
 
 void FileManager::accountForExistingFiles(int index)
@@ -67,11 +87,16 @@ void FileManager::accountForExistingFiles(int index)
                 std::cout << "Marking: " << current_file << " size: " << size;
                 std::cout << " write time: " << writeTime << std::endl;
             }
-            //add to queue
-            currentUsedSize_[index] += size;
-            fileInfo sizeFilePair = std::make_pair(size, current_file);
-            filePoint fileToAdd   = std::make_pair(writeTime, sizeFilePair);
-            oldFileQueue_[index].push(fileToAdd);
+            
+            {
+              //add to queue
+              std::unique_lock<std::mutex> lock(metric_mutex_);
+
+              currentUsedSize_[index] += size;
+              fileInfo sizeFilePair = std::make_pair(size, current_file);
+              filePoint fileToAdd   = std::make_pair(writeTime, sizeFilePair);
+              oldFileQueue_[index].push(fileToAdd);
+            }
         }
       }
     }
@@ -83,9 +108,20 @@ void FileManager::accountForExistingFiles(int index)
     }
 }
 
-bool FileManager::canWrite(int index)
+void FileManager::deleteThread()
 {
-  return canWrite_[index];
+  while(true)
+  {
+    std::unique_lock<std::mutex> lock(metric_mutex_);
+    for(int ii = 0; ii < recordLocs_; ii +=1)
+    {
+      if(!checkFreeSpace(ii))
+      {
+        deleteOldestFile(ii);
+      }
+    }
+    free_cond_var_.wait_for(lock, 50ms);
+  }
 }
 
 bool FileManager::checkFreeSpace(int index)
@@ -110,69 +146,6 @@ bool FileManager::checkFreeSpace(int index)
   }  
   canWrite_[index] = freeSpaceAvail;
   return freeSpaceAvail;
-}
-
-void FileManager::deleteThread()
-{
-  while(true)
-  {
-    std::unique_lock<std::mutex> lock(encode_mutex_);
-    for(int ii = 0; ii < recordLocs_; ii +=1)
-    {
-      if(!checkFreeSpace(ii))
-      {
-        deleteOldestFile(ii);
-      }
-    }
-    
-  }
-}
-
-bool FileManager::checkAndFreeSpace(int index)
-{
-    bool doDelete  = false;
-    bool freeSpaceAvail = false;
-    boost::filesystem::space_info freeSpace;
-    for(int ii = 0; ii < 8; ii+=1)
-    {
-      freeSpace = boost::filesystem::space(directory_[index]);
-      if(verbose_)
-      {
-          std::cout << "Bytes available:" << freeSpace.available << std::endl;
-          std::cout << "Bytes used:" << currentUsedSize_[index] << std::endl;
-      }
-      if(currentUsedSize_[index] > maxUsedSizeThresh_[index] && 
-         maxUsedSizeThresh_[index] > 0)
-      {
-        doDelete = true;
-      }
-    
-      if(freeSpace.available < minFreeSizeThresh_[index] &&
-         minFreeSizeThresh_[index] > 0)
-      {
-        doDelete = true;
-      }
-    
-      if(doDelete)
-      {
-        deleteOldestFile(index);
-        doDelete = false;
-      }
-      else
-      {
-        freeSpaceAvail = true;
-        break;
-      }
-    }
-    
-    return freeSpaceAvail;
-}
-
-void FileManager::addFile(int index)
-{
-  currentUsedSize_[index] += size;
-  filesizeQueue_[index].push(size);
-  filenameQueue_[index].push(fullFileName);
 }
 
 void FileManager::deleteOldestFile(int index)

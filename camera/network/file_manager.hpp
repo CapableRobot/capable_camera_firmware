@@ -11,8 +11,10 @@
 #include <sys/un.h>
 #include <sys/time.h>
 
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #include <queue>
-#include "output.hpp"
 
 typedef std::pair<size_t, std::string> fileInfo; 
 typedef std::pair<std::time_t, fileInfo> filePoint;
@@ -23,23 +25,25 @@ public:
     FileOutput(VideoOptions const *options);
     ~FileOutput();
 
+    bool canWrite(int index);
+    void addFile(int index, size_t size, std::string fullFileName);
+
 protected:
 
     void accountForExistingFiles(int index);
+    void deleteThread();
     bool checkAndFreeSpace(int index);
-    void writeFile(std::string fullFileName, void *mem, size_t size, int index);
     void deleteOldestFile(int index);
-
 
 private:
 
     static const int NUM_MAX_DESTS = 2;
 
     bool verbose_;
-    std::string directory_[2];
     std::string prefix_;
     std::string postfix_;
-
+    
+    std::string directory_[NUM_MAX_DESTS];
     std::queue<std::string> filenameQueue_[NUM_MAX_DESTS];
     std::queue<size_t>      filesizeQueue_[NUM_MAX_DESTS];
 
@@ -49,4 +53,7 @@ private:
     size_t maxUsedSizeThresh_[NUM_MAX_DESTS];
     size_t currentUsedSize_[NUM_MAX_DESTS];
     
+    std::mutex metric_mutex_;
+    std::condition_variable free_cond_var_;
+    std::thread delete_thread_;
 };
