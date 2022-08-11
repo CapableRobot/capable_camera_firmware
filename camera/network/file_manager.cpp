@@ -59,11 +59,15 @@ void FileManager::initVars(bool verbose,
   for(int ii = 0; ii < recordLocs_; ii += 1)
   {
     canWrite_[ii] = true;
+    doCheck_[ii]  = false;
     currentUsedSize_[ii] = 0;
     directory_[ii] = directory[ii];
     minFreeSizeThresh_[ii] = minFreeSizeThresh[ii];
     maxUsedSizeThresh_[ii] = maxUsedSizeThresh[ii];
-    accountForExistingFiles(ii);
+    if(directory_[ii] != "")
+    {
+        accountForExistingFiles(ii);
+    }
   }
  	
   delete_thread_ = std::thread(&FileManager::deleteThread, this);
@@ -119,6 +123,7 @@ void FileManager::accountForExistingFiles(int index)
             }
         }
       }
+      doCheck_[index] = true;
     }
     catch (std::exception const &e)
     {
@@ -136,6 +141,10 @@ void FileManager::deleteThread()
     std::unique_lock<std::mutex> lock(metric_mutex_);
     for(int ii = 0; ii < recordLocs_; ii +=1)
     {
+      if(!doCheck_[ii])
+      {
+        continue;
+      }
       if(!checkFreeSpace(ii))
       {
         deleteOldestFile(ii);

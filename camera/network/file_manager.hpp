@@ -59,6 +59,7 @@ private:
     std::string postfix_;
     
     int recordLocs_;
+    bool doCheck_[NUM_MAX_DESTS[;
     bool canWrite_[NUM_MAX_DESTS];
     std::string directory_[NUM_MAX_DESTS];
     std::queue<std::string> filenameQueue_[NUM_MAX_DESTS];
