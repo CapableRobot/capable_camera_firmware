@@ -137,6 +137,7 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       try
       {
         fileManager_.addFile(index, size, fullFileName);
+        std::cerr << "File added to journaling" << std::endl;
         writeFile(fullFileName, mem, size, index);
       }
       catch (std::exception const &e)

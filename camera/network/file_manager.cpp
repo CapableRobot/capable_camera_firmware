@@ -149,7 +149,6 @@ bool FileManager::checkFreeSpace(int index)
 {
   bool freeSpaceAvail = true;
   boost::filesystem::space_info freeSpace = boost::filesystem::space(directory_[index]);
-  std::unique_lock<std::mutex> lock(metric_mutex_);
   if(verbose_)
   {
     std::cout << "Bytes available:" << freeSpace.available << std::endl;
