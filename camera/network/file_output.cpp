@@ -39,12 +39,19 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   //TODO - Assume jpeg formate for now. Otherwise extract  
   postfix_ = ".jpg";
   
-  int numLocs = 2;
-  if(directory_[1] != "")
+  int numLocs = 2; 
+   
+  //Check if directories exist, and if not then ignore them 
+  using namespace boost::filesystem;
+  if(!boost::filesystem::exists(directory_[0]))
   {
-    numLocs = 1;
-  }  
-    
+    directory_[0] = "";
+  }
+  if(!boost::filesystem::exists(directory_[1]))
+  {
+    directory_[1] = "";
+  }
+  
   std::cerr << "Initializing file handler..." << std::endl;
   fileManager_.initVars(verbose_, 
                         prefix_,
