@@ -21,11 +21,18 @@ typedef unsigned long jpeg_mem_len_t;
 MjpegEncoder::MjpegEncoder(VideoOptions const *options)
 	: Encoder(options), abort_(false), index_(0)
 {
-	output_thread_ = std::thread(&MjpegEncoder::outputThread, this);
-	for (int i = 0; i < NUM_ENC_THREADS; i++)
-		encode_thread_[i] = std::thread(std::bind(&MjpegEncoder::encodeThread, this, i));
-	if (options_->verbose)
-		std::cerr << "Opened MjpegEncoder" << std::endl;
+    for(int ii = 0; ii < NUM_OUT_THREADS; ii+=1)
+    {
+        output_thread_[ii] = std::thread(&MjpegEncoder::outputThread, this);
+    }
+    for (int ii = 0; ii < NUM_ENC_THREADS; i+=1)
+    {
+        encode_thread_[ii] = std::thread(std::bind(&MjpegEncoder::encodeThread, this, i));
+    }
+    if (options_->verbose)
+    {
+        std::cerr << "Opened MjpegEncoder" << std::endl;
+    }
 }
 
 MjpegEncoder::~MjpegEncoder()
@@ -127,8 +134,8 @@ void MjpegEncoder::encodeThread(int num)
           break;
         }
         else
-	{
-	  encode_cond_var_.wait_for(lock, 200ms);
+	    {
+	      encode_cond_var_.wait_for(lock, 200ms);
         }
       } 
     }
@@ -156,36 +163,37 @@ void MjpegEncoder::encodeThread(int num)
 
 void MjpegEncoder::outputThread()
 {
-	OutputItem item;
-	uint64_t index = 0;
-	while (true)
-	{
-		{
-			std::unique_lock<std::mutex> lock(output_mutex_);
-			while (true)
-			{
-				using namespace std::chrono_literals;
-				if (abort_)
-					return;
-				// We look for the thread that's completed the frame we want next.
-				// If we don't find it, we wait.
-				for (auto &q : output_queue_)
-				{
-					if (!q.empty() && q.front().index == index)
-					{
-						item = q.front();
-						q.pop();
-						goto got_item;
-					}
-				}
-				output_cond_var_.wait_for(lock, 200ms);
-			}
-		}
-	got_item:
-		input_done_callback_(nullptr);
-
-		output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true);
-		free(item.mem);
-		index++;
-	}
+  OutputItem item;
+  uint64_t index = 0;
+  while (true)
+  {
+    {
+      std::unique_lock<std::mutex> lock(output_mutex_);
+      while (true)
+      {
+        using namespace std::chrono_literals;
+        if (abort_)
+        {
+	      return;
+	    }
+	  }
+      // We look for the thread that's completed the frame we want next.
+      // If we don't find it, we wait.
+      for (auto &q : output_queue_)
+      {
+        if (!q.empty() && q.front().index == index)
+        {
+          item = q.front();
+          q.pop();
+          goto got_item;
+        }
+      }
+      output_cond_var_.wait_for(lock, 200ms);
+    }
+  }
+  got_item:
+    input_done_callback_(nullptr);
+    output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true);
+    free(item.mem);
+    index+=1;
 }

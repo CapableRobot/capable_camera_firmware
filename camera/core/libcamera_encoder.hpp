@@ -48,6 +48,7 @@ class LibcameraEncoder : public LibcameraApp
     
     int64_t timestamp_ns = buffer->metadata().timestamp;
     {
+      std::cout << "Encoding here and now: " << timestamp_ns << std::endl;
       std::lock_guard<std::mutex> lock(encode_buffer_queue_mutex_);
       encode_buffer_queue_.push(completed_request); // creates a new reference
     }

@@ -81,12 +81,10 @@ void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint
   
   if(directory_[0] != "")
   {
-    std::cerr << "Writing to primary" << std::endl;
     wrapAndWrite(mem, size, &tv, 0);
   }
   if(directory_[1] != "")
   { 
-    std::cerr << "Writing to second" << std::endl; 
     wrapAndWrite(mem, size, &tv, 1);
   }
 }
@@ -143,7 +141,6 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       try
       {
         fileManager_.addFile(index, size, fullFileName);
-        std::cerr << "File added to journaling" << std::endl;
         writeFile(fullFileName, mem, size, index);
       }
       catch (std::exception const &e)
