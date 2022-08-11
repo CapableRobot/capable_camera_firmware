@@ -25,7 +25,7 @@ MjpegEncoder::MjpegEncoder(VideoOptions const *options)
     //{
     //    output_thread_[ii] = std::thread(&MjpegEncoder::outputThread, this);
     //}
-    output_thread = std::thread(&MjpegEncoder::outputThread, this);
+    output_thread_ = std::thread(&MjpegEncoder::outputThread, this);
     for (int ii = 0; ii < NUM_ENC_THREADS; i+=1)
     {
         encode_thread_[ii] = std::thread(std::bind(&MjpegEncoder::encodeThread, this, i));
