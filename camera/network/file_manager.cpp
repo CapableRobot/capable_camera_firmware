@@ -37,7 +37,7 @@ FileManager::FileManager(bool verbose,
     currentUsedSize_[ii] = 0;
     directory_[ii] = directory[ii];
     minFreeSizeThresh_[ii] = minFreeSizeThresh[ii];
-    maxUsedSiseThresh_[ii] = maxUsedSizeThresh[ii];
+    maxUsedSizeThresh_[ii] = maxUsedSizeThresh[ii];
     accountForExistingFiles(ii);
   }
  	
