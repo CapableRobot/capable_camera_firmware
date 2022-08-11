@@ -42,7 +42,6 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   int numLocs = 2; 
    
   //Check if directories exist, and if not then ignore them 
-  using namespace boost::filesystem;
   if(!boost::filesystem::exists(directory_[0]))
   {
     directory_[0] = "";
