@@ -19,7 +19,7 @@
 typedef std::pair<size_t, std::string> fileInfo; 
 typedef std::pair<std::time_t, fileInfo> filePoint;
 
-class FileManager : public FileManager
+class FileManager
 {
 public:
     FileManager(bool verbose, 
