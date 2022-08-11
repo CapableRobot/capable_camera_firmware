@@ -13,6 +13,7 @@
 
 #include <queue>
 #include "output.hpp"
+
 #include "file_manager.hpp"
 
 class FileOutput : public Output

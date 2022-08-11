@@ -17,6 +17,14 @@
 
 #include "file_output.hpp"
 
+FileManager::FileManager() :
+    filenameQueue_(),
+    filesizeQueue_(),
+    oldFileQueue_()
+{
+
+}
+
 FileManager::FileManager(bool verbose, 
                          std::string prefix,
                          std::vector<size_t> minFreeSizeThresh,
@@ -26,6 +34,22 @@ FileManager::FileManager(bool verbose,
     filenameQueue_(),
     filesizeQueue_(),
     oldFileQueue_()
+{
+  init(verbose, prefix, minFreeSizeThresh, maxUsedSizeThresh,
+       directory, recordLocs);
+}
+
+FileManager::~FileManager()
+{
+    delete_thread_.join();
+}
+
+void FileManager::init(bool verbose, 
+                       std::string prefix,
+                       std::vector<size_t> minFreeSizeThresh,
+                       std::vector<size_t> maxUsedSizeThresh,
+                       std::vector<std::string> directory,
+                       int recordLocs)
 {
   prefix_   = prefix;
   postfix_  = ".jpg"; //postfix;
@@ -43,11 +67,6 @@ FileManager::FileManager(bool verbose,
   }
  	
   delete_thread_ = std::thread(&FileManager::deleteThread, this);
-}
-
-FileManager::~FileManager()
-{
-    delete_thread_.join();
 }
 
 bool FileManager::canWrite(int index)

@@ -22,6 +22,8 @@ typedef std::pair<std::time_t, fileInfo> filePoint;
 class FileManager
 {
 public:
+
+    FileManager();
     FileManager(bool verbose, 
                 std::string prefix,
                 std::vector<size_t> minFreeSizeThresh,
@@ -35,6 +37,13 @@ public:
     void addFile(int index, size_t size, std::string fullFileName);
 
 protected:
+
+    void init(bool verbose, 
+              std::string prefix,
+              std::vector<size_t> minFreeSizeThresh,
+              std::vector<size_t> maxUsedSizeThresh,
+              std::vector<std::string> directory,
+              int recordLocs);
 
     void accountForExistingFiles(int index);
     void deleteThread();
