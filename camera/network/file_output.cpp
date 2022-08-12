@@ -39,7 +39,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   //TODO - Assume jpeg formate for now. Otherwise extract  
   postfix_ = ".jpg";
   
-  int numLocs = 2; 
+  //int numLocs = 2; 
    
   //Check if directories exist, and if not then ignore them 
   if(!boost::filesystem::exists(directory_[0]))
