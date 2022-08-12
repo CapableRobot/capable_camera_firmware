@@ -150,7 +150,7 @@ void FileManager::deleteThread()
         deleteOldestFile(ii);
       }
     }
-    free_cond_var_.wait_for(lock, 50ms);
+    free_cond_var_.wait_for(lock, 200ms);
   }
 }
 
@@ -158,11 +158,11 @@ bool FileManager::checkFreeSpace(int index)
 {
   bool freeSpaceAvail = true;
   boost::filesystem::space_info freeSpace = boost::filesystem::space(directory_[index]);
-  if(verbose_)
+  /*if(verbose_)
   {
     std::cout << "Bytes available:" << freeSpace.available << std::endl;
     std::cout << "Bytes used:" << currentUsedSize_[index] << std::endl;
-  }
+  }*/
   if(currentUsedSize_[index] > maxUsedSizeThresh_[index] && 
      maxUsedSizeThresh_[index] > 0)
   {
