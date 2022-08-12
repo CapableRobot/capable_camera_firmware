@@ -138,9 +138,9 @@ void FileManager::deleteThread()
   using namespace std::chrono_literals;
   while(true)
   {
-    std::unique_lock<std::mutex> lock(metric_mutex_);
     for(int ii = 0; ii < recordLocs_; ii +=1)
     {
+      std::unique_lock<std::mutex> lock(metric_mutex_);
       if(!doCheck_[ii])
       {
         continue;
@@ -149,8 +149,8 @@ void FileManager::deleteThread()
       {
         deleteOldestFile(ii);
       }
-    }
-    free_cond_var_.wait_for(lock, 200ms);
+      free_cond_var_.wait_for(lock, 200ms);
+    } 
   }
 }
 
