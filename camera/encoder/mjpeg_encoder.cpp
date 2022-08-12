@@ -188,6 +188,10 @@ void MjpegEncoder::outputThread()
             q.pop();
             goto got_item;
           }
+          else
+          {
+              std::cout << q.front().index << "!=" << index << std::endl;
+          }
         }
         output_cond_var_.wait_for(lock, 200ms);
       }
