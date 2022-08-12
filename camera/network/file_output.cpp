@@ -86,8 +86,6 @@ void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint
   { 
     wrapAndWrite(mem, size, &tv, 1);
   }
-
-  std::cerr << "Done with buffer" << std::endl;
 }
 
 struct timeval FileOutput::getAdjustedTime(int64_t timestamp_us)

@@ -149,8 +149,8 @@ void FileManager::deleteThread()
       {
         deleteOldestFile(ii);
       }
-      free_cond_var_.wait_for(lock, 200ms);
     } 
+    std::this_thread::yield();
   }
 }
 
