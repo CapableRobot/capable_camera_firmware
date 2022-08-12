@@ -156,9 +156,11 @@ void MjpegEncoder::encodeThread(int num)
     // encode process.
      
     OutputItem output_item = { encoded_buffer, buffer_len, encode_item.timestamp_us, encode_item.index };
-    std::lock_guard<std::mutex> lock(output_mutex_);
-    output_queue_[num].push(output_item);
-    output_cond_var_.notify_one();
+    {
+        std::lock_guard<std::mutex> lock(output_mutex_);
+        output_queue_[num].push(output_item);
+        output_cond_var_.notify_one();
+    }
   }
 }
 
@@ -196,10 +198,10 @@ void MjpegEncoder::outputThread()
         output_cond_var_.wait_for(lock, 200ms);
       }
     }
+    got_item:
+      input_done_callback_(nullptr);
+      output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true);
+      free(item.mem);
+      index+=1;
   }
-  got_item:
-    input_done_callback_(nullptr);
-    output_ready_callback_(item.mem, item.bytes_used, item.timestamp_us, true);
-    free(item.mem);
-    index+=1;
 }
