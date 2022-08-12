@@ -148,10 +148,10 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       }
       fileWritten = true;
     }
-    else
+    /*else
     {
       std::cerr << "Not enough space. Deleting old files and retrying." << std::endl;
-    }   
+    } */  
   }
 
 }
