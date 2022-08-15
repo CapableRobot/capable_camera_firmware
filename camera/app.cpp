@@ -55,10 +55,30 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
   return key;
 }
 
+static LibcameraEncoder::RetCode process_msg(LibcameraEncoder &app, LibcameraEncoder::Msg &msg)
+{
+  msg = app.Wait();
+  LibcameraEncoder::RetCode retCode = LibcameraEncoder::RetCode::MSG_NONOP;
+  if (msg.type == LibcameraEncoder::MsgType::Quit)
+  {
+    retCode = LibcameraEncoder::RetCode::MSG_END_EARLY;
+  }
+  else if (msg.type != LibcameraEncoder::MsgType::RequestComplete)
+  {
+    throw std::runtime_error("unrecognised message!");
+  }
+
+  int key = get_key_or_signal(options, p);
+  if (key == '\n')
+  {
+    output->Signal();
+  }
+  return retCode;
+}
+
 // The main even loop for the application.
 static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
 {
-
   std::unique_ptr<Output> output = std::unique_ptr<Output>(Output::Create(options));
   app.SetEncodeOutputReadyCallback(std::bind(&Output::OutputReady, output.get(), _1, _2, _3, _4));
   app.StartEncoder();
@@ -81,15 +101,12 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
 
   for (unsigned int count = 0; !end_early; count++)
   {
-    LibcameraEncoder::Msg msg = app.Wait();
-    if (msg.type == LibcameraEncoder::MsgType::Quit)
-      return;
-    else if (msg.type != LibcameraEncoder::MsgType::RequestComplete)
-      throw std::runtime_error("unrecognised message!");
-    int key = get_key_or_signal(options, p);
-    if (key == '\n')
-      output->Signal();
-
+    LibcameraEncoder::Msg msg;
+    LibcameraEncoder::RetCode rc = process_msg(app, msg);
+    if(rc == LibcameraEncoder::RetCode::MSG_END_EARLY)
+    {
+      end_early = true;
+    }
 
     auto this_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = this_time - last_time;

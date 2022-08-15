@@ -18,6 +18,12 @@ class LibcameraEncoder : public LibcameraApp
   using Stream = libcamera::Stream;
   using FrameBuffer = libcamera::FrameBuffer;
 
+  enum class RetCode
+  {
+    MSG_NONOP,
+    MSG_END_EARLY
+  };
+
   LibcameraEncoder() : LibcameraApp(std::make_unique<VideoOptions>()) {}
 
   void StartEncoder()

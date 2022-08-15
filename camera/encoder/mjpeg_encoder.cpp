@@ -49,10 +49,14 @@ MjpegEncoder::~MjpegEncoder()
 void MjpegEncoder::EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height,
 								unsigned int stride, int64_t timestamp_us)
 {
-	std::lock_guard<std::mutex> lock(encode_mutex_);
-	EncodeItem item = { mem, width, height, stride, timestamp_us, index_++ };
-	encode_queue_.push(item);
-	encode_cond_var_.notify_all();
+  //2022-08-15 CNIESSL: Moved the EncodeItem encapsulation here
+  EncodeItem item = { mem, width, height, stride, timestamp_us, index_++ };
+
+  std::lock_guard<std::mutex> lock(encode_mutex_);
+  //TODO: Move set up one queue per thread.
+  //TODO: One conditional notification var per thread
+  encode_queue_.push(item);
+  encode_cond_var_.notify_all();
 }
 
 void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &item, uint8_t *&encoded_buffer,
