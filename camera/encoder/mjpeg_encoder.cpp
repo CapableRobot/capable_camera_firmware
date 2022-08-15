@@ -49,8 +49,8 @@ MjpegEncoder::~MjpegEncoder()
 void MjpegEncoder::EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height,
 								unsigned int stride, int64_t timestamp_us)
 {
+    EncodeItem item = { mem, width, height, stride, timestamp_us, index_++ };
 	std::lock_guard<std::mutex> lock(encode_mutex_);
-	EncodeItem item = { mem, width, height, stride, timestamp_us, index_++ };
 	encode_queue_.push(item);
 	encode_cond_var_.notify_all();
 }
