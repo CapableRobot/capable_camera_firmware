@@ -55,10 +55,7 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
   return key;
 }
 
-static LibcameraEncoder::RetCode process_msg(LibcameraEncoder &app,
-                                             VideoOptions const *options,
-                                             pollfd* p,
-                                             LibcameraEncoder::Msg &msg)
+static LibcameraEncoder::RetCode process_msg(LibcameraEncoder &app, LibcameraEncoder::Msg &msg)
 {
   msg = app.Wait();
   LibcameraEncoder::RetCode retCode = LibcameraEncoder::RetCode::MSG_NONOP;
@@ -105,7 +102,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
   for (unsigned int count = 0; !end_early; count++)
   {
     LibcameraEncoder::Msg msg;
-    LibcameraEncoder::RetCode rc = process_msg(app, options, p, msg);
+    LibcameraEncoder::RetCode rc = process_msg(app, msg);
     if(rc == LibcameraEncoder::RetCode::MSG_END_EARLY)
     {
       end_early = true;
