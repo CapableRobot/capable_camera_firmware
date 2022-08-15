@@ -22,6 +22,7 @@ struct AppOptions
     bool verbose;
     bool version;
     int debugLevel;
+    bool live;
 
     // Meta configruation
     std::string configFile;

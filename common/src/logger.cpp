@@ -35,7 +35,8 @@ Logger::Logger(
     int maxSize,
     int fileDuration,
     bool verbose,
-    int debugLevel
+    int debugLevel,
+    bool live
     ) :
     Thread(verbose, debugLevel),
     mPath(path),
@@ -45,7 +46,8 @@ Logger::Logger(
     mQueueIndex(0),
     mLogOpen(false),
     mTotalLogSize(0),
-    mCurrLogSize(0)
+    mCurrLogSize(0),
+    mLive(live)
 {
     SetInterval(1s);
     ResetFileDuration();
@@ -300,6 +302,10 @@ void Logger::QueueData(json &data)
 {
     // Add data to the queue
     mDataQueue[mQueueIndex].push(data);
+
+    if (mLive) {
+        std::cout << data << std::endl;
+    }
 }
 
 void Logger::ProcessData(short queueIndex)

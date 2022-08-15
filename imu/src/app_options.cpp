@@ -74,6 +74,8 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Interval duration, in milliseconds, data collection")
         ("logDuration,l", value<unsigned int>(&logDuration)->default_value(60)->implicit_value(true),
             "Duration of each log file in seconds")
+        ("live,lo", value<bool>(&live)->default_value(false)->implicit_value(true),
+            "Output samples to stdout")
         ("path,p", value<std::string>(&path)->default_value("/tmp/"),
             "Path to for data log")
         ("extension,e", value<std::string>(&ext)->default_value("ext"),

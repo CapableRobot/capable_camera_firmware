@@ -33,7 +33,8 @@ public:
         int maxSize,
         int fileDuration,
         bool verbose = false,
-        int debugLevel = 0
+        int debugLevel = 0,
+        bool logger = false
     );
     virtual ~Logger();
 
@@ -85,5 +86,7 @@ private:
     std::queue<json>            mDataQueue[NUM_QUEUES];
 
     steady_clock::time_point    mLogOpenTime;
+
+    bool                mLive;
 
 };

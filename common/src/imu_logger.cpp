@@ -19,9 +19,10 @@ ImuLogger::ImuLogger(
     int maxSize,
     int fileDuration,
     bool verbose,
-    int debugLevel
+    int debugLevel,
+    bool live
     ) :
-    Logger(path, ext, maxSize, fileDuration, verbose, debugLevel) {};
+    Logger(path, ext, maxSize, fileDuration, verbose, debugLevel, live) {};
 
 ImuLogger::~ImuLogger() = default;
 

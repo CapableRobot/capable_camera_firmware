@@ -98,7 +98,8 @@ int main(int argc, char *argv[])
             options.maxSize,
             options.logDuration,
             options.verbose,
-            options.debugLevel
+            options.debugLevel,
+            options.live
         );
 
         // Setup the data aquisition
