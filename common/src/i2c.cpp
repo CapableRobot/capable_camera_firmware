@@ -36,10 +36,7 @@ int I2c::Read(DataArray &data)
 {
     int numRead = -1;
 
-    // Create array to write to set the register number
-    DataArray writeData{data[0]};
-    int status = Write(writeData);
-    if (status >= 0)
+    if (IsOpen() == true)
     {
         // Read the desired size
         numRead = read(mFd, data.data(), data.size());

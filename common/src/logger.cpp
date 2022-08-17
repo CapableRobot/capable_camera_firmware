@@ -9,6 +9,7 @@
 #include "logger.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -28,8 +29,15 @@ using json = nlohmann::json;
 
 #include "thread.hpp"
 
-Logger::Logger(bool verbose, int debugLevel, std::string &path, std::string &ext,
-    int maxSize, int fileDuration) :
+Logger::Logger(
+    std::string &path,
+    std::string &ext,
+    int maxSize,
+    int fileDuration,
+    bool verbose,
+    int debugLevel,
+    bool live
+    ) :
     Thread(verbose, debugLevel),
     mPath(path),
     mExt(ext),
@@ -38,7 +46,8 @@ Logger::Logger(bool verbose, int debugLevel, std::string &path, std::string &ext
     mQueueIndex(0),
     mLogOpen(false),
     mTotalLogSize(0),
-    mCurrLogSize(0)
+    mCurrLogSize(0),
+    mLive(live)
 {
     SetInterval(1s);
     ResetFileDuration();
@@ -293,6 +302,10 @@ void Logger::QueueData(json &data)
 {
     // Add data to the queue
     mDataQueue[mQueueIndex].push(data);
+
+    if (mLive) {
+        std::cout << data << std::endl;
+    }
 }
 
 void Logger::ProcessData(short queueIndex)

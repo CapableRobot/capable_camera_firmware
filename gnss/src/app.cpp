@@ -67,14 +67,14 @@ int main(int argc, char *argv[])
             options.minMode
         );
         GnssLogger logger(
-            options.verbose,
-            options.debugLevel,
             options.path,
             options.ext,
             options.maxSize,
             options.logDuration,
             options.logSnr,
-            options.minMode
+            options.minMode,
+            options.verbose,
+            options.debugLevel
         );
 
         // Setup connection/stream and prepare for data handling

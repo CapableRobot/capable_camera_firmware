@@ -3,42 +3,37 @@
  * Copyright 2022 Gunnar Ryder for Hellbender, Inc.
  * Copyright (C) 2020, Raspberry Pi (Trading) Ltd.
  * 
- * gnss_logger.hpp - Session logger for gnss communications
+ * imu_logger.hpp - Definition for IMU logging class
  */
 
 #pragma once
 
 #include <string>
 
-#include "gps.h"
 #include "nlohmann/json.hpp"
 using json = nlohmann::json;
 
 #include "logger.hpp"
+#include "imu_data.hpp"
 
-class GnssLogger : public Logger
+class ImuLogger : public Logger
 {
 public:
-
-    GnssLogger(
+    ImuLogger(
         std::string &path,
         std::string &ext,
         int maxSize,
         int fileDuration,
-        bool logSnr,
-        int minMode,
         bool verbose = false,
-        int debugLevel = 0
+        int debugLevel = 0,
+        bool live = false
     );
-    virtual ~GnssLogger();
+    virtual ~ImuLogger();
     
-    void AddData(gps_data_t &data);
+    void AddData(ImuData::Data &data);
 
 protected:
-    json OrganizeData(gps_data_t &data);
+    json OrganizeData(ImuData::Data &data);
 
 private:
-    const bool  mLogSnr;
-    const int   mMinMode;
-
 };

@@ -8,6 +8,9 @@
 
 #include "interface.hpp"
 
+#include <iomanip>
+#include <iostream>
+
 Interface::Interface(Type type, bool verbose) : 
     mVerbose(verbose),
     mType(type)
@@ -30,17 +33,18 @@ int Interface::Read(DataArray &data, Value other)
 
     if (IsOpen() == true)
     {
-        // If I2C, insert reg number into data
-        if (mType == Type::I2C)
+        if (mType == Type::UART)
         {
-            DataArray i2cData(data);
-            i2cData.insert(i2cData.begin(), other);
             read = Read(data);
         }
-        // Otherwise, just send it
         else
         {
-            read = Read(data);
+            if (mVerbose)
+            {
+                std::cout << "Base Read(DataArray,Value) is not compatible"
+                    << "with I2C or SPI Read.  Please overload it."
+                    << std::endl;
+            }
         }
     }
     
@@ -54,11 +58,11 @@ int Interface::Write(DataArray &data, Value other)
     if (IsOpen() == true)
     {
         // If I2C, insert reg number into data
-        if (mType == Type::I2C)
+        if ((mType == Type::I2C) || (mType == Type::SPI))
         {
-            DataArray i2cData(data);
-            i2cData.insert(i2cData.begin(), other);
-            wrote = Write(i2cData);
+            DataArray addrData(data);
+            addrData.insert(addrData.begin(), other);
+            wrote = Write(addrData);
         }
         // Otherwise, just send it
         else
@@ -68,6 +72,79 @@ int Interface::Write(DataArray &data, Value other)
     }
     
     return wrote;
+}
+
+int Interface::Transfer(DataArray &write, DataArray &read, Value other)
+{
+    int wroteCount = Write(write, other);
+    int readCount = -1;
+    if (wroteCount > 0)
+    {
+        readCount = Read(read, other);
+    }
+
+    return readCount;
+}
+
+int Interface::Read(DataArray &data)
+{
+    int read = -1;
+
+    if (IsOpen() == true)
+    {
+        if (mType == Type::UART)
+        {
+            read = Read(data);
+        }
+        else
+        {
+            if (mVerbose)
+            {
+                std::cout << "Base Read(DataArray) is not compatible "
+                    << "with I2C or SPI Read.  Please call Read(DataArray,Value)."
+                    << std::endl;
+            }
+        }
+    }
+
+    return read;
+}
+
+int Interface::Write (DataArray &data)
+{
+    int wrote = -1;
+
+    if (IsOpen() == true)
+    {
+        if (mType == Type::UART)
+        {
+            wrote = Write(data);
+        }
+        else
+        {
+            if (mVerbose)
+            {
+                std::cout << "Base Write(DataArray) is not compatible "
+                    << "with I2C or SPI Write.  Please call Write(DataArray,Value)."
+                    << std::endl;
+            }
+        }
+    }
+
+    return wrote;
+}
+
+
+int Interface::Transfer(DataArray &write, DataArray &read)
+{
+    int wroteCount = Write(write);
+    int readCount = -1;
+    if (wroteCount > 0)
+    {
+        readCount = Read(read);
+    }
+
+    return readCount;
 }
 
 void Interface::Open()
