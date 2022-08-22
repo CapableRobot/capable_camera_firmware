@@ -346,7 +346,6 @@ void LibcameraApp::StopCamera()
 
 LibcameraApp::Msg LibcameraApp::Wait()
 {
-    std::cerr << "Waiting for item" << std::endl;
 	return msg_queue_.Wait();
 }
 
