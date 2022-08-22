@@ -82,6 +82,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
   for (unsigned int count = 0; !end_early; count++)
   {
     LibcameraEncoder::Msg msg = app.Wait();
+
     if (msg.type == LibcameraEncoder::MsgType::Quit)
       return;
     else if (msg.type != LibcameraEncoder::MsgType::RequestComplete)
@@ -97,7 +98,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
 
     if (options->verbose)
     {
-      std::cout << "Frame " << std::setw(6) << count << " delta " << diff.count() << std::endl;
+      std::cout << "Frame entry " << std::setw(6) << count << " delta " << diff.count() << std::endl;
     }
     
     last_time = this_time;

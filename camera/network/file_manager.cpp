@@ -130,6 +130,7 @@ void FileManager::accountForExistingFiles(int index)
       std::cerr << "Error scanning directory: " << directory_[index];
       std::cerr << ". Not using it" << std::endl;
       directory_[index] = "";
+      doCheck_[index] = false;
     }
 }
 
@@ -206,6 +207,10 @@ void FileManager::deleteOldestFile(int index)
     int res = remove(filenameQueue_[index].front().c_str());
     if(res == 0)
     {
+      if(verbose_)
+      {
+        std::cerr << "Deleting " << filenameQueue_[index].front() << std::endl;
+      }
       currentUsedSize_[index] -= filesizeQueue_[index].front();
       filenameQueue_[index].pop();
       filesizeQueue_[index].pop();
@@ -215,6 +220,13 @@ void FileManager::deleteOldestFile(int index)
       std::cerr << "Error attempting to delete file" << std::endl;
       filenameQueue_[index].pop();
     }    
+  }
+  else
+  {
+    if(verbose_)
+    {
+      std::cerr << "No file to delete available" << std::endl;
+    }
   }
   
 }

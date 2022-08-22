@@ -39,7 +39,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   //TODO - Assume jpeg formate for now. Otherwise extract  
   postfix_ = ".jpg";
   
-  //int numLocs = 2; 
+  int numLocs = 2;
    
   //Check if directories exist, and if not then ignore them 
   if(!boost::filesystem::exists(directory_[0]))
@@ -52,12 +52,12 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   }
   
   std::cerr << "Initializing file handler..." << std::endl;
-  //fileManager_.initVars(verbose_, 
-  //                      prefix_,
-  //                      minFreeSizes,
-  //                      maxUsedSizes,
-  //                      directory_,
-  //                      numLocs);
+  fileManager_.initVars(verbose_,
+                        prefix_,
+                        minFreeSizes,
+                        maxUsedSizes,
+                        directory_,
+                        numLocs);
 }
 
 FileOutput::~FileOutput()
@@ -135,11 +135,11 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
   bool fileWritten = false;
   while(!fileWritten)
   {
-    //if(fileManager_.canWrite(index))
+    if(fileManager_.canWrite(index))
     {
       try
       {
-        //fileManager_.addFile(index, size, fullFileName);
+        fileManager_.addFile(index, size, fullFileName);
         writeFile(fullFileName, mem, size, index);
       }
       catch (std::exception const &e)
@@ -148,10 +148,6 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       }
       fileWritten = true;
     }
-    /*else
-    {
-      std::cerr << "Not enough space. Deleting old files and retrying." << std::endl;
-    } */  
   }
 
 }

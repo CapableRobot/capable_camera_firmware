@@ -89,10 +89,6 @@ void Options::json_manage_enc_cfg(nlohmann::json encoding_cfg)
   {  
     height = encoding_cfg.at("height");
   }
-  if(encoding_cfg.contains("quality"))
-  {   
-    framerate = encoding_cfg.at("quality");
-  }    
 }
 
 void Options::json_manage_adj_cfg(nlohmann::json adjustment_cfg)

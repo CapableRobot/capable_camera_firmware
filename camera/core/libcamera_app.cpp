@@ -346,6 +346,7 @@ void LibcameraApp::StopCamera()
 
 LibcameraApp::Msg LibcameraApp::Wait()
 {
+    std::cerr << "Waiting for item" << std::endl;
 	return msg_queue_.Wait();
 }
 
@@ -399,6 +400,7 @@ void LibcameraApp::queueRequest(CompletedRequest *completed_request)
 
 void LibcameraApp::PostMessage(MsgType &t, MsgPayload &p)
 {
+    std::cerr << "Posing message" << std::endl;
 	msg_queue_.Post(Msg(t, std::move(p)));
 }
 
