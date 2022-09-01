@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ ! -d "/tmp/recording/pic" ]
+then
+  mkdir /tmp/recording/pic
+fi
+
 if [ ! -d "/mnt/data/pic" ]
 then
   mkdir /mnt/data/pic
