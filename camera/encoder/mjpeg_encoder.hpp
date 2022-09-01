@@ -44,6 +44,7 @@ private:
 	struct EncodeItem
 	{
 		void *mem;
+        size_t size;
 		unsigned int width;
 		unsigned int height;
 		unsigned int stride;

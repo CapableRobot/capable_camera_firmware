@@ -9,7 +9,7 @@
 #include <iostream>
 
 #include <jpeglib.h>
-
+#include <libyuv.h>
 #include "mjpeg_encoder.hpp"
 
 #if JPEG_LIB_VERSION_MAJOR > 9 || (JPEG_LIB_VERSION_MAJOR == 9 && JPEG_LIB_VERSION_MINOR >= 4)
@@ -49,10 +49,47 @@ MjpegEncoder::~MjpegEncoder()
 void MjpegEncoder::EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height,
 								unsigned int stride, int64_t timestamp_us)
 {
-    EncodeItem item = { mem, width, height, stride, timestamp_us, index_++ };
+    EncodeItem item = { mem,
+                        size,
+                        width,
+                        height,
+                        stride,
+                        timestamp_us,
+                        index_++ };
 	std::lock_guard<std::mutex> lock(encode_mutex_);
 	encode_queue_.push(item);
 	encode_cond_var_.notify_all();
+}
+
+EncodeItem MjegEncoder::genPreviewBuffer(EncodeItem &source)
+{
+  size_t sizeEst1 = source.width * source.height * 5 / 16;
+  size_t sizeEst2 = source.size / 16;
+  size_t sizeSel  = std::max(sizeEst1, sizeEst2);
+  uint8_t* buffer = malloc(sizeSel);
+  EncodeItem dest = {buffer,
+                     sizeSel,
+                     source.width / 4,
+                     source.height / 4,
+                     source.stride / 4,
+                     source.timestamp_us,
+                     source.index};
+
+  int stride2a = source.stride / 2;
+  uint8_t *Y1 = (uint8_t *)source.mem;
+  uint8_t *U1 = (uint8_t *)Y1 + source.stride * source.height;
+  uint8_t *V1 = (uint8_t *)U1 + stride2a * (source.height / 2);
+
+  int stride2b = preview.stride / 2;
+  uint8_t *Y2 = (uint8_t *)preview.mem;
+  uint8_t *U2 = (uint8_t *)Y2 + preview.stride * preview.height;
+  uint8_t *V2 = (uint8_t *)U2 + stride2b * (preview.height / 2);
+
+  I420Scale_12(Y1, source.stride, U1, stride2a, V1, stride2a, source.width, source.height,
+               Y2, dest.stride,   U2, stride2b, V2, stride2b, dest.width,   dest.height,
+               kFilterNone);
+
+  return dest;
 }
 
 void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &item, uint8_t *&encoded_buffer,
