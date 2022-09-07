@@ -24,6 +24,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   
   directory_[0] = options_->output;
   directory_[1] = options_->output_2nd;
+  previewDir_   = options_->previewStreamDir;
 
   minFreeSizes[0] = options_->minfreespace;
   minFreeSizes[1] = options_->minfreespace_2nd;
@@ -50,6 +51,10 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   {
     directory_[1] = "";
   }
+  if(!boost::filesystem::exists(previewDir_))
+  {
+    previewDir_ = "";
+  }
   
   std::cerr << "Initializing file handler..." << std::endl;
   fileManager_.initVars(verbose_,
@@ -64,11 +69,17 @@ FileOutput::~FileOutput()
 {
 }
 
-void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t /*flags*/)
+void FileOutput::outputBuffer(void *mem,
+                              size_t size,
+                              void *prevMem,
+                              size_t prevSize,
+                              int64_t timestamp_us,
+                              uint32_t /*flags*/)
 {
   struct timeval tv;
   gettimeofday(&tv, NULL);
-      
+  static int32_t frameNumTrun = 0;
+
   try
   {
     tv = getAdjustedTime(timestamp_us);
@@ -86,6 +97,12 @@ void FileOutput::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint
   { 
     wrapAndWrite(mem, size, &tv, 1);
   }
+  if(previewDir_ != "")
+  {
+    previewWrapAndWrite(prevMem, prevSize, frameNumTrun);
+  }
+
+  frameNumTrun = (frameNumTrun + 1) % 1000;
 }
 
 struct timeval FileOutput::getAdjustedTime(int64_t timestamp_us)
@@ -140,7 +157,7 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       try
       {
         fileManager_.addFile(index, size, fullFileName);
-        writeFile(fullFileName, mem, size, index);
+        writeFile(fullFileName, mem, size);
       }
       catch (std::exception const &e)
       {
@@ -149,10 +166,29 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       fileWritten = true;
     }
   }
+}
+
+void FileOutput::previewWrapAndWrite(void *mem, size_t size, int64_t frameNum)
+{
+  std::stringstream fileNameGenerator;
+  fileNameGenerator << previewDir_;
+  fileNameGenerator << "preview_";
+  fileNameGenerator << std::setw(3) << std::setfill('0') << frameNum;
+  fileNameGenerator << postfix_;
+  std::string fullFileName = fileNameGenerator.str();
+
+  try
+  {
+    writeFile(fullFileName, mem, size);
+  }
+  catch (std::exception const &e)
+  {
+    std::cerr << "Failed to write file" << std::endl;
+  }
 
 }
 
-void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size, int index)
+void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)
 {
   //open file name and assign fd
   int fd, ret;

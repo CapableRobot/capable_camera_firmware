@@ -45,7 +45,12 @@ void Output::Signal()
   enable_ = !enable_;
 }
 
-void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyframe)
+void Output::OutputReady(void *mem,
+                         size_t size,
+                         void *prevMem,
+                         size_t prevSize,
+                         int64_t timestamp_us,
+                         bool keyframe)
 {
   int64_t ready_time = timestamp_now();
 
@@ -66,7 +71,12 @@ void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyf
   last_timestamp_ = timestamp_us - time_offset_;
 
   try{
-    outputBuffer(mem, size, last_timestamp_, flags);
+    outputBuffer(mem,
+                 size,
+                 prevMem,
+                 prevSize,
+                 last_timestamp_,
+                 flags);
   }
   catch(const std::exception& e){
      std::cout << e.what() << std::endl;
@@ -82,7 +92,12 @@ void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyf
   }
 }
 
-void Output::outputBuffer(void *mem, size_t size, int64_t timestamp_us, uint32_t flags)
+void Output::outputBuffer(void *mem,
+                          size_t size,
+                          void *prevMem,
+                          size_t prevSize,
+                          int64_t timestamp_us,
+                          uint32_t flags)
 {
   // DEPRECATED. Separate FileOutput class created to handle file output. If a null/empty
   // pipe is needed, then create an Output object and leave this empty.

@@ -43,7 +43,11 @@ void Options::json_manage_fs_cfg(nlohmann::json fileinfo_cfg)
   if(fileinfo_cfg.contains("output2"))
   {
       output_2nd = fileinfo_cfg.at("output2");
-  }   
+  }
+  if(fileinfo_cfg.contains("previewStreamDir"))
+  {
+    previewStreamDir = fileinfo_cfg.at("previewStreamDir");
+  }
   if(fileinfo_cfg.contains("minfreespace"))
   {
       minfreespace = fileinfo_cfg.at("minfreespace");

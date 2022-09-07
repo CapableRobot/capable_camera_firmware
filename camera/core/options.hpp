@@ -133,6 +133,7 @@ struct Options
   std::string prefix;
   std::string output;
   std::string output_2nd;
+  std::string previewStreamDir;
   uint64_t minfreespace;
   uint64_t maxusedspace;
   uint64_t minfreespace_2nd;
