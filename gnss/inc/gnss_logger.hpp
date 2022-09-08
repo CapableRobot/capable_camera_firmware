@@ -22,6 +22,7 @@ public:
 
     GnssLogger(
         std::string &path,
+        std::string &readyLoc,
         std::string &ext,
         int maxSize,
         int fileDuration,
@@ -36,9 +37,10 @@ public:
 
 protected:
     json OrganizeData(gps_data_t &data);
+    void ShareData()
 
 private:
     const bool  mLogSnr;
     const int   mMinMode;
-
+    std::string mReadyLoc;
 };

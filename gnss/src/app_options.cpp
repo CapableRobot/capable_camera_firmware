@@ -34,6 +34,8 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Duration of each log file in seconds")
         ("path,p", value<std::string>(&path)->default_value("/tmp/"),
             "Path to for data log")
+        ("readyPath,r", value<std::string?(&readyPath)->default_value("/tmp/GPS_READY"),
+            "Path for ready file when lock is obtained")
         ("extension,e", value<std::string>(&ext)->default_value("ext"),
             "Extension to use for data log")
         ("config,c", value<std::string>(&config_file)->implicit_value("config.txt"),

@@ -29,6 +29,7 @@ struct AppOptions
   int minMode;
   int logDuration;
   std::string path;
+  std::string readyPath;
   std::string ext;
   std::string config_file;
 

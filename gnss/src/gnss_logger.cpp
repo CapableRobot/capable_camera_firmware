@@ -24,6 +24,7 @@ static const char *modeStrings[NUM_MODE_STRINGS] = {
 
 GnssLogger::GnssLogger(
     std::string &path,
+    std::string &readyLoc,
     std::string &ext,
     int maxSize,
     int fileDuration,
@@ -34,7 +35,8 @@ GnssLogger::GnssLogger(
     ) :
     Logger(path, ext, maxSize, fileDuration, verbose, debugLevel),
     mLogSnr(logSnr),
-    mMinMode(minMode) {};
+    mMinMode(minMode),
+    mReadyLoc(readyLoc){};
 
 GnssLogger::~GnssLogger() = default;
 
@@ -43,6 +45,7 @@ void GnssLogger::AddData(gps_data_t &data)
     // Organize the data and queue it for output
     json organizedData = OrganizeData(data);
     QueueData(organizedData);
+    ShareData(organizedData);
 }
 
 json GnssLogger::OrganizeData(gps_data_t &data)
@@ -162,4 +165,18 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     }
 
     return dataObject;
+}
+
+void GnssLogger::ShareData(json organizedData)
+{
+  static bool wroteLock = false;
+  if(organizedData[] == modeStrings[2] ||
+     organizedData[] == modeStrings[3])
+  {
+    if(!wroteLock)
+    {
+      wroteLock = true;
+      std::ofstream output(mReadyLoc);
+    }
+  }
 }

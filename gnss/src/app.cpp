@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
         );
         GnssLogger logger(
             options.path,
+            options.readyPath,
             options.ext,
             options.maxSize,
             options.logDuration,
