@@ -170,8 +170,8 @@ json GnssLogger::OrganizeData(gps_data_t &data)
 void GnssLogger::ShareData(json organizedData)
 {
   static bool wroteLock = false;
-  if(organizedData[] == modeStrings[2] ||
-     organizedData[] == modeStrings[3])
+  if(organizedData["fix"] == modeStrings[2] ||
+     organizedData["fix"] == modeStrings[3])
   {
     if(!wroteLock)
     {
