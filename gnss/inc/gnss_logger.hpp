@@ -37,7 +37,7 @@ public:
 
 protected:
     json OrganizeData(gps_data_t &data);
-    void ShareData()
+    void ShareData(json organizedData);
 
 private:
     const bool  mLogSnr;
