@@ -48,6 +48,10 @@ void Options::json_manage_fs_cfg(nlohmann::json fileinfo_cfg)
   {
     previewStreamDir = fileinfo_cfg.at("previewStreamDir");
   }
+  if(fileinfo_cfg.contains("gpsLockCheckDir"))
+  {
+    gpsLockCheckDir = fileinfo_cfg.at("gpsLockCheckDir");
+  }
   if(fileinfo_cfg.contains("minfreespace"))
   {
       minfreespace = fileinfo_cfg.at("minfreespace");

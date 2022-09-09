@@ -25,6 +25,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   directory_[0] = options_->output;
   directory_[1] = options_->output_2nd;
   previewDir_   = options_->previewStreamDir;
+  gpsReadyDir_  = options_->gpsLockCheckDir;
 
   minFreeSizes[0] = options_->minfreespace;
   minFreeSizes[1] = options_->minfreespace_2nd;
@@ -39,9 +40,9 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
 
   //TODO - Assume jpeg formate for now. Otherwise extract  
   postfix_ = ".jpg";
-  
   int numLocs = 2;
-   
+  gpsLockAcq_ = false;
+
   //Check if directories exist, and if not then ignore them 
   if(!boost::filesystem::exists(directory_[0]))
   {
@@ -69,6 +70,14 @@ FileOutput::~FileOutput()
 {
 }
 
+void FileOutput::checkGPSLock()
+{
+  if(boost::filesystem::exists(gpsReadyDir_))
+  {
+    gpsLockAcq_ = true;
+  }
+}
+
 void FileOutput::outputBuffer(void *mem,
                               size_t size,
                               void *prevMem,
@@ -94,8 +103,11 @@ void FileOutput::outputBuffer(void *mem,
     wrapAndWrite(mem, size, &tv, 0);
   }
   if(directory_[1] != "")
-  { 
-    wrapAndWrite(mem, size, &tv, 1);
+  {
+    if(gpsReadyDir_ == "" || gpsLockAcq_)
+    {
+      wrapAndWrite(mem, size, &tv, 1);
+    }
   }
   if(previewDir_ != "")
   {
@@ -103,6 +115,10 @@ void FileOutput::outputBuffer(void *mem,
   }
 
   frameNumTrun = (frameNumTrun + 1) % 1000;
+  if(frameNumTrun % 100 == 0)
+  {
+    checkGPSLock();
+  }
 }
 
 struct timeval FileOutput::getAdjustedTime(int64_t timestamp_us)

@@ -22,6 +22,8 @@ public:
     FileOutput(VideoOptions const *options);
     ~FileOutput();
 
+    void checkGPSLock();
+
 protected:
 
     void outputBuffer(void *mem, size_t size, void* prevMem, size_t prevSize, int64_t timestamp_us, uint32_t flags) override;
@@ -33,8 +35,10 @@ protected:
 private:
 
     bool verbose_;
+    bool gpsLockAcq_;
     std::string directory_[2];
     std::string previewDir_;
+    std::string gpsReadyDir_;
     std::string prefix_;
     std::string postfix_;
     struct timeval baseTime_;

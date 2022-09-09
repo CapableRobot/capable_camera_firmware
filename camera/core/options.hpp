@@ -55,6 +55,8 @@ struct Options
        "Set the output file directory or socket endpoint")
       ("output_2nd", value<std::string>(&output_2nd)->default_value(""),
        "Set the output file directory or socket endpoint")
+      ("gpsLockCheckDir", value<std::string>(gpsLockCheckDir->default_value("")),
+       "Set the check directory for the GPS LOCK ACQUIRED file")
       ("prefix", value<std::string>(&prefix)->default_value(""),
        "Set the beginning of output file names if provided")
       ("minfreespace", value<std::uint64_t>(&minfreespace)->default_value(268435456),
@@ -134,6 +136,7 @@ struct Options
   std::string output;
   std::string output_2nd;
   std::string previewStreamDir;
+  std::string gpsLockCheckDir;
   uint64_t minfreespace;
   uint64_t maxusedspace;
   uint64_t minfreespace_2nd;
