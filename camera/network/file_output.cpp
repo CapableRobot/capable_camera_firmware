@@ -115,7 +115,7 @@ void FileOutput::outputBuffer(void *mem,
   }
 
   frameNumTrun = (frameNumTrun + 1) % 1000;
-  if(frameNumTrun % 100 == 0)
+  if((frameNumTrun % 100 == 0) && (gpsReadyDir_ != ""))
   {
     checkGPSLock();
   }
