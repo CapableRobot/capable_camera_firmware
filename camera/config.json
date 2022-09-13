@@ -6,7 +6,7 @@
       "minfreespace": 64000000,
       "output2":"/media/usb0/recording/",
       "minfreespace2": 32000000,
-      "previewStreamDir":"/tmp/recording/pic/"
+      "previewStreamDir":"/tmp/recording/preview/"
     }
   },
   "camera":{

@@ -142,10 +142,12 @@ void MjpegEncoder::encodeThread(int num)
   struct jpeg_compress_struct cinfoMain;
   struct jpeg_compress_struct cinfoPrev;
   struct jpeg_error_mgr jerr;
+
   cinfoMain.err = jpeg_std_error(&jerr);
   cinfoPrev.err = jpeg_std_error(&jerr);
   jpeg_create_compress(&cinfoMain);
   jpeg_create_compress(&cinfoPrev);
+
   std::chrono::duration<double> encode_time(0);
   uint32_t frames = 0;
 
@@ -204,6 +206,7 @@ void MjpegEncoder::encodeThread(int num)
                                encode_item.index };
     {
         std::lock_guard<std::mutex> lock(output_mutex_);
+        free(encode_live.mem);
         output_queue_[num].push(output_item);
         output_cond_var_.notify_one();
     }
