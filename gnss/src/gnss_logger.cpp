@@ -33,7 +33,8 @@ GnssLogger::GnssLogger(
     bool verbose,
     int debugLevel
     ) :
-    Logger(path, ext, maxSize, fileDuration, verbose, debugLevel),
+    // don't output samples to stdout, do output the latest to <path>/latest
+    Logger(path, ext, maxSize, fileDuration, verbose, debugLevel, false, true),
     mLogSnr(logSnr),
     mMinMode(minMode),
     mReadyLoc(readyLoc){};

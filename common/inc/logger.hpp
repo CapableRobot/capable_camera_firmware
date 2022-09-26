@@ -34,7 +34,8 @@ public:
         int fileDuration,
         bool verbose = false,
         int debugLevel = 0,
-        bool logger = false
+        bool logger = false,
+	bool latest = false
     );
     virtual ~Logger();
 
@@ -77,6 +78,7 @@ private:
     std::string         mPath;
     std::string         mFileName;
     std::fstream        mLogFile;
+    std::fstream        mLatestFile;
 
     seconds             mDuration;
 
@@ -88,5 +90,6 @@ private:
     steady_clock::time_point    mLogOpenTime;
 
     bool                mLive;
+    bool                mLatest;
 
 };

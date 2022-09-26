@@ -36,7 +36,8 @@ Logger::Logger(
     int fileDuration,
     bool verbose,
     int debugLevel,
-    bool live
+    bool live,
+    bool latest
     ) :
     Thread(verbose, debugLevel),
     mPath(path),
@@ -47,7 +48,8 @@ Logger::Logger(
     mLogOpen(false),
     mTotalLogSize(0),
     mCurrLogSize(0),
-    mLive(live)
+    mLive(live),
+    mLatest(latest)
 {
     SetInterval(1s);
     ResetFileDuration();
@@ -56,6 +58,20 @@ Logger::Logger(
     if (mPath.back() != '/')
     {
         mPath += "/";
+    }
+
+    // Open file for latest sample to live in
+    if (mLatest)
+    {
+        mLatestFile.open(mPath + "latest", std::ios_base::trunc | std::ios_base::out);
+
+        if (mLatestFile.is_open() == false)
+        {
+            mLatest = false;
+            if (mVerbose) {
+                std::cerr << "Failed to open file for latest samples" << std::endl;
+            }
+        }
     }
 }
 Logger::~Logger() = default;
@@ -305,6 +321,13 @@ void Logger::QueueData(json &data)
 
     if (mLive) {
         std::cout << data << std::endl;
+    }
+
+    // Write freshest data to the "latest" file
+    if (mLatest) {
+        mLatestFile.seekp(0);
+        mLatestFile << data.dump(1, '\t', true) << std::endl;
+        mLatestFile.flush();
     }
 }
 
