@@ -78,7 +78,6 @@ private:
     std::string         mPath;
     std::string         mFileName;
     std::fstream        mLogFile;
-    std::fstream        mLatestFile;
 
     seconds             mDuration;
 

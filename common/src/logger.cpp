@@ -60,19 +60,6 @@ Logger::Logger(
         mPath += "/";
     }
 
-    // Open file for latest sample to live in
-    if (mLatest)
-    {
-        mLatestFile.open(mPath + "latest", std::ios_base::trunc | std::ios_base::out);
-
-        if (mLatestFile.is_open() == false)
-        {
-            mLatest = false;
-            if (mVerbose) {
-                std::cerr << "Failed to open file for latest samples" << std::endl;
-            }
-        }
-    }
 }
 Logger::~Logger() = default;
 
@@ -323,11 +310,17 @@ void Logger::QueueData(json &data)
         std::cout << data << std::endl;
     }
 
-    // Write freshest data to the "latest" file
-    if (mLatest) {
-        mLatestFile.seekp(0);
-        mLatestFile << data.dump(1, '\t', true) << std::endl;
-        mLatestFile.flush();
+    // Write latest sample to <path>/latest.log
+    std::string fullpath = mPath + "latest.log";
+    std::fstream latestFile(fullpath, std::ios_base::trunc | std::ios_base::out);
+    if (latestFile.is_open())
+    {
+        latestFile << data.dump(1, '\t', true) << std::endl;
+        latestFile.flush();
+    } else {
+        if (mVerbose) {
+            std::cerr << "Couldn't open file to write latest sample" << std::endl;
+        }
     }
 }
 
