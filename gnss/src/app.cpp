@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
             options.maxSize,
             options.logDuration,
             options.logSnr,
-            options.minMode,
+            //options.minMode,
             options.verbose,
             options.debugLevel
         );

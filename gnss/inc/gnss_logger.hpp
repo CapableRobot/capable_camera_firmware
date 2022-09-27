@@ -27,7 +27,7 @@ public:
         int maxSize,
         int fileDuration,
         bool logSnr,
-        int minMode,
+        //int minMode,
         bool verbose = false,
         int debugLevel = 0
     );
@@ -41,6 +41,6 @@ protected:
 
 private:
     const bool  mLogSnr;
-    const int   mMinMode;
+    //const int   mMinMode;
     std::string mReadyLoc;
 };

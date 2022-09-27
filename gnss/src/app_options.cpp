@@ -28,8 +28,10 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Debug output level")
         ("maxSize,s", value<int>(&maxSize)->default_value(30000)->implicit_value(true),
             "Max size of all logs in kilobytes")
+	/*
         ("minMode,m" , value<int>(&minMode)->default_value(2)->implicit_value(true),
             "Minimum fix mode to log")
+	*/
         ("logDuration,l", value<int>(&logDuration)->default_value(60)->implicit_value(true),
             "Duration of each log file in seconds")
         ("path,p", value<std::string>(&path)->default_value("/tmp/"),

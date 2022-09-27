@@ -29,14 +29,14 @@ GnssLogger::GnssLogger(
     int maxSize,
     int fileDuration,
     bool logSnr,
-    int minMode,
+    //int minMode,
     bool verbose,
     int debugLevel
     ) :
     // don't output samples to stdout, do output the latest to <path>/latest
     Logger(path, ext, maxSize, fileDuration, verbose, debugLevel, false, true),
     mLogSnr(logSnr),
-    mMinMode(minMode),
+    //mMinMode(minMode),
     mReadyLoc(readyLoc){};
 
 GnssLogger::~GnssLogger() = default;
@@ -65,8 +65,11 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     }
 
     // Add the time stamp
+    /*
     if (((data.set & TIME_SET) != 0) || 
         (data.fix.mode == mMinMode))
+    */
+    if ((data.set & TIME_SET) != 0)
     {
         dataObject["timestamp"] = GetDateTimeString(data.fix.time);
     }
