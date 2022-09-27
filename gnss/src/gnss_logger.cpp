@@ -70,6 +70,11 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     {
         dataObject["timestamp"] = GetDateTimeString(data.fix.time);
     }
+
+    // add system time
+    struct timespec currTime;
+    timespec_get(&currTime, TIME_UTC);
+    dataObject["systemtime"] = GetDateTimeString(currTime);
     
     // Add lat and long data
     if (((data.set & LATLON_SET) != 0))

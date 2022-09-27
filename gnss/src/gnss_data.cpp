@@ -223,10 +223,12 @@ void GnssData::ThreadFunc()
                 if (mMode >= mMinMode)
                 {
                     // If there is no fix, update with the current system time
+                    /*
                     if (currFixState == false)
                     {
                         timespec_get(&mGpsData.fix.time, TIME_UTC);
                     }
+                    */
 
                     // Add data to be logged
                     mDataFunc(mGpsData);
