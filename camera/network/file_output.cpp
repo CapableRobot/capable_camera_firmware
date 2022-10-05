@@ -164,7 +164,9 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
   fileNameGenerator << std::setw(6) << std::setfill('0') << timestamp->tv_usec;//picCounter;
   fileNameGenerator << postfix_;
   std::string fullFileName = fileNameGenerator.str();
-  
+  fileNameGenerator << "~";
+  std::string tempFileName = fileNameGenerator.str();
+
   bool fileWritten = false;
   while(!fileWritten)
   {
@@ -173,7 +175,8 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       try
       {
         fileManager_.addFile(index, size, fullFileName);
-        writeFile(fullFileName, mem, size);
+        writeFile(tempFileName, mem, size);
+        boost::filesystem::rename(tempFileName, fullFileName);
       }
       catch (std::exception const &e)
       {
