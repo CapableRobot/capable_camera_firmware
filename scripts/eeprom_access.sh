@@ -14,14 +14,15 @@ TEST=0
 usage()
 {
     SCRIPT=$(basename $0)
-    echo "$SCRIPT -h -r|-w -f <file>|-b [<value>] -ba <bank> -o <value> [-n]"
+    echo "$SCRIPT -h -r|-w -f <file>|-b [<value>] -ba <bank> -o <value> [-n] [-s]"
     echo ""
     echo "-h        This usage information"
+    echo "-s        Explicit Serial Info (Use bytes 0 through 7)"
     echo "-r        Read value"
     echo "-w        Write value"
     echo "-f        File input/output"
     echo "-by       Byte input/output"
-    echo "-o        EEPROM offset, valid values 0 - 255"
+    echo "-o        EEPROM offset, valid values 8 - 255 (0 through 7 must use explicit -s)"
     echo "-ba       EEPROM bank, valid values 0 - $MAX_BANK"
     echo "-n        Add null term after byte write"
     echo "-t        Test on non-embedded hardware"
@@ -155,6 +156,10 @@ while [ $# -gt 0 ]; do
             NULL_TERM="TRUE"
             shift
             ;;
+        -s)
+            SERIAL_INFO="TRUE"
+            shift
+            ;;
         -*|--*)
             echo "Unknown option $1."
             usage
@@ -173,13 +178,14 @@ done
 output_verbose "$(basename $0):"
 output_verbose ""
 output_verbose "Parced Arguments:"
-output_verbose "Read      = $READ"
-output_verbose "Write     = $WRITE"
-output_verbose "File      = $FILE"
-output_verbose "Byte      = $BYTE"
-output_verbose "Bank      = $BANK"
-output_verbose "Offset    = $OFFSET"
-output_verbose "Null Term = $NULL_TERM"
+output_verbose "Read       = $READ"
+output_verbose "Write      = $WRITE"
+output_verbose "File       = $FILE"
+output_verbose "Byte       = $BYTE"
+output_verbose "Bank       = $BANK"
+output_verbose "Offset     = $OFFSET"
+output_verbose "Null Term  = $NULL_TERM"
+output_verbose "SerialInfo = $SERIAL_INFO"
 
 # Validate that the read or write operators were provided
 if [ "$READ" = "TRUE" ] && [ "$WRITE" = "TRUE" ]; then
@@ -202,15 +208,6 @@ elif [ ! -f $FILE ] && [ "$WRITE" = "TRUE" ]; then
     exit 1
 fi
 
-# Validate offset
-if [ "$OFFSET" = "" ]; then
-    echo "An address offset is required"
-    exit 1
-elif [ $OFFSET -gt 255 ]; then
-    echo "Offset is outside valid range"
-    exit 1
-fi
-
 # Validate bank
 if [ "$BANK" = "" ]; then
     echo "An address bank is required"
@@ -218,6 +215,27 @@ if [ "$BANK" = "" ]; then
 elif [ $BANK -gt $MAX_BANK ]; then
     echo "An address bank has a maximum of $MAX_BANK"
     exit 1
+fi
+
+# Validate offset (and shorten MAX_BANK_SIZE if serial)
+if [ "$OFFSET" = "" ]; then
+    echo "An address offset is required"
+    exit 1
+elif [ $OFFSET -lt 16 ]; then
+  if [ "$SERIAL_INFO" = "TRUE" ]; then
+    MAX_BANK_SIZE=16
+  else
+    echo "Attempting to read/write within serial info range"
+    exit 1
+  fi
+elif [ $OFFSET -gt 15 ]; then
+  if [ "$SERIAL_INFO" = "TRUE" ]; then
+    echo "Offset is outside valid serial info range"
+    exit 1
+  elif [ $OFFSET -gt 255 ]; then
+    echo "Offset is outside valid range"
+    exit 1
+  fi
 fi
 
 # Determine how long we should loop
