@@ -221,14 +221,14 @@ fi
 if [ "$OFFSET" = "" ]; then
     echo "An address offset is required"
     exit 1
-elif [ $OFFSET -lt 16 ]; then
+elif [ $OFFSET -lt 32 ]; then
   if [ "$SERIAL_INFO" = "TRUE" ]; then
-    MAX_BANK_SIZE=16
+    MAX_BANK_SIZE=32
   else
     echo "Attempting to read/write within serial info range"
     exit 1
   fi
-elif [ $OFFSET -gt 15 ]; then
+elif [ $OFFSET -gt 31 ]; then
   if [ "$SERIAL_INFO" = "TRUE" ]; then
     echo "Offset is outside valid serial info range"
     exit 1
