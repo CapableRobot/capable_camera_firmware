@@ -173,6 +173,19 @@ json GnssLogger::OrganizeData(gps_data_t &data)
         }
     }
 
+	// DOP data
+	if ((data.set & DOP_SET) !=0)
+	{
+		std::string parentKey = "dop";
+		dataObject[parentKey]["xdop"] = data.dop.xdop;
+		dataObject[parentKey]["ydop"] = data.dop.ydop;
+		dataObject[parentKey]["pdop"] = data.dop.pdop;
+		dataObject[parentKey]["hdop"] = data.dop.hdop;
+		dataObject[parentKey]["vdop"] = data.dop.vdop;
+		dataObject[parentKey]["tdop"] = data.dop.tdop;
+		dataObject[parentKey]["gdop"] = data.dop.gdop;
+	}
+
     return dataObject;
 }
 
