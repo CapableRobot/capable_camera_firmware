@@ -24,6 +24,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   
   directory_[0] = options_->output;
   directory_[1] = options_->output_2nd;
+
   previewDir_   = options_->previewStreamDir;
   gpsReadyDir_  = options_->gpsLockCheckDir;
 
@@ -38,7 +39,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   verbose_ = options_->verbose;
   prefix_  = options_->prefix;
 
-  //TODO - Assume jpeg formate for now. Otherwise extract  
+  //TODO - Assume jpeg format for now. Otherwise extract
   postfix_ = ".jpg";
   int numLocs = 2;
   gpsLockAcq_ = false;
@@ -56,7 +57,13 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   {
     previewDir_ = "";
   }
-  
+
+  //Use stringstream to create latest file for picture
+  td::stringstream fileNameGenerator;
+  fileNameGenerator << directory_[0];
+  fileNameGenerator << "latest.txt";
+  latestFileName_ = fileNameGenerator.str();
+
   std::cerr << "Initializing file handler..." << std::endl;
   fileManager_.initVars(verbose_,
                         prefix_,
@@ -184,6 +191,17 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       }
       fileWritten = true;
     }
+  }
+  //After file is written, if we are the primary, set the latest marker
+  if(index == 0)
+  {
+    int fd, ret;
+    size_t latestSize = fullFileName.size();
+    fd = open(latestFileName_.c_str(), O_CREAT|O_WRONLY|O_TRUNC, 0644);
+    if ((ret = write(fd, fullFileName.c_str(), latestSize)) < 0) {
+      throw std::runtime_error("failed to write data");
+    }
+    close(fd);
   }
 }
 

@@ -36,6 +36,7 @@ private:
 
     bool verbose_;
     bool gpsLockAcq_;
+    std::string latestFileName_;
     std::string directory_[2];
     std::string previewDir_;
     std::string gpsReadyDir_;
