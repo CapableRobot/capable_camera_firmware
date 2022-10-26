@@ -59,7 +59,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   }
 
   //Use stringstream to create latest file for picture
-  td::stringstream fileNameGenerator;
+  std::stringstream fileNameGenerator;
   fileNameGenerator << directory_[0];
   fileNameGenerator << "latest.txt";
   latestFileName_ = fileNameGenerator.str();

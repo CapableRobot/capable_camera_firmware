@@ -15,4 +15,9 @@ then
   mkdir /mnt/data/pic
 fi
 
+if [ ! -d "/media/usb0/recording" ]
+then
+  mkdir /media/usb0/recording
+fi
+
 ./libcamera-bridge --config config.json --segment 0  --timeout 0 --tuning-file imx477.json --quality 80
