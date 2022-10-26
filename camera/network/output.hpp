@@ -23,6 +23,7 @@ public:
   virtual void Signal(); // a derived class might redefine what this means
   void OutputReady(void *mem, size_t size, void *prevMem, size_t prevSize, int64_t timestamp_us, bool keyframe);
 
+
 protected:
   enum Flag
   {
@@ -32,6 +33,7 @@ protected:
   };
   virtual void outputBuffer(void *mem, size_t size, void *prevMem, size_t prevSize, int64_t timestamp_us, uint32_t flags);
   VideoOptions const *options_;
+  bool GetContinueRunningStatus();
 
 private:
   enum State
