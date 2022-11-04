@@ -112,6 +112,7 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
     if(key == 'x' || key == 'X')
     {
       end_early = true;
+      output->Signal();
       std::cout << "Got exit key signal" << std::endl;
     }
 

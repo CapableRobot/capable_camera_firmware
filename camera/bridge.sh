@@ -2,7 +2,7 @@
 
 if [ ! -d "/tmp/recording/preview" ]
 then
-  mkdir /tmp/recording/pic
+  mkdir /tmp/recording/preview
 fi
 
 if [ ! -d "/tmp/recording/pic" ]
@@ -15,9 +15,13 @@ then
   mkdir /mnt/data/pic
 fi
 
-if [ ! -d "/media/usb0/recording" ]
+output=$(df | grep "media")
+if [ -n "$output" ];
 then
-  mkdir /media/usb0/recording
+  if [ ! -d "/media/usb0/recording" ]
+  then
+    mkdir /media/usb0/recording
+  fi
 fi
 
 ./libcamera-bridge --config config.json --segment 0  --timeout 0 --tuning-file imx477.json --quality 80

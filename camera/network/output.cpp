@@ -45,6 +45,11 @@ void Output::Signal()
   enable_ = !enable_;
 }
 
+bool Output::GetContinueRunningStatus()
+{
+  return enable_;
+}
+
 void Output::OutputReady(void *mem,
                          size_t size,
                          void *prevMem,
@@ -67,7 +72,9 @@ void Output::OutputReady(void *mem,
 
   // Frig the timestamps to be continuous after a pause.
   if (flags & FLAG_RESTART)
+  {
     time_offset_ = timestamp_us - last_timestamp_;
+  }
   last_timestamp_ = timestamp_us - time_offset_;
 
   try{
@@ -79,6 +86,7 @@ void Output::OutputReady(void *mem,
                  flags);
   }
   catch(const std::exception& e){
+     std::cout << "Exception!" << std::endl;
      std::cout << e.what() << std::endl;
      Signal();
   }
