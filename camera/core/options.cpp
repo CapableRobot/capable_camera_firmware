@@ -32,9 +32,12 @@ void Options::json_manage_cx_cfg(nlohmann::json connection_cfg)
 
 void Options::json_manage_fs_cfg(nlohmann::json fileinfo_cfg)
 { 
-  if(fileinfo_cfg.contains("prefix"))
+  if(fileinfo_cfg.contains("prefix")) {
+    prefix = fileinfo_cfg.at("prefix");
+  }
+  if(fileinfo_cfg.contains("writeTmp"))
   {
-      prefix = fileinfo_cfg.at("prefix");
+    writeTmp = fileinfo_cfg.at("writeTmp");
   }
   if(fileinfo_cfg.contains("output"))
   {
@@ -307,6 +310,7 @@ void Options::Print() const
     std::cout << "    height: " << height << std::endl;
     std::cout << "    output: " << output << std::endl;
     std::cout << "    prefix: " << prefix << std::endl;
+    std::cout << "    writeTmp: " << writeTmp << std::endl;
     std::cout << "    min free space: " << minfreespace << std::endl;
     std::cout << "    max used space: " << maxusedspace << std::endl; 
     std::cout << "    post_process_file: " << post_process_file << std::endl;

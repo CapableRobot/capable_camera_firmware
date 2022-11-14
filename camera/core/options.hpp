@@ -53,6 +53,8 @@ struct Options
        "Time (in ms) for which program runs")
       ("output,o", value<std::string>(&output),
        "Set the output file directory or socket endpoint")
+      ("writeTmp", value<bool>(&writeTmp)->default_value(true)->implicit_value(true),
+       "Write images to a temporary filename before final name (default and implicitly true)")
       ("output_2nd", value<std::string>(&output_2nd)->default_value(""),
        "Set the output file directory or socket endpoint")
       ("gpsLockCheckDir", value<std::string>(&gpsLockCheckDir)->default_value(""),
@@ -133,6 +135,7 @@ struct Options
   uint64_t timeout; // in ms
   std::string config_file;
   std::string prefix;
+  bool writeTmp;
   std::string output;
   std::string output_2nd;
   std::string previewStreamDir;

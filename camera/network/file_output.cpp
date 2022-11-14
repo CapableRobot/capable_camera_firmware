@@ -40,6 +40,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options),
   
   verbose_ = options_->verbose;
   prefix_  = options_->prefix;
+  writeTempFile_ = options_->writeTmp;
 
   //TODO - Assume jpeg format for now. Otherwise extract
   postfix_ = ".jpg";
@@ -267,15 +268,30 @@ void FileOutput::writerThread()
       size_t size = sizeBufferPair.first;
       void* mem   = sizeBufferPair.second;
 
-      fd = open(tmpName.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
-      if ((ret = write(fd, mem, size)) < 0)
+      if(writeTempFile_)
       {
-        writeSuccess = false;
+        fd = open(tmpName.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if ((ret = write(fd, mem, size)) < 0)
+        {
+          writeSuccess = false;
+        }
+        close(fd);
       }
-      close(fd);
-      boost::filesystem::rename(tmpName, finalName);
+      else
+      {
+        fd = open(finalName.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+        if ((ret = write(fd, mem, size)) < 0)
+        {
+          writeSuccess = false;
+        }
+        close(fd);
+      }
       if(writeSuccess)
       {
+        if(writeTempFile_)
+        {
+          boost::filesystem::rename(tmpName, finalName);
+        }
         if (verbose_)
         {
           std::cout << "Writing " << ret << " bytes to ";
