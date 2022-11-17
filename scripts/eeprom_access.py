@@ -76,6 +76,9 @@ class EEPROM_endpoint:
       val = writeBuff[ii]
       self.writeByte(val, bank, addr)
 
+def writeFileContentToEEPROM(file, endpoint, bank, addr, length):
+  with open(file, 'r') as fileCont:
+
 def handleArgs():
   parser = argparse.ArgumentParser()
   RWgroup = parser.add_mutually_exclusive_group()
