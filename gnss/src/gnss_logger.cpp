@@ -162,6 +162,10 @@ json GnssLogger::OrganizeData(gps_data_t &data)
                 satellite_t &currSat = data.skyview[index];
                 satelliteData["snr"] = currSat.ss;
                 satelliteData["used"] = currSat.used;
+                satelliteData["elevation"] = currSat.elevation;
+                satelliteData["azimuth"] = currSat.azimuth;
+                satelliteData["GNSSID"] = currSat.gnssid;
+                satelliteData["SVID"] = currSat.svid;
                 if (currSat.used == true)
                 {
                     sum += currSat.ss;
