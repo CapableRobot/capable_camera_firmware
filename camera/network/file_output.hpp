@@ -53,6 +53,7 @@ private:
     FileManager fileManager_;
 
     std::mutex  queue_mutex_;
+    std::condition_variable queue_notify_;
     std::thread writer_thread_;
     std::queue<imageFileInfo> writeTaskQueue_;
 

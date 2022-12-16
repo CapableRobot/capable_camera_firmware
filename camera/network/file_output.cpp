@@ -6,6 +6,7 @@
  */
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -18,6 +19,7 @@
 
 FileOutput::FileOutput(VideoOptions const *options) : Output(options),
                                                       queue_mutex_(),
+                                                      queue_notify_(),
                                                       writeTaskQueue_()
 {
 
@@ -232,6 +234,7 @@ void FileOutput::writeFile(std::string partialFileName, void *mem, size_t size)
   {
     std::unique_lock<std::mutex> lock(queue_mutex_);
     writeTaskQueue_.push(fileToAdd);
+    queue_notify_.notify_all();
   };
 }
 
@@ -241,11 +244,12 @@ void FileOutput::writerThread()
   bool process_pic = false;
   imageFileInfo fileToWrite;
   imageContent sizeBufferPair;
+  using namespace std::chrono_literals;
   while(keep_alive)
   {
     keep_alive = GetContinueRunningStatus();
     process_pic = false;
-    {
+    while(!process_pic){
       //CHECK IF QUEUE IS LOADED
       std::unique_lock <std::mutex> lock(queue_mutex_);
       if (writeTaskQueue_.size() > 0) {
@@ -253,9 +257,11 @@ void FileOutput::writerThread()
         fileToWrite = writeTaskQueue_.front();
         sizeBufferPair = fileToWrite.second;
         process_pic = true;
-      }
-      if(writeTaskQueue_.size() > 10) {
-        std::cout << "Queue size:" << writeTaskQueue_.size() << std::endl;
+        if(writeTaskQueue_.size() > 10) {
+          std::cout << "Queue size:" << writeTaskQueue_.size() << std::endl;
+        }
+      }else{
+        queue_notify_.wait_for(lock, 200ms);
       }
     }
     if(process_pic)

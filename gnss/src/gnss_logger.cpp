@@ -53,6 +53,11 @@ json GnssLogger::OrganizeData(gps_data_t &data)
 {
     json dataObject = json::object();
 
+    // add system time
+    struct timespec currTime;
+    timespec_get(&currTime, TIME_UTC);
+    dataObject["systemtime"] = GetDateTimeString(currTime);
+
     // Add the fix string if the value is known
     if ((data.fix.mode >= 0) && (data.fix.mode < NUM_MODE_STRINGS))
     {
@@ -73,11 +78,6 @@ json GnssLogger::OrganizeData(gps_data_t &data)
     {
         dataObject["timestamp"] = GetDateTimeString(data.fix.time);
     }
-
-    // add system time
-    struct timespec currTime;
-    timespec_get(&currTime, TIME_UTC);
-    dataObject["systemtime"] = GetDateTimeString(currTime);
     
     // Add lat and long data
     if (((data.set & LATLON_SET) != 0))
@@ -173,7 +173,7 @@ json GnssLogger::OrganizeData(gps_data_t &data)
                 }
                 dataObject[parentKey]["data"].push_back(satelliteData);
             }
-            dataObject[parentKey]["snrAaverage"] = sum / count;
+            dataObject[parentKey]["snrAverage"] = sum / count;
         }
     }
 
