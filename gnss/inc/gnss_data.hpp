@@ -18,7 +18,7 @@ class GnssData : protected Thread
 {
 public:
 
-    GnssData(bool verbose, int debugLevel, int minMode);
+    GnssData(bool verbose, int debugLevel, bool noFilter);
     ~GnssData();	
     
     void SetupGpsdConnect();
@@ -35,11 +35,10 @@ public:
 
 protected:
     virtual void ThreadFunc() override;
-
-    const int       mMinMode;
     
     bool            mConnected;
     bool            mStreaming;
+    bool            mNoFilter;
     int             mMode;
 
     gps_data_t      mGpsData;

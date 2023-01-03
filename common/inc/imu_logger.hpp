@@ -21,6 +21,7 @@ class ImuLogger : public Logger
 public:
     ImuLogger(
         std::string &path,
+        std::string &tempPath,
         std::string &ext,
         int maxSize,
         int fileDuration,

@@ -34,6 +34,7 @@ MjpegEncoder::MjpegEncoder(VideoOptions const *options)
     {
       std::cerr << "Opening preview stream at " << options_->previewStreamDir << std::endl;
       doPreview_ = true;
+
     }
 }
 

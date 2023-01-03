@@ -28,16 +28,16 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Debug output level")
         ("maxSize,s", value<int>(&maxSize)->default_value(30000)->implicit_value(true),
             "Max size of all logs in kilobytes")
-	/*
-        ("minMode,m" , value<int>(&minMode)->default_value(2)->implicit_value(true),
-            "Minimum fix mode to log")
-	*/
+        ("noFilter,n" , value<bool>(&noFilter)->default_value(false)->implicit_value(true),
+             "Do not filter out null entries/no lock")
         ("logDuration,l", value<int>(&logDuration)->default_value(60)->implicit_value(true),
             "Duration of each log file in seconds")
-        ("path,p", value<std::string>(&path)->default_value("/tmp/"),
+        ("path,p", value<std::string>(&path)->default_value("/mnt/data/gps"),
             "Path to for data log")
         ("readyPath,r", value<std::string>(&readyPath)->default_value("/tmp/GPS_READY"),
             "Path for ready file when lock is obtained")
+        ("tempPath,t", value<std::string>(&tempPath)->default_value("/tmp"),
+             "Path for ready file when lock is obtained")
         ("extension,e", value<std::string>(&ext)->default_value("ext"),
             "Extension to use for data log")
         ("config,c", value<std::string>(&config_file)->implicit_value("config.txt"),

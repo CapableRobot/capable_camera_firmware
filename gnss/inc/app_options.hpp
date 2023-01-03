@@ -24,12 +24,13 @@ struct AppOptions
   bool version;
   bool verbose;
   bool logSnr;
+  bool noFilter;
   int debugLevel;
   int maxSize;
-  int minMode;
   int logDuration;
   std::string path;
   std::string readyPath;
+  std::string tempPath;
   std::string ext;
   std::string config_file;
 

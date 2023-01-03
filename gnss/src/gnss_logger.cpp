@@ -24,19 +24,18 @@ static const char *modeStrings[NUM_MODE_STRINGS] = {
 
 GnssLogger::GnssLogger(
     std::string &path,
+    std::string &tempPath,
     std::string &readyLoc,
     std::string &ext,
     int maxSize,
     int fileDuration,
     bool logSnr,
-    //int minMode,
     bool verbose,
     int debugLevel
     ) :
     // don't output samples to stdout, do output the latest to <path>/latest
-    Logger(path, ext, maxSize, fileDuration, verbose, debugLevel, false, true),
+    Logger(path, tempPath, ext, maxSize, fileDuration, verbose, debugLevel, false, true),
     mLogSnr(logSnr),
-    //mMinMode(minMode),
     mReadyLoc(readyLoc){};
 
 GnssLogger::~GnssLogger() = default;

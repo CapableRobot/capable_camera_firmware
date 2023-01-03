@@ -15,6 +15,7 @@ using json = nlohmann::json;
 
 ImuLogger::ImuLogger(
     std::string &path,
+    std::string &tempPath,
     std::string &ext,
     int maxSize,
     int fileDuration,
@@ -22,7 +23,7 @@ ImuLogger::ImuLogger(
     int debugLevel,
     bool live
     ) :
-    Logger(path, ext, maxSize, fileDuration, verbose, debugLevel, live) {};
+    Logger(path, tempPath, ext, maxSize, fileDuration, verbose, debugLevel, live) {};
 
 ImuLogger::~ImuLogger() = default;
 

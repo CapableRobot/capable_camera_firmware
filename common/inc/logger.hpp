@@ -29,6 +29,7 @@ class Logger : public Thread
 public:
     Logger(
         std::string &path,
+        std::string &tempPath,
         std::string &ext,
         int maxSize,
         int fileDuration,
@@ -71,11 +72,13 @@ private:
     const seconds       mResetDuration;
 
     bool                mLogOpen;
+    bool                mUseTemp;
 
     int                 mCurrLogSize;
     int                 mTotalLogSize;
 
     std::string         mPath;
+    std::string         mTempPath;
     std::string         mFileName;
     std::fstream        mLogFile;
 

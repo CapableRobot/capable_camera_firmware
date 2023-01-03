@@ -22,12 +22,12 @@ public:
 
     GnssLogger(
         std::string &path,
+        std::string &tempPath,
         std::string &readyLoc,
         std::string &ext,
         int maxSize,
         int fileDuration,
         bool logSnr,
-        //int minMode,
         bool verbose = false,
         int debugLevel = 0
     );
@@ -41,6 +41,5 @@ protected:
 
 private:
     const bool  mLogSnr;
-    //const int   mMinMode;
     std::string mReadyLoc;
 };

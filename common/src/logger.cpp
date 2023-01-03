@@ -17,6 +17,7 @@
 #include <deque>
 #include <string>
 #include <sstream>
+#include <boost/filesystem.hpp>
 using namespace std::chrono;
 
 #include <errno.h>
@@ -31,6 +32,7 @@ using json = nlohmann::json;
 
 Logger::Logger(
     std::string &path,
+    std::string &tempPath,
     std::string &ext,
     int maxSize,
     int fileDuration,
@@ -41,6 +43,7 @@ Logger::Logger(
     ) :
     Thread(verbose, debugLevel),
     mPath(path),
+    mTempPath(tempPath),
     mExt(ext),
     mMaxSize(maxSize),
     mResetDuration(seconds(fileDuration)),
@@ -60,6 +63,16 @@ Logger::Logger(
         mPath += "/";
     }
 
+    //Check if temp file path is being used, and if so, add final slash
+    mUseTemp = false;
+    if (mTempPath != "")
+    {
+        mUseTemp = true;
+    }
+    if(mUseTemp && mTempPath.back() != '/')
+    {
+        mPath += "/";
+    }
 }
 Logger::~Logger() = default;
 
@@ -144,7 +157,8 @@ void Logger::OpenLog()
     mFileName = GetDateTimeString(time) + "." + mExt;
 
     // Create full path
-    std::string fullPath = mPath + mFileName;
+    std::string fullPath = mUseTemp ? mTempPath : mPath;
+    fullPath += mFileName;
 
     if (mVerbose == true)
     {
@@ -194,6 +208,14 @@ void Logger::CheckLogStatus()
             if (mVerbose)
             {
                 std::cerr << "Closing log \"" << mFileName << "\"" << std::endl;
+            }
+            if(mUseTemp)
+            {
+              std::cerr << "Cycling " << mFileName << "to main folder";
+              std::string oldPath = mTempPath + mFileName;
+              std::string newPath = mPath + mFileName;
+              boost::filesystem::copy_file(oldPath, newPath);
+              boost::filesystem::remove(oldPath);
             }
         }
 

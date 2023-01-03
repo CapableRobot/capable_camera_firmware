@@ -64,16 +64,16 @@ int main(int argc, char *argv[])
         GnssData data(
             options.verbose,
             options.debugLevel,
-            options.minMode
+            options.noFilter
         );
         GnssLogger logger(
             options.path,
+            options.tempPath,
             options.readyPath,
             options.ext,
             options.maxSize,
             options.logDuration,
             options.logSnr,
-            //options.minMode,
             options.verbose,
             options.debugLevel
         );

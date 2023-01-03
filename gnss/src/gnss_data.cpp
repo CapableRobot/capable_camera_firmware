@@ -15,9 +15,9 @@
 
 #define GPS_WAIT_TIME   250000 // microseconds
 
-GnssData::GnssData(bool verbose, int debugLevel, int minMode) :
+GnssData::GnssData(bool verbose, int debugLevel, bool noFilter) :
     Thread(verbose, debugLevel),
-    mMinMode(minMode),
+    mNoFilter(noFilter),
     mStreaming(false),
     mConnected(false),
     mMode(0)
@@ -196,7 +196,8 @@ void GnssData::ThreadFunc()
 
         // Read data and validate the read was successful
         int status = gps_read(&mGpsData, msgPtr, msgSize);
-        if (status != -1) {
+        if (status != -1)
+        {
             if ((mVerbose == true) && (mDebugLevel > 0))
             {
                 // Resize to the amount of data we read
@@ -204,8 +205,18 @@ void GnssData::ThreadFunc()
                 std::cout << msg << std::endl;
             }
 
-            // Make sure the mode has been set before 
-            if ((MODE_SET & mGpsData.set) != 0)
+            // Make sure we're either recording EVERYTHING
+            // or the mode has been set before
+            bool doRecord = false;
+            if(mNoFilter == true)
+            {
+                doRecord = true;
+            }
+            else if(MODE_SET & mGpsData.set != 0)
+            {
+                doRecord = true;
+            }
+            if (doRecord)
             {
                 // Determine what the lock state is
                 bool oldFixState = IsFixed();
@@ -218,21 +229,7 @@ void GnssData::ThreadFunc()
                                 ((currFixState == true) ? "Fixed" : "No Fix") <<
                                 std::endl;
                 }
-
-                // If there is a lock, pass on the data
-                if (mMode >= mMinMode)
-                {
-                    // If there is no fix, update with the current system time
-                    /*
-                    if (currFixState == false)
-                    {
-                        timespec_get(&mGpsData.fix.time, TIME_UTC);
-                    }
-                    */
-
-                    // Add data to be logged
-                    mDataFunc(mGpsData);
-                }
+                mDataFunc(mGpsData);
             }
         }
     }

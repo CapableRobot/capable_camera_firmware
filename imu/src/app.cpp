@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
         // Setup the logger
         ImuLogger logger(
             options.path,
+            options.tempPath,
             options.ext,
             options.maxSize,
             options.logDuration,

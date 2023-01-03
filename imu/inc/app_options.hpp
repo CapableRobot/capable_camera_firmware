@@ -40,6 +40,7 @@ struct AppOptions
     unsigned int logInterval;
     unsigned int logDuration;
     std::string path;
+    std::string tempPath;
     std::string ext;
 
     // Configuration Functions

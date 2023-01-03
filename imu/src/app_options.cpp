@@ -78,6 +78,8 @@ AppOptions::AppOptions() : mOptions("Valid options are", 120, 80)
             "Output samples to stdout")
         ("path,p", value<std::string>(&path)->default_value("/tmp/"),
             "Path to for data log")
+        ("tempPath,t", value<std::string>(&tempPath)->default_value(""),
+             "Path to for data log")
         ("extension,e", value<std::string>(&ext)->default_value("ext"),
             "Extension to use for data log")
         ("config,c", value<std::string>(&configFile)->implicit_value("config.txt"),
