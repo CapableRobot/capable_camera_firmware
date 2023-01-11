@@ -165,6 +165,7 @@ json GnssLogger::OrganizeData(gps_data_t &data)
                 satelliteData["azimuth"] = currSat.azimuth;
                 satelliteData["GNSSID"] = currSat.gnssid;
                 satelliteData["SVID"] = currSat.svid;
+                satelliteData["health"] = currSat.health;
                 if (currSat.used == true)
                 {
                     sum += currSat.ss;
