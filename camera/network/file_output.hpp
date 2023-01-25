@@ -16,9 +16,6 @@
 
 #include "file_manager.hpp"
 
-typedef std::pair<size_t, void*> imageContent;
-typedef std::pair<std::string, imageContent> imageFileInfo;
-
 class FileOutput : public Output
 {
 public:
@@ -33,31 +30,20 @@ protected:
     struct timeval getAdjustedTime(int64_t timestamp_us);
     void wrapAndWrite(void *mem, size_t size, struct timeval *timestamp, int index);
     void previewWrapAndWrite(void *mem, size_t size, int64_t frameNum);
-    void writeFile(std::string partialFileName, void *mem, size_t size);
-
-    void writerThread();
+    void writeFile(std::string fullFileName, void *mem, size_t size);
 
 private:
 
     bool verbose_;
     bool gpsLockAcq_;
     bool writeTempFile_;
+    std::string latestFileName_;
     std::string directory_[2];
     std::string previewDir_;
     std::string gpsReadyDir_;
     std::string prefix_;
     std::string postfix_;
-
     struct timeval baseTime_;
-
     FileManager fileManager_;
-
-    std::mutex  queue_mutex_;
-    std::condition_variable queue_notify_;
-    std::thread writer_thread_;
-    std::queue<imageFileInfo> writeTaskQueue_;
-
-    std::string gpsReadyFile_;
-    std::string lastImageWrittenFile_;
-    std::string framebufferSizeFile_;
+    
 };

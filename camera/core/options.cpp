@@ -32,12 +32,13 @@ void Options::json_manage_cx_cfg(nlohmann::json connection_cfg)
 
 void Options::json_manage_fs_cfg(nlohmann::json fileinfo_cfg)
 { 
-  if(fileinfo_cfg.contains("prefix")) {
-    prefix = fileinfo_cfg.at("prefix");
+  if(fileinfo_cfg.contains("prefix"))
+  {
+      prefix = fileinfo_cfg.at("prefix");
   }
   if(fileinfo_cfg.contains("writeTmp"))
   {
-    writeTmp = fileinfo_cfg.at("writeTmp");
+      writeTmp = fileinfo_cfg.at("writeTmp");
   }
   if(fileinfo_cfg.contains("output"))
   {

@@ -51,10 +51,10 @@ struct Options
        "Set the output image height (0 = use default value)")
       ("timeout,t", value<uint64_t>(&timeout)->default_value(0),
        "Time (in ms) for which program runs")
-      ("output,o", value<std::string>(&output),
-       "Set the output file directory or socket endpoint")
       ("writeTmp", value<bool>(&writeTmp)->default_value(true)->implicit_value(true),
        "Write images to a temporary filename before final name (default and implicitly true)")
+      ("output,o", value<std::string>(&output),
+       "Set the output file directory or socket endpoint")
       ("output_2nd", value<std::string>(&output_2nd)->default_value(""),
        "Set the output file directory or socket endpoint")
       ("gpsLockCheckDir", value<std::string>(&gpsLockCheckDir)->default_value(""),

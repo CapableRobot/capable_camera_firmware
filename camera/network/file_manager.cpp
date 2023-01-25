@@ -159,7 +159,6 @@ bool FileManager::checkFreeSpace(int index)
 {
   bool freeSpaceAvail = true;
   boost::filesystem::space_info freeSpace = boost::filesystem::space(directory_[index]);
-
   if(currentUsedSize_[index] > maxUsedSizeThresh_[index] && 
      maxUsedSizeThresh_[index] > 0)
   {

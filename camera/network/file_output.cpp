@@ -6,7 +6,6 @@
  */
 #include <iostream>
 #include <iomanip>
-#include <chrono>
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -17,10 +16,7 @@
 
 #include "file_output.hpp"
 
-FileOutput::FileOutput(VideoOptions const *options) : Output(options),
-                                                      queue_mutex_(),
-                                                      queue_notify_(),
-                                                      writeTaskQueue_()
+FileOutput::FileOutput(VideoOptions const *options) : Output(options)
 {
 
   std::vector<size_t> minFreeSizes = {0, 0};
@@ -43,7 +39,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options),
   verbose_ = options_->verbose;
   prefix_  = options_->prefix;
   writeTempFile_ = options_->writeTmp;
-
+  
   //TODO - Assume jpeg format for now. Otherwise extract
   postfix_ = ".jpg";
   int numLocs = 2;
@@ -63,9 +59,11 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options),
     previewDir_ = "";
   }
 
-  //TODO parameterize this
-  lastImageWrittenFile_ = "/tmp/lastRecordedImage.txt";
-  //framebufferSizeFile_ = TODO;
+  //Use stringstream to create latest file for picture
+  std::stringstream fileNameGenerator;
+  fileNameGenerator << directory_[0];
+  fileNameGenerator << "latest.txt";
+  latestFileName_ = fileNameGenerator.str();
 
   std::cerr << "Initializing file handler..." << std::endl;
   fileManager_.initVars(verbose_,
@@ -74,8 +72,6 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options),
                         maxUsedSizes,
                         directory_,
                         numLocs);
-
-  writer_thread_ = std::thread(&FileOutput::writerThread, this);
 }
 
 FileOutput::~FileOutput()
@@ -84,7 +80,7 @@ FileOutput::~FileOutput()
 
 void FileOutput::checkGPSLock()
 {
-  if(boost::filesystem::exists(gpsReadyFile_))
+  if(boost::filesystem::exists(gpsReadyDir_))
   {
     gpsLockAcq_ = true;
   }
@@ -116,7 +112,7 @@ void FileOutput::outputBuffer(void *mem,
   }
   if(directory_[1] != "")
   {
-    if(gpsReadyFile_ == "" || gpsLockAcq_)
+    if(gpsReadyDir_ == "" || gpsLockAcq_)
     {
       wrapAndWrite(mem, size, &tv, 1);
     }
@@ -127,7 +123,8 @@ void FileOutput::outputBuffer(void *mem,
   }
 
   frameNumTrun = (frameNumTrun + 1) % 1000;
-  if((frameNumTrun % 100 == 0) && (gpsReadyFile_ != "")) {
+  if((frameNumTrun % 100 == 0) && (gpsReadyDir_ != ""))
+  {
     checkGPSLock();
   }
 }
@@ -166,16 +163,17 @@ struct timeval FileOutput::getAdjustedTime(int64_t timestamp_us)
 
 void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp, int index)
 {
-  //Generate the final filename
+
   std::stringstream fileNameGenerator;
   fileNameGenerator << directory_[index];
   fileNameGenerator << prefix_;
   fileNameGenerator << std::setw(10) << std::setfill('0') << timestamp->tv_sec;
   fileNameGenerator << "_";
   fileNameGenerator << std::setw(6) << std::setfill('0') << timestamp->tv_usec;//picCounter;
-  std::string partialName  = fileNameGenerator.str();
   fileNameGenerator << postfix_;
   std::string fullFileName = fileNameGenerator.str();
+  fileNameGenerator << ".tmp";
+  std::string tempFileName = fileNameGenerator.str();
 
   bool fileWritten = false;
   while(!fileWritten)
@@ -185,7 +183,15 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
       try
       {
         fileManager_.addFile(index, size, fullFileName);
-        writeFile(partialName, mem, size);
+        if(writeTempFile_)
+        {
+            writeFile(tempFileName, mem, size);
+            boost::filesystem::rename(tempFileName, fullFileName);
+        }
+        else
+        {
+            writeFile(fullFileName, mem, size);
+        }
       }
       catch (std::exception const &e)
       {
@@ -199,7 +205,7 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
   {
     int fd, ret;
     size_t latestSize = fullFileName.size();
-    fd = open(lastImageWrittenFile_.c_str(), O_CREAT|O_WRONLY|O_TRUNC, 0644);
+    fd = open(latestFileName_.c_str(), O_CREAT|O_WRONLY|O_TRUNC, 0644);
     if ((ret = write(fd, fullFileName.c_str(), latestSize)) < 0) {
       throw std::runtime_error("failed to write data");
     }
@@ -213,7 +219,9 @@ void FileOutput::previewWrapAndWrite(void *mem, size_t size, int64_t frameNum)
   fileNameGenerator << previewDir_;
   fileNameGenerator << "preview_";
   fileNameGenerator << std::setw(3) << std::setfill('0') << frameNum;
+  fileNameGenerator << postfix_;
   std::string fullFileName = fileNameGenerator.str();
+
   try
   {
     writeFile(fullFileName, mem, size);
@@ -225,98 +233,19 @@ void FileOutput::previewWrapAndWrite(void *mem, size_t size, int64_t frameNum)
 
 }
 
-void FileOutput::writeFile(std::string partialFileName, void *mem, size_t size)
+void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)
 {
-  void* queueDataHold = malloc(size);
-  memcpy(queueDataHold, mem, size);
-  imageContent sizeBufferPair = std::make_pair(size, queueDataHold);
-  imageFileInfo fileToAdd   = std::make_pair(partialFileName, sizeBufferPair);
+  //open file name and assign fd
+  int fd, ret;
+  fd = open(fullFileName.c_str(), O_CREAT|O_WRONLY|O_TRUNC, 0644);
+  if ((ret = write(fd, mem, size)) < 0) {
+    throw std::runtime_error("failed to write data");
+  }
+  close(fd);
+  
+  if (verbose_)
   {
-    std::unique_lock<std::mutex> lock(queue_mutex_);
-    writeTaskQueue_.push(fileToAdd);
-    queue_notify_.notify_all();
-  };
-}
-
-void FileOutput::writerThread()
-{
-  bool keep_alive = true;
-  bool process_pic = false;
-  imageFileInfo fileToWrite;
-  imageContent sizeBufferPair;
-  using namespace std::chrono_literals;
-  while(keep_alive)
-  {
-    keep_alive = GetContinueRunningStatus();
-    process_pic = false;
-    while(!process_pic){
-      //CHECK IF QUEUE IS LOADED
-      std::unique_lock <std::mutex> lock(queue_mutex_);
-      if (writeTaskQueue_.size() > 0) {
-        //PROCESS ENTRY
-        fileToWrite = writeTaskQueue_.front();
-        sizeBufferPair = fileToWrite.second;
-        process_pic = true;
-        if(writeTaskQueue_.size() > 10) {
-          std::cout << "Queue size:" << writeTaskQueue_.size() << std::endl;
-        }
-      }else{
-        queue_notify_.wait_for(lock, 200ms);
-      }
-    }
-    if(process_pic)
-    {
-      int fd, ret;
-      bool writeSuccess = true;
-      std::string name = fileToWrite.first;
-      std::string tmpName = name + ".tmp";
-      std::string finalName = name + postfix_;
-      size_t size = sizeBufferPair.first;
-      void* mem   = sizeBufferPair.second;
-
-      if(writeTempFile_)
-      {
-        fd = open(tmpName.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
-        if ((ret = write(fd, mem, size)) < 0)
-        {
-          writeSuccess = false;
-        }
-        close(fd);
-      }
-      else
-      {
-        fd = open(finalName.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
-        if ((ret = write(fd, mem, size)) < 0)
-        {
-          writeSuccess = false;
-        }
-        close(fd);
-      }
-      if(writeSuccess)
-      {
-        if(writeTempFile_)
-        {
-          boost::filesystem::rename(tmpName, finalName);
-        }
-        if (verbose_)
-        {
-          std::cout << "Writing " << ret << " bytes to ";
-          std::cout << fileToWrite.first << std::endl;
-        }
-        {
-          std::unique_lock <std::mutex> lock(queue_mutex_);
-          free(mem);
-          writeTaskQueue_.pop();
-        }
-      }
-      else if(verbose_)
-      {
-        std::cerr << "Can't write. Keeping in queue: " << ret << std::endl;
-      }
-    }
-    else
-    {
-      std::this_thread::yield();
-    }
+    std::cerr << "writing " << ret << " bytes to ";
+    std::cerr << fullFileName << std::endl;
   }
 }
