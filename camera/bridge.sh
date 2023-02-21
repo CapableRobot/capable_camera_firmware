@@ -24,4 +24,4 @@ then
   fi
 fi
 
-./libcamera-bridge --config config.json --segment 0  --timeout 0 --tuning-file imx477.json --quality 80
+./libcamera-bridge --config config.json --segment 0  --timeout 0 --tuning-file imx477.json --quality 95
