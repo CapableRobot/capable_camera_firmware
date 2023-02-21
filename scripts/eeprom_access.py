@@ -80,7 +80,7 @@ class EEPROM_endpoint:
   def writeBytes(self, bank, startAddr, writeBuff, length):
     if startAddr < 0 or length < 1:
       raise EEPROM_OOB_Exception
-    if startAddr + length > self.bankList[bank].memSize:
+    if startAddr + length - 1 > self.bankList[bank].memSize:
       raise EEPROM_OOB_Exception
     for ii in range(0, length):
       addr = startAddr + ii
