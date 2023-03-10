@@ -23,7 +23,7 @@ public:
 	~MjpegEncoder();
 	// Encode the given buffer.
 	void EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height, unsigned int stride,
-					  int64_t timestamp_us) override;
+					  int64_t timestamp_us, libcamera::ControlList metadata) override;
 
 private:
 	// How many threads to use. Whichever thread is idle will pick up the next frame.
@@ -39,7 +39,7 @@ private:
 	void outputThread();
 
 	bool abort_;
-    bool doPreview_;
+    bool doDownsample_;
 	uint64_t index_;
 
 	struct EncodeItem
@@ -56,15 +56,38 @@ private:
 	std::mutex encode_mutex_;
 	std::condition_variable encode_cond_var_;
 	std::thread encode_thread_[NUM_ENC_THREADS];
-	void encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &item, uint8_t *&encoded_buffer, size_t &buffer_len);
-    void genPreviewBuffer(EncodeItem &source, EncodeItem &dest);
 
+    bool didInitDSI_;
+
+    uint32_t oldHalfStride_;
+    uint32_t newStride_;
+    uint32_t newHeight_;
+    uint32_t newSize_;
+    uint8_t* newBuffer_[NUM_ENC_THREADS];
+
+    void initDownSampleInfo(EncodeItem &source);
+
+	void encodeJPEG(struct jpeg_compress_struct &cinfo,
+                    EncodeItem &item,
+                    uint8_t *&encoded_buffer,
+                    size_t &buffer_len,
+                    int num);
+    void encodeDownsampleJPEG(struct jpeg_compress_struct &cinfo,
+                              EncodeItem &source,
+                              uint8_t *&encoded_buffer,
+                              size_t &buffer_len,
+                              int num);
+    void CreateExifData(libcamera::ControlList metadata,
+                        uint8_t *&exif_buffer,
+                        unsigned int &exif_len);
 	struct OutputItem
 	{
 		void *mem;
 		size_t bytes_used;
         void *preview_mem;
         size_t preview_bytes_used;
+        void *exif_mem;
+        size_t exif_bytes_used;
 		int64_t timestamp_us;
 		uint64_t index;
 	};

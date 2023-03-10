@@ -194,8 +194,9 @@ H264Encoder::~H264Encoder()
 }
 
 void H264Encoder::EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height,
-							   unsigned int stride, int64_t timestamp_us)
+							   unsigned int stride, int64_t timestamp_us, libcamera::ControlList metadata)
 {
+    (void)metadata;
 	int index;
 	{
 		// We need to find an available output buffer (input to the codec) to

@@ -15,6 +15,11 @@ then
   mkdir /mnt/data/pic
 fi
 
+if [ ! -d "/mnt/data/pic_lg" ]
+then
+  mkdir /mnt/data/pic_lg
+fi
+
 output=$(df | grep "media")
 if [ -n "$output" ];
 then
@@ -24,4 +29,4 @@ then
   fi
 fi
 
-./libcamera-bridge --config config.json --segment 0  --timeout 0 --tuning-file imx477.json --quality 95
+./libcamera-bridge --config config.json --segment 0  --timeout 0 --tuning-file imx477.json

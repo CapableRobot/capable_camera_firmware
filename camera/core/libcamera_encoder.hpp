@@ -51,8 +51,8 @@ class LibcameraEncoder : public LibcameraApp
       std::lock_guard<std::mutex> lock(encode_buffer_queue_mutex_);
       encode_buffer_queue_.push(completed_request); // creates a new reference
     }
-    
-    encoder_->EncodeBuffer(buffer->planes()[0].fd.get(), span.size(), mem, w, h, stride, timestamp_ns / 1000);
+    //add metadata here
+    encoder_->EncodeBuffer(buffer->planes()[0].fd.get(), span.size(), mem, w, h, stride, timestamp_ns / 1000, completed_request->metadata);
   }
   
   VideoOptions *GetOptions() const 

@@ -10,6 +10,7 @@
 #include <functional>
 
 #include "core/video_options.hpp"
+#include <libcamera/controls.h>
 
 typedef std::function<void(void *)> InputDoneCallback;
 typedef std::function<void(void *, size_t, void *, size_t, int64_t, bool)> OutputReadyCallback;
@@ -32,7 +33,7 @@ public:
     // Encode the given buffer. The buffer is specified both by an fd and size
 	// describing a DMABUF, and by a mmapped userland pointer.
 	virtual void EncodeBuffer(int fd, size_t size, void *mem, unsigned int width, unsigned int height,
-							  unsigned int stride, int64_t timestamp_us) = 0;
+							  unsigned int stride, int64_t timestamp_us, libcamera::ControlList metadata) = 0;
 
 protected:
 	InputDoneCallback input_done_callback_;

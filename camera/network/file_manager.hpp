@@ -52,7 +52,7 @@ protected:
 
 private:
 
-    static const int NUM_MAX_DESTS = 2;
+    static const int NUM_MAX_DESTS = 3;
 
     bool verbose_;
     std::string prefix_;

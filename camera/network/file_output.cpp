@@ -19,30 +19,33 @@
 FileOutput::FileOutput(VideoOptions const *options) : Output(options)
 {
 
-  std::vector<size_t> minFreeSizes = {0, 0};
-  std::vector<size_t> maxUsedSizes = {0, 0};
-  
+  std::vector<size_t> minFreeSizes = {0, 0, 0};
+  std::vector<size_t> maxUsedSizes = {0, 0, 0};
+
+  previewDir_   = options_->downsampleStreamDir;
+  gpsReadyDir_  = options_->gpsLockCheckDir;
+
   directory_[0] = options_->output;
   directory_[1] = options_->output_2nd;
-
-  previewDir_   = options_->previewStreamDir;
-  gpsReadyDir_  = options_->gpsLockCheckDir;
+  directory_[2] = previewDir_;
 
   minFreeSizes[0] = options_->minfreespace;
   minFreeSizes[1] = options_->minfreespace_2nd;
-  
+  minFreeSizes[2] = options_->minfreespace;
+
   std::cerr << "Initializing sizes.." << std::endl;
   
   maxUsedSizes[0] = options_->maxusedspace;
   maxUsedSizes[1] = options_->maxusedspace_2nd;
-  
+  maxUsedSizes[2] = options_->maxusedspace;
+
   verbose_ = options_->verbose;
   prefix_  = options_->prefix;
   writeTempFile_ = options_->writeTmp;
   
   //TODO - Assume jpeg format for now. Otherwise extract
   postfix_ = ".jpg";
-  int numLocs = 2;
+  int numLocs = 3;
   gpsLockAcq_ = false;
 
   //Check if directories exist, and if not then ignore them 
@@ -57,6 +60,7 @@ FileOutput::FileOutput(VideoOptions const *options) : Output(options)
   if(!boost::filesystem::exists(previewDir_))
   {
     previewDir_ = "";
+    directory_[2] = "";
   }
 
   //Use stringstream to create latest file for picture
@@ -119,7 +123,7 @@ void FileOutput::outputBuffer(void *mem,
   }
   if(previewDir_ != "")
   {
-    previewWrapAndWrite(prevMem, prevSize, frameNumTrun);
+    previewWrapAndWrite(prevMem, prevSize, &tv, frameNumTrun);
   }
 
   frameNumTrun = (frameNumTrun + 1) % 1000;
@@ -169,7 +173,7 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
   fileNameGenerator << prefix_;
   fileNameGenerator << std::setw(10) << std::setfill('0') << timestamp->tv_sec;
   fileNameGenerator << "_";
-  fileNameGenerator << std::setw(6) << std::setfill('0') << timestamp->tv_usec;//picCounter;
+  fileNameGenerator << std::setw(6) << std::setfill('0') << timestamp->tv_usec;
   fileNameGenerator << postfix_;
   std::string fullFileName = fileNameGenerator.str();
   fileNameGenerator << ".tmp";
@@ -213,24 +217,44 @@ void FileOutput::wrapAndWrite(void *mem, size_t size, struct timeval *timestamp,
   }
 }
 
-void FileOutput::previewWrapAndWrite(void *mem, size_t size, int64_t frameNum)
+void FileOutput::previewWrapAndWrite(void *mem, size_t size, struct timeval *timestamp, int64_t frameNum)
 {
   std::stringstream fileNameGenerator;
   fileNameGenerator << previewDir_;
-  fileNameGenerator << "preview_";
-  fileNameGenerator << std::setw(3) << std::setfill('0') << frameNum;
+  fileNameGenerator << prefix_;
+  fileNameGenerator << std::setw(10) << std::setfill('0') << timestamp->tv_sec;
+  fileNameGenerator << "_";
+  fileNameGenerator << std::setw(6) << std::setfill('0') << timestamp->tv_usec;//picCounter;
   fileNameGenerator << postfix_;
   std::string fullFileName = fileNameGenerator.str();
+  fileNameGenerator << ".tmp";
+  std::string tempFileName = fileNameGenerator.str();
 
-  try
+  bool fileWritten = false;
+  while(!fileWritten)
   {
-    writeFile(fullFileName, mem, size);
+    if(fileManager_.canWrite(2))
+    {
+      fileManager_.addFile(2, size, tempFileName);
+      try
+      {
+        if(writeTempFile_)
+        {
+          writeFile(tempFileName, mem, size);
+          boost::filesystem::rename(tempFileName, fullFileName);
+        }
+        else
+        {
+          writeFile(fullFileName, mem, size);
+        }
+      }
+      catch (std::exception const &e)
+      {
+        std::cerr << "Failed to write downsampled file" << std::endl;
+      }
+      fileWritten = true;
+    }
   }
-  catch (std::exception const &e)
-  {
-    std::cerr << "Failed to write file" << std::endl;
-  }
-
 }
 
 void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)

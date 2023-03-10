@@ -74,50 +74,49 @@ static void execute_stream(LibcameraEncoder &app, VideoOptions *options)
   signal(SIGUSR2, default_signal_handler);
   pollfd p[1] = { { STDIN_FILENO, POLLIN, 0 } };
 
-  auto start_time = std::chrono::high_resolution_clock::now();
-  auto last_time = std::chrono::high_resolution_clock::now();
-
   bool end_early = false;
+  auto last_entry_time = std::chrono::high_resolution_clock::now();
+  auto start_time      = last_entry_time;
+  auto after_msg_time  = last_entry_time;
+  auto after_enc_time  = last_entry_time;
 
   for (unsigned int count = 0; !end_early; count++)
   {
+    start_time = std::chrono::high_resolution_clock::now();
     LibcameraEncoder::Msg msg = app.Wait();
 
     if (msg.type == LibcameraEncoder::MsgType::Quit)
-      return;
+    {
+      end_early = true;
+      break;
+    }
     else if (msg.type != LibcameraEncoder::MsgType::RequestComplete)
-      throw std::runtime_error("unrecognised message!");
+    {
+      std::cout << "Unrecognized message!" << std::endl;
+      end_early = true;
+      break;
+    }
     int key = get_key_or_signal(options, p);
     if (key == '\n')
       output->Signal();
 
-
-    auto this_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> diff = this_time - last_time;
-    std::chrono::duration<double> elapsed = this_time - start_time;
-
-    if (options->verbose)
-    {
-      std::cout << "Frame entry " << std::setw(6) << count << " delta " << diff.count() << std::endl;
-    }
-    
-    last_time = this_time;
-    auto now = std::chrono::high_resolution_clock::now();
-    
-    if ((options->timeout && now - start_time > std::chrono::milliseconds(options->timeout)))
-    {
-      //end_early = true;
-      std::cout << "Timeout is deprecated" << std::endl;
-    }
-    if(key == 'x' || key == 'X')
-    {
-      end_early = true;
-      output->Signal();
-      std::cout << "Got exit key signal" << std::endl;
-    }
+    after_msg_time = std::chrono::high_resolution_clock::now();
 
     CompletedRequestPtr &completed_request = std::get<CompletedRequestPtr>(msg.payload);
     app.EncodeBuffer(completed_request, app.VideoStream());
+
+    after_enc_time = std::chrono::high_resolution_clock::now();
+
+    if (options->verbose)
+    {
+      std::chrono::duration<double> diff1 = after_msg_time - start_time;
+      std::chrono::duration<double> diff2 = after_enc_time - after_msg_time;
+      std::cout << "Frame # " << std::setw(6) << count << std::endl;
+      std::cout << "Wait Time: " << diff1.count() << std::endl;
+      std::cout << "Encode Time: " << diff2.count() << std::endl;
+
+    }
+    last_entry_time = start_time;
   }
   
   app.StopCamera();

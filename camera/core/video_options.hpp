@@ -37,6 +37,8 @@ struct VideoOptions : public Options
 			 "Save a timestamp file with this name")
 			("quality,q", value<int>(&quality)->default_value(50),
 			 "Set the MJPEG quality parameter (mjpeg only)")
+            ("qualityDwn,d", value<int>(&qualityDwn)->default_value(50),
+             "Set the MJPEG quality parameter for downsampled images (mjpeg only)")
 			("listen,l", value<bool>(&listen)->default_value(false)->implicit_value(true),
 			 "Listen for an incoming client network connection before sending data to the client")
 			("keypress,k", value<bool>(&keypress)->default_value(false)->implicit_value(true),
@@ -62,6 +64,7 @@ struct VideoOptions : public Options
 	std::string codec;
 	std::string save_pts;
 	int quality;
+    int qualityDwn;
 	bool listen;
 	bool keypress;
 	bool signal;
@@ -89,6 +92,10 @@ struct VideoOptions : public Options
             if(encoding_cfg.contains("quality"))
             {   
                 quality = encoding_cfg.at("quality");
+            }
+            if(encoding_cfg.contains("qualityDwn"))
+            {
+                qualityDwn = encoding_cfg.at("qualityDwn");
             }
         }
         
@@ -153,6 +160,7 @@ struct VideoOptions : public Options
 		std::cerr << "    save-pts: " << save_pts << std::endl;
 		std::cerr << "    codec: " << codec << std::endl;
 		std::cerr << "    quality (for MJPEG): " << quality << std::endl;
+        std::cerr << "    downsampled quality (for MJPEG): " << qualityDwn << std::endl;
 		std::cerr << "    keypress: " << keypress << std::endl;
 		std::cerr << "    signal: " << signal << std::endl;
 		std::cerr << "    initial: " << initial << std::endl;

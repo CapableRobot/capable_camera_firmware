@@ -53,7 +53,7 @@ struct Options
        "Time (in ms) for which program runs")
       ("writeTmp", value<bool>(&writeTmp)->default_value(true)->implicit_value(true),
        "Write images to a temporary filename before final name (default and implicitly true)")
-      ("output,o", value<std::string>(&output),
+      ("output,o", value<std::string>(&output)->default_value(""),
        "Set the output file directory or socket endpoint")
       ("output_2nd", value<std::string>(&output_2nd)->default_value(""),
        "Set the output file directory or socket endpoint")
@@ -138,7 +138,7 @@ struct Options
   bool writeTmp;
   std::string output;
   std::string output_2nd;
-  std::string previewStreamDir;
+  std::string downsampleStreamDir;
   std::string gpsLockCheckDir;
   uint64_t minfreespace;
   uint64_t maxusedspace;
@@ -171,6 +171,7 @@ struct Options
   float sharpness;
   float framerate;
   std::string denoise;
+  int quality;
   std::string info_text;
   unsigned int viewfinder_width;
   unsigned int viewfinder_height;

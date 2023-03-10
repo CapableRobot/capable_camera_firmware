@@ -48,9 +48,9 @@ void Options::json_manage_fs_cfg(nlohmann::json fileinfo_cfg)
   {
       output_2nd = fileinfo_cfg.at("output2");
   }
-  if(fileinfo_cfg.contains("previewStreamDir"))
+  if(fileinfo_cfg.contains("downsampleStreamDir"))
   {
-    previewStreamDir = fileinfo_cfg.at("previewStreamDir");
+    downsampleStreamDir = fileinfo_cfg.at("downsampleStreamDir");
   }
   if(fileinfo_cfg.contains("gpsLockCheckDir"))
   {
@@ -100,6 +100,10 @@ void Options::json_manage_enc_cfg(nlohmann::json encoding_cfg)
   if(encoding_cfg.contains("height"))
   {  
     height = encoding_cfg.at("height");
+  }
+  if(encoding_cfg.contains("denoise"))
+  {
+    denoise = encoding_cfg.at("denoise");
   }
 }
 
