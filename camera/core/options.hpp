@@ -153,7 +153,7 @@ struct Options
   libcamera::Transform transform;
   std::string roi;
   float roi_x, roi_y, roi_width, roi_height;
-  float shutter;
+  int shutter;
   float gain;
   std::string metering;
   int metering_index;
