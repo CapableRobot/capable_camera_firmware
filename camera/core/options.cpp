@@ -170,7 +170,11 @@ void Options::json_manage_exp_cfg(nlohmann::json exposure_cfg)
   if(exposure_cfg.contains("sharpness"))
   {
     sharpness = exposure_cfg.at("sharpness");
-  } 
+  }
+  if(exposure_cfg.contains("shutter"))
+  {
+    shutter = exposure_cfg.at("shutter");
+  }
 }
 
 void Options::json_manage_cam_cfg(nlohmann::json camera_cfg)
