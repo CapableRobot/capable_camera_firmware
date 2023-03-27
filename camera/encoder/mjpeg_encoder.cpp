@@ -563,7 +563,6 @@ void MjpegEncoder::outputThread()
             goto got_item;
           }
         }
-        output_cond_var_.wait_for(lock, 200ms);
         std::this_thread::sleep_for (50ms);
       }
     }
