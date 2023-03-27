@@ -61,6 +61,8 @@ struct Options
        "Set the downsample output file directory")
       ("gpsLockCheckDir", value<std::string>(&gpsLockCheckDir)->default_value(""),
        "Set the check directory for the GPS LOCK ACQUIRED file")
+      ("latestChkFileDir", value<std::string>(&latestChkFileDir)->default_value("/mnt/data/pic/"),
+       "Set the check directory for the latest picture")
       ("prefix", value<std::string>(&prefix)->default_value(""),
        "Set the beginning of output file names if provided")
       ("minfreespace", value<std::uint64_t>(&minfreespace)->default_value(268435456),
@@ -140,6 +142,7 @@ struct Options
   bool writeTmp;
   std::string output;
   std::string output_2nd;
+  std::string latestChkFileDir;
   std::string downsampleStreamDir;
   std::string gpsLockCheckDir;
   uint64_t minfreespace;
