@@ -94,7 +94,6 @@ private:
 		uint64_t index;
 	};
 	std::queue<OutputItem> output_queue_[NUM_ENC_THREADS];
-	std::mutex output_mutex_;
 	std::condition_variable output_cond_var_;
 	std::thread output_thread_;
 };
