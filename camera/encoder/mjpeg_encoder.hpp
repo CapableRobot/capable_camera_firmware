@@ -56,6 +56,7 @@ private:
 		uint64_t index;
 	};
 	std::queue<EncodeItem> encode_queue_;
+    std::mutex encode_mutex_;
     std::mutex output_mutex_[NUM_ENC_THREADS];
 	std::thread encode_thread_[NUM_ENC_THREADS];
 
