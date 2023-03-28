@@ -2,7 +2,7 @@
   "recording": {
     "directory": {
       "prefix": "",
-      "output": "/mnt/data/pic",
+      "output": "/mnt/data/pic/",
       "maxusedspace": 21474836480,
       "minfreespace": 64000000,
       "minfreespace2": 32000000,
