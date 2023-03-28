@@ -5,9 +5,11 @@
  * libcamera_encoder.cpp - libcamera video encoding class.
  */
 
-#include "core/libcamera_app.hpp"
-#include "core/video_options.hpp"
-#include "encoder/encoder.hpp"
+#include <functional>
+#include <memory>
+#include "libcamera_app.hpp"
+#include "video_options.hpp"
+#include "../encoder/encoder.hpp"
 
 typedef std::function<void(void *, size_t, void *, size_t, int64_t, bool)> EncodeOutputReadyCallback;
 

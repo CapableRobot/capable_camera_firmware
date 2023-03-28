@@ -72,6 +72,8 @@ private:
                     uint8_t *&encoded_buffer,
                     size_t &buffer_len,
                     int num);
+    void legacyEncodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &item, uint8_t *&encoded_buffer,
+                     size_t &buffer_len);
     void encodeDownsampleJPEG(struct jpeg_compress_struct &cinfo,
                               EncodeItem &source,
                               uint8_t *&encoded_buffer,
@@ -95,4 +97,6 @@ private:
 	std::mutex output_mutex_;
 	std::condition_variable output_cond_var_;
 	std::thread output_thread_;
+
+	void print(std::string toPrint);
 };
