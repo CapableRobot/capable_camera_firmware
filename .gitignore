@@ -139,3 +139,16 @@ dmypy.json
 
 # VS Code configurations
 **/.vscode
+/.idea/.gitignore
+/.idea/.name
+/.idea/capable_camera_firmware-mirror.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/qmlSettings.xml
+/.idea/vcs.xml
+/camera/.idea/.gitignore
+/camera/.idea/camera.iml
+/camera/.idea/misc.xml
+/camera/.idea/modules.xml
+/camera/.idea/qmlSettings.xml
+/camera/.idea/vcs.xml
