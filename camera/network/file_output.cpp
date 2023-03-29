@@ -266,10 +266,9 @@ void FileOutput::writeFile(std::string fullFileName, void *mem, size_t size)
     throw std::runtime_error("failed to write data");
   }
   close(fd);
-  
-  if (verbose_)
-  {
-    std::cerr << "writing " << ret << " bytes to ";
-    std::cerr << fullFileName << std::endl;
-  }
+//  if (verbose_)
+//  {
+//    std::cerr << "writing " << ret << " bytes to ";
+//    std::cerr << fullFileName << std::endl;
+//  }
 }

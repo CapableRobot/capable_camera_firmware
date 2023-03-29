@@ -399,7 +399,8 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
 
 
     unsigned int crop_width = 3840;
-    unsigned int crop_height = 2160;
+    unsigned int crop_height = 1728;
+//    unsigned int crop_height = 2160;
     unsigned int crop_stride = crop_width; //bad
 
 
@@ -416,8 +417,6 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     int crop_U_stride = crop_stride2;
     int crop_V_stride = crop_stride2;
 
-    unsigned int crop_y_src_offset = (src_width - crop_width) / 2;
-    unsigned int crop_uv_src_offset = crop_y_src_offset / 2;
 
     uint8_t *crop_Y = (uint8_t *)crop_i420_c;
     uint8_t *crop_U = (uint8_t *)crop_Y + crop_y_size;
@@ -439,14 +438,28 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     uint8_t *U_max = out_U + crop_uv_size - 1;
     uint8_t *V_max = out_V + crop_uv_size - 1;
 
+    if (options_->verbose) {
+        std::cout << "I420Rotate: " << std::endl;
+    }
+
+    unsigned int skip_lines_offset = (432) * src_stride;
+//    unsigned int skip_lines_offset = 0;
+    unsigned int skip_lines_offset_UV = skip_lines_offset /4;
+    unsigned int crop_y_src_offset = (src_width - crop_width) / 2;
+    unsigned int crop_uv_src_offset = crop_y_src_offset / 2;
+
     libyuv::I420Rotate(
-            src_i420 + crop_y_src_offset, src_stride,
-            src_U + crop_uv_src_offset, src_U_stride,
-            src_V + crop_uv_src_offset, src_V_stride,
+            src_i420 + skip_lines_offset + crop_y_src_offset, src_stride,
+            src_U + skip_lines_offset_UV + crop_uv_src_offset, src_U_stride,
+            src_V + skip_lines_offset_UV + crop_uv_src_offset, src_V_stride,
             crop_i420_c, crop_stride,
             crop_U, crop_U_stride,
             crop_V, crop_V_stride,
             crop_width, crop_height, libyuv::kRotate0);
+
+    if (options_->verbose) {
+        std::cout << "I420Rotate done! " << std::endl;
+    }
 
     cinfo.image_width = crop_width;
     cinfo.image_height = crop_height;
@@ -580,6 +593,10 @@ void MjpegEncoder::encodeThread(int num) {
 void MjpegEncoder::outputThread() {
     OutputItem item;
     uint64_t index = 0;
+    uint64_t per_sec_count = 0;
+    typedef std::chrono::duration<float, std::milli> duration;
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     while (true) {
         {
             std::unique_lock<std::mutex> lock(output_mutex_);
@@ -609,6 +626,15 @@ void MjpegEncoder::outputThread() {
                                item.preview_bytes_used,
                                item.timestamp_us,
                                true);
+        per_sec_count += 1;
+
+        duration d = (std::chrono::high_resolution_clock::now() - start_time);
+        if (d.count() >= 1000) {
+            std::cout << "File written per sec: " << per_sec_count << " milli: " << d.count() << std::endl;
+            start_time = std::chrono::high_resolution_clock::now();
+            per_sec_count = 0;
+        }
+
         free(item.mem);
         free(item.preview_mem);
         index += 1;

@@ -1,1 +1,1 @@
-config_charles# capable_camera_firmware
+# capable_camera_firmware
