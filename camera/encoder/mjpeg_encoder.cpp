@@ -400,7 +400,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
 
     unsigned int crop_width = 3840;
     unsigned int crop_height = 1728;
-//    unsigned int crop_height = 2160;
+
     unsigned int crop_stride = crop_width; //bad
 
 
