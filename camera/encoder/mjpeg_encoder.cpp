@@ -366,7 +366,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
 
     //----------------------------------------------
     //----------------------------------------------
-    // CROP
+    // SRC
     //----------------------------------------------
     //----------------------------------------------
     uint8_t *src_i420 = (uint8_t *)item.mem;
@@ -404,7 +404,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     unsigned int crop_width = 3840;
     unsigned int crop_height = 1728;
 
-    unsigned int crop_stride = crop_width; //bad
+    unsigned int crop_stride = crop_width;
 
 
     unsigned int crop_half_height = (crop_height + 1) / 2;
@@ -416,11 +416,9 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     unsigned int crop_size = crop_y_size + crop_uv_size * 2;
 
     uint8_t* crop_i420_c = (uint8_t *) malloc(crop_size);
-//    uint8_t* crop_i420_c = newBuffer_[num];
 
     int crop_U_stride = crop_stride2;
     int crop_V_stride = crop_stride2;
-
 
     uint8_t *crop_Y = (uint8_t *)crop_i420_c;
     uint8_t *crop_U = (uint8_t *)crop_Y + crop_y_size;
@@ -599,7 +597,7 @@ void MjpegEncoder::encodeThread(int num) {
         duration d = (std::chrono::high_resolution_clock::now() - start_time);
         if (d.count() >= 1000) {
             auto c = d.count();
-            std::cout <<"[" << num <<"] "<< "File written per sec: " << per_sec_count / c * 1000  << std::endl;
+            std::cout <<"[" << num <<"] "<< "File written " << per_sec_count / c * 1000 << " /sec"  << std::endl;
             start_time = std::chrono::high_resolution_clock::now();
             per_sec_count = 0;
         }
