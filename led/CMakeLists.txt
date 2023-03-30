@@ -12,7 +12,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
 add_executable(${PROJECT_NAME}
     ${PROJECT_SRC}
-        ../camera/encoder/mjpeg_encoder.cpp ../camera/core/libcamera_encoder.hpp)
+)
 
 target_include_directories(${PROJECT_NAME} PUBLIC common)
 

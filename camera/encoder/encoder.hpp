@@ -9,7 +9,7 @@
 
 #include <functional>
 
-#include "core/video_options.hpp"
+#include "../core/video_options.hpp"
 #include <libcamera/controls.h>
 
 typedef std::function<void(void *)> InputDoneCallback;
