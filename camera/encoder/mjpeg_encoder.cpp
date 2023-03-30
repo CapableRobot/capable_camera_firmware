@@ -163,7 +163,7 @@ void exif_set_string(ExifEntry *entry, char const *s) {
 
 MjpegEncoder::MjpegEncoder(VideoOptions const *options)
         : Encoder(options), abort_(false), index_(0) {
-    output_thread_ = std::thread(&MjpegEncoder::outputThread, this);
+//    output_thread_ = std::thread(&MjpegEncoder::outputThread, this);
     for (int ii = 0; ii < NUM_ENC_THREADS; ii += 1) {
         encode_thread_[ii] = std::thread(std::bind(&MjpegEncoder::encodeThread, this, ii));
     }
@@ -218,7 +218,10 @@ void MjpegEncoder::initDownSampleInfo(EncodeItem &source) {
 //    unsigned int crop_height = 3040;
 
     for (int ii = 0; ii < NUM_ENC_THREADS; ii += 1) {
-        newBuffer_[ii] = (uint8_t *) malloc(4056 * 3040);
+        unsigned int crop_width = 3840;
+        unsigned int crop_height = 1728;
+
+        newBuffer_[ii] = (uint8_t *) malloc(crop_width * crop_height);
     }
 
     didInitDSI_ = true;
@@ -413,6 +416,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     unsigned int crop_size = crop_y_size + crop_uv_size * 2;
 
     uint8_t* crop_i420_c = (uint8_t *) malloc(crop_size);
+//    uint8_t* crop_i420_c = newBuffer_[num];
 
     int crop_U_stride = crop_stride2;
     int crop_V_stride = crop_stride2;
@@ -438,9 +442,6 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     uint8_t *U_max = out_U + crop_uv_size - 1;
     uint8_t *V_max = out_V + crop_uv_size - 1;
 
-    if (options_->verbose) {
-        std::cout << "I420Rotate: " << std::endl;
-    }
 
     unsigned int skip_lines_offset = (432) * src_stride;
 //    unsigned int skip_lines_offset = 0;
@@ -448,6 +449,9 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     unsigned int crop_y_src_offset = (src_width - crop_width) / 2;
     unsigned int crop_uv_src_offset = crop_y_src_offset / 2;
 
+//    if (options_->verbose) {
+//        std::cout << "I420Rotate: " << sizeof(crop_i420_c) << std::endl;
+//    }
     libyuv::I420Rotate(
             src_i420 + skip_lines_offset + crop_y_src_offset, src_stride,
             src_U + skip_lines_offset_UV + crop_uv_src_offset, src_U_stride,
@@ -457,9 +461,9 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
             crop_V, crop_V_stride,
             crop_width, crop_height, libyuv::kRotate0);
 
-    if (options_->verbose) {
-        std::cout << "I420Rotate done! " << std::endl;
-    }
+//    if (options_->verbose) {
+//        std::cout << "I420Rotate done! " << std::endl;
+//    }
 
     cinfo.image_width = crop_width;
     cinfo.image_height = crop_height;
@@ -510,10 +514,14 @@ void MjpegEncoder::encodeThread(int num) {
     typedef std::chrono::duration<float, std::milli> duration;
 
     duration encode_time(0);
-    duration encode_down_sample_time(0);
     uint32_t frames = 0;
 
     EncodeItem encode_item;
+
+    uint64_t per_sec_count = 0;
+    typedef std::chrono::duration<float, std::milli> duration;
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     while (true) {
         {
             std::unique_lock<std::mutex> lock(encode_mutex_);
@@ -552,19 +560,10 @@ void MjpegEncoder::encodeThread(int num) {
 //            legacyEncodeJPEG(cinfoPrev, encode_item, encoded_prev_buffer, buffer_prev_len);
             encode_time = (std::chrono::high_resolution_clock::now() - start_time);
 
-            auto start_down_sample_time = std::chrono::high_resolution_clock::now();
+//            auto start_down_sample_time = std::chrono::high_resolution_clock::now();
 //            legacyEncodeJPEG(cinfoPrev, encode_item, encoded_prev_buffer, buffer_prev_len);
 //            encodeDownsampleJPEG(cinfoPrev, encode_item, encoded_prev_buffer, buffer_prev_len, num);
-            encode_down_sample_time = (std::chrono::high_resolution_clock::now() - start_down_sample_time);
 
-            if (options_ -> verbose) {
-                std::cout << "Thread # " << num << " Encoding time " << encode_time.count() << " | " << encode_down_sample_time.count() << std::endl;
-            }
-
-            if (options_->verbose && frames > 1 && false) {
-//                std::cout << "Thread # " << num << " encode average time " << encode_time.count() * 1000 / frames << std::endl;
-//                std::cout << "Thread # " << num << " down sample average time " << encode_down_sample_time.count() * 1000 / frames << std::endl;
-            }
         }
         frames += 1;
 
@@ -582,11 +581,35 @@ void MjpegEncoder::encodeThread(int num) {
                                   exif_buffer_len,
                                   encode_item.timestamp_us,
                                   encode_item.index};
-        {
-            std::lock_guard<std::mutex> lock(output_mutex_);
-            output_queue_[num].push(output_item);
-            output_cond_var_.notify_one();
+
+        input_done_callback_(nullptr);
+        output_ready_callback_(output_item.mem,
+                               output_item.bytes_used,
+                               output_item.preview_mem,
+                               output_item.preview_bytes_used,
+                               output_item.timestamp_us,
+                               true);
+
+
+        free(output_item.mem);
+        free(output_item.preview_mem);
+
+        per_sec_count += 1;
+
+        duration d = (std::chrono::high_resolution_clock::now() - start_time);
+        if (d.count() >= 1000) {
+            auto c = d.count();
+            std::cout <<"[" << num <<"] "<< "File written per sec: " << per_sec_count / c * 1000  << std::endl;
+            start_time = std::chrono::high_resolution_clock::now();
+            per_sec_count = 0;
         }
+
+
+//        {
+//            std::lock_guard<std::mutex> lock(output_mutex_);
+//            output_queue_[num].push(output_item);
+//            output_cond_var_.notify_one();
+//        }
     }
 }
 
