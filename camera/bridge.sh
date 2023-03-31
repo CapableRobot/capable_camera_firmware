@@ -29,4 +29,4 @@ then
   fi
 fi
 
-./libcamera-bridge --config config_charles.json --segment 0  --timeout 0 --tuning-file imx477.json
+./libcamera-bridge --config camera_config.json --segment 0  --timeout 0 --tuning-file imx477.json

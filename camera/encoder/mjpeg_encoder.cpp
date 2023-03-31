@@ -292,72 +292,72 @@ void MjpegEncoder::CreateExifData(libcamera::ControlList metadata,
 }
 
 
-void MjpegEncoder::encodeDownsampleJPEG(struct jpeg_compress_struct &cinfo,
-                                        EncodeItem &source,
-                                        uint8_t *&encoded_buffer,
-                                        size_t &buffer_len,
-                                        int num)
-{
-    (void)num;
-
-    uint8_t *Y_src = (uint8_t *)source.mem;
-    uint8_t *U_src = (uint8_t *)Y_src + source.stride * source.height;
-    uint8_t *V_src = (uint8_t *)U_src + oldHalfStride_  * newHeight_;
-
-    libyuv::ScalePlane(Y_src, source.stride, source.width, source.height, newBuffer_[num],
-                       newStride_, source.width / 2, newHeight_, libyuv::kFilterBox);
-
-    uint8_t *Y_max = newBuffer_[num] + (newStride_ * (newHeight_ - 1));
-    uint8_t *U_max = V_src - oldHalfStride_;
-    uint8_t *V_max = U_max + oldHalfStride_ * newHeight_;
-
-    cinfo.image_width = source.width / 2;
-    cinfo.image_height = newHeight_;
-    cinfo.input_components = 3;
-    cinfo.in_color_space = JCS_YCbCr;
-    cinfo.jpeg_color_space = JCS_YCbCr;
-    cinfo.restart_interval = 0;
-
-    jpeg_set_defaults(&cinfo);
-    cinfo.raw_data_in = TRUE;
-    cinfo.comp_info[0].h_samp_factor = 1;
-    cinfo.comp_info[0].v_samp_factor = 1;
-    cinfo.comp_info[1].h_samp_factor = 1;
-    cinfo.comp_info[1].v_samp_factor = 1;
-    cinfo.comp_info[2].h_samp_factor = 1;
-    cinfo.comp_info[2].v_samp_factor = 1;
-
-    jpeg_set_quality(&cinfo, options_->qualityDwn, TRUE);
-    buffer_len = 0;
-    jpeg_mem_len_t jpeg_mem_len;
-    jpeg_mem_dest(&cinfo, &encoded_buffer, &jpeg_mem_len);
-
-    JSAMPROW y_rows[8];
-    JSAMPROW u_rows[8];
-    JSAMPROW v_rows[8];
-
-    jpeg_start_compress(&cinfo, TRUE);
-    for (uint8_t *Y_row = newBuffer_[num], *U_row = U_src, *V_row = V_src; cinfo.next_scanline < newHeight_;)
-    {
-        unsigned int linesToWrite = 0;
-        for (; linesToWrite < 8 && (linesToWrite + cinfo.next_scanline < newHeight_); linesToWrite+=1)
-        {
-            y_rows[linesToWrite] = std::min(Y_row, Y_max);
-            u_rows[linesToWrite] = std::min(U_row, U_max);
-            v_rows[linesToWrite] = std::min(V_row, V_max);
-            Y_row += newStride_;
-            U_row += oldHalfStride_;
-            V_row += oldHalfStride_;
-        }
-        if (linesToWrite > 0)
-        {
-            JSAMPARRAY rows[] = {y_rows, u_rows, v_rows};
-            jpeg_write_raw_data(&cinfo, rows, linesToWrite);
-        }
-    }
-    jpeg_finish_compress(&cinfo);
-    buffer_len = jpeg_mem_len;
-}
+//void MjpegEncoder::encodeDownsampleJPEG(struct jpeg_compress_struct &cinfo,
+//                                        EncodeItem &source,
+//                                        uint8_t *&encoded_buffer,
+//                                        size_t &buffer_len,
+//                                        int num)
+//{
+//    (void)num;
+//
+//    uint8_t *Y_src = (uint8_t *)source.mem;
+//    uint8_t *U_src = (uint8_t *)Y_src + source.stride * source.height;
+//    uint8_t *V_src = (uint8_t *)U_src + oldHalfStride_  * newHeight_;
+//
+//    libyuv::ScalePlane(Y_src, source.stride, source.width, source.height, newBuffer_[num],
+//                       newStride_, source.width / 2, newHeight_, libyuv::kFilterBox);
+//
+//    uint8_t *Y_max = newBuffer_[num] + (newStride_ * (newHeight_ - 1));
+//    uint8_t *U_max = V_src - oldHalfStride_;
+//    uint8_t *V_max = U_max + oldHalfStride_ * newHeight_;
+//
+//    cinfo.image_width = source.width / 2;
+//    cinfo.image_height = newHeight_;
+//    cinfo.input_components = 3;
+//    cinfo.in_color_space = JCS_YCbCr;
+//    cinfo.jpeg_color_space = JCS_YCbCr;
+//    cinfo.restart_interval = 0;
+//
+//    jpeg_set_defaults(&cinfo);
+//    cinfo.raw_data_in = TRUE;
+//    cinfo.comp_info[0].h_samp_factor = 1;
+//    cinfo.comp_info[0].v_samp_factor = 1;
+//    cinfo.comp_info[1].h_samp_factor = 1;
+//    cinfo.comp_info[1].v_samp_factor = 1;
+//    cinfo.comp_info[2].h_samp_factor = 1;
+//    cinfo.comp_info[2].v_samp_factor = 1;
+//
+//    jpeg_set_quality(&cinfo, options_->qualityDwn, TRUE);
+//    buffer_len = 0;
+//    jpeg_mem_len_t jpeg_mem_len;
+//    jpeg_mem_dest(&cinfo, &encoded_buffer, &jpeg_mem_len);
+//
+//    JSAMPROW y_rows[8];
+//    JSAMPROW u_rows[8];
+//    JSAMPROW v_rows[8];
+//
+//    jpeg_start_compress(&cinfo, TRUE);
+//    for (uint8_t *Y_row = newBuffer_[num], *U_row = U_src, *V_row = V_src; cinfo.next_scanline < newHeight_;)
+//    {
+//        unsigned int linesToWrite = 0;
+//        for (; linesToWrite < 8 && (linesToWrite + cinfo.next_scanline < newHeight_); linesToWrite+=1)
+//        {
+//            y_rows[linesToWrite] = std::min(Y_row, Y_max);
+//            u_rows[linesToWrite] = std::min(U_row, U_max);
+//            v_rows[linesToWrite] = std::min(V_row, V_max);
+//            Y_row += newStride_;
+//            U_row += oldHalfStride_;
+//            V_row += oldHalfStride_;
+//        }
+//        if (linesToWrite > 0)
+//        {
+//            JSAMPARRAY rows[] = {y_rows, u_rows, v_rows};
+//            jpeg_write_raw_data(&cinfo, rows, linesToWrite);
+//        }
+//    }
+//    jpeg_finish_compress(&cinfo);
+//    buffer_len = jpeg_mem_len;
+//}
 
 void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &item, uint8_t *&encoded_buffer,
                               size_t &buffer_len, int num)
@@ -401,8 +401,8 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     //4056 x 3040 - Cam Raw
 
 
-    unsigned int crop_width = 3840;
-    unsigned int crop_height = 1728;
+    unsigned int crop_width = options_->crop_width;
+    unsigned int crop_height = options_->crop_height;
 
     unsigned int crop_stride = crop_width;
 
@@ -416,6 +416,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     unsigned int crop_size = crop_y_size + crop_uv_size * 2;
 
     uint8_t* crop_i420_c = (uint8_t *) malloc(crop_size);
+//    uint8_t* crop_i420_c = newBuffer_[];
 
     int crop_U_stride = crop_stride2;
     int crop_V_stride = crop_stride2;
@@ -441,7 +442,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     uint8_t *V_max = out_V + crop_uv_size - 1;
 
 
-    unsigned int skip_lines_offset = (432) * src_stride;
+    unsigned int skip_lines_offset = (options_->crop_offset_from_top) * src_stride;
 //    unsigned int skip_lines_offset = 0;
     unsigned int skip_lines_offset_UV = skip_lines_offset /4;
     unsigned int crop_y_src_offset = (src_width - crop_width) / 2;
@@ -496,7 +497,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
 
     jpeg_finish_compress(&cinfo);
     buffer_len = jpeg_mem_len;
-    free(crop_i420_c);
+//    free(crop_i420_c);
 }
 
 

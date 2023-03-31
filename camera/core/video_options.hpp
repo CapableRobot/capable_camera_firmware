@@ -37,8 +37,12 @@ struct VideoOptions : public Options
 			 "Save a timestamp file with this name")
 			("quality,q", value<int>(&quality)->default_value(50),
 			 "Set the MJPEG quality parameter (mjpeg only)")
-            ("qualityDwn,d", value<int>(&qualityDwn)->default_value(50),
-             "Set the MJPEG quality parameter for downsampled images (mjpeg only)")
+            ("crop_width,d", value<int>(&crop_width)->default_value(50),
+            "crop width")
+            ("crop_height,d", value<int>(&crop_height)->default_value(50),
+            "crop height")
+            ("crop_offset_from_top,d", value<int>(&crop_offset_from_top)->default_value(50),
+            "crop offset from top")
 			("listen,l", value<bool>(&listen)->default_value(false)->implicit_value(true),
 			 "Listen for an incoming client network connection before sending data to the client")
 			("keypress,k", value<bool>(&keypress)->default_value(false)->implicit_value(true),
@@ -64,7 +68,9 @@ struct VideoOptions : public Options
 	std::string codec;
 	std::string save_pts;
 	int quality;
-    int qualityDwn;
+    int crop_width;
+    int crop_height;
+    int crop_offset_from_top;
 	bool listen;
 	bool keypress;
 	bool signal;
@@ -93,9 +99,17 @@ struct VideoOptions : public Options
             {   
                 quality = encoding_cfg.at("quality");
             }
-            if(encoding_cfg.contains("qualityDwn"))
+            if(encoding_cfg.contains("crop_width"))
             {
-                qualityDwn = encoding_cfg.at("qualityDwn");
+                crop_width = encoding_cfg.at("crop_width");
+            }
+            if(encoding_cfg.contains("crop_height"))
+            {
+                crop_height = encoding_cfg.at("crop_height");
+            }
+            if(encoding_cfg.contains("crop_offset_from_top"))
+            {
+                crop_offset_from_top = encoding_cfg.at("crop_offset_from_top");
             }
         }
         
@@ -160,7 +174,9 @@ struct VideoOptions : public Options
 		std::cerr << "    save-pts: " << save_pts << std::endl;
 		std::cerr << "    codec: " << codec << std::endl;
 		std::cerr << "    quality (for MJPEG): " << quality << std::endl;
-        std::cerr << "    downsampled quality (for MJPEG): " << qualityDwn << std::endl;
+        std::cerr << "    crop width: " << crop_width << std::endl;
+        std::cerr << "    crop_height: " << crop_height << std::endl;
+        std::cerr << "    crop_offset_from_top: " << crop_offset_from_top << std::endl;
 		std::cerr << "    keypress: " << keypress << std::endl;
 		std::cerr << "    signal: " << signal << std::endl;
 		std::cerr << "    initial: " << initial << std::endl;

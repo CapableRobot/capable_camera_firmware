@@ -16,7 +16,9 @@
       "height": 3040,
       "codec": "mjpeg",
       "quality": 75,
-      "qualityDwn": 100
+      "crop_width": 3840,
+      "crop_height": 1728,
+      "crop_offset_from_top": 432
     },
     "adjustment": {
       "hflip": false,
