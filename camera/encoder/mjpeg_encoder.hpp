@@ -59,6 +59,7 @@ private:
 
     bool didInitDSI_;
 
+    uint32_t frame_second_;
     uint32_t oldHalfStride_;
     uint32_t newStride_;
     uint32_t newHeight_;

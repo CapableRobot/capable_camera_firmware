@@ -163,7 +163,7 @@ void exif_set_string(ExifEntry *entry, char const *s) {
 
 MjpegEncoder::MjpegEncoder(VideoOptions const *options)
         : Encoder(options), abort_(false), index_(0) {
-//    output_thread_ = std::thread(&MjpegEncoder::outputThread, this);
+    output_thread_ = std::thread(&MjpegEncoder::outputThread, this);
     for (int ii = 0; ii < NUM_ENC_THREADS; ii += 1) {
         encode_thread_[ii] = std::thread(std::bind(&MjpegEncoder::encodeThread, this, ii));
     }
@@ -517,9 +517,9 @@ void MjpegEncoder::encodeThread(int num) {
 
     EncodeItem encode_item;
 
-    uint64_t per_sec_count = 0;
-    typedef std::chrono::duration<float, std::milli> duration;
-    auto start_time = std::chrono::high_resolution_clock::now();
+//    uint64_t per_sec_count = 0;
+//    typedef std::chrono::duration<float, std::milli> duration;
+//    auto start_time = std::chrono::high_resolution_clock::now();
 
     while (true) {
         {
@@ -556,12 +556,7 @@ void MjpegEncoder::encodeThread(int num) {
         {
             auto start_time = std::chrono::high_resolution_clock::now();
             encodeJPEG(cinfoMain, encode_item, encoded_buffer, buffer_len, num);
-//            legacyEncodeJPEG(cinfoPrev, encode_item, encoded_prev_buffer, buffer_prev_len);
             encode_time = (std::chrono::high_resolution_clock::now() - start_time);
-
-//            auto start_down_sample_time = std::chrono::high_resolution_clock::now();
-//            legacyEncodeJPEG(cinfoPrev, encode_item, encoded_prev_buffer, buffer_prev_len);
-//            encodeDownsampleJPEG(cinfoPrev, encode_item, encoded_prev_buffer, buffer_prev_len, num);
 
         }
         frames += 1;
@@ -593,72 +588,16 @@ void MjpegEncoder::encodeThread(int num) {
         free(output_item.mem);
         free(output_item.preview_mem);
 
-        per_sec_count += 1;
-
-        duration d = (std::chrono::high_resolution_clock::now() - start_time);
-        if (d.count() >= 1000) {
-            auto c = d.count();
-            std::cout <<"[" << num <<"] "<< "File written " << per_sec_count / c * 1000 << " /sec"  << std::endl;
-            start_time = std::chrono::high_resolution_clock::now();
-            per_sec_count = 0;
-        }
-
-
-//        {
-//            std::lock_guard<std::mutex> lock(output_mutex_);
-//            output_queue_[num].push(output_item);
-//            output_cond_var_.notify_one();
-//        }
+        frame_second_ += 1;
     }
 }
 
 void MjpegEncoder::outputThread() {
-    OutputItem item;
-    uint64_t index = 0;
-    uint64_t per_sec_count = 0;
-    typedef std::chrono::duration<float, std::milli> duration;
-    auto start_time = std::chrono::high_resolution_clock::now();
-
     while (true) {
         {
-            std::unique_lock<std::mutex> lock(output_mutex_);
-            while (true) {
-                using namespace std::chrono_literals;
-                if (abort_) {
-                    return;
-                }
-
-                // We look for the thread that's completed the frame we want next.
-                // If we don't find it, we wait.
-                for (auto &q: output_queue_) {
-                    if (!q.empty() && q.front().index == index) {
-                        item = q.front();
-                        q.pop();
-                        goto got_item;
-                    }
-                }
-                output_cond_var_.wait_for(lock, 200ms);
-            }
+            std::this_thread::sleep_for (std::chrono::seconds(1));
+            std::cout << "Frame / sec: " << frame_second_  << std::endl;
+            frame_second_ = 0;
         }
-        got_item:
-        input_done_callback_(nullptr);
-        output_ready_callback_(item.mem,
-                               item.bytes_used,
-                               item.preview_mem,
-                               item.preview_bytes_used,
-                               item.timestamp_us,
-                               true);
-        per_sec_count += 1;
-
-        duration d = (std::chrono::high_resolution_clock::now() - start_time);
-        if (d.count() >= 1000) {
-            std::cout << "File written per sec: " << per_sec_count << " milli: " << d.count() << std::endl;
-            start_time = std::chrono::high_resolution_clock::now();
-            per_sec_count = 0;
-        }
-
-        free(item.mem);
-        free(item.preview_mem);
-        index += 1;
     }
 }
