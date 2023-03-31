@@ -497,7 +497,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
 
     jpeg_finish_compress(&cinfo);
     buffer_len = jpeg_mem_len;
-//    free(crop_i420_c);
+    free(crop_i420_c);
 }
 
 
