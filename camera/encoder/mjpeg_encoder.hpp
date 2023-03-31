@@ -54,6 +54,7 @@ private:
 	};
 	std::queue<EncodeItem> encode_queue_;
 	std::mutex encode_mutex_;
+    std::mutex stat_mutex_;
 	std::condition_variable encode_cond_var_;
 	std::thread encode_thread_[NUM_ENC_THREADS];
 
@@ -73,13 +74,6 @@ private:
                     uint8_t *&encoded_buffer,
                     size_t &buffer_len,
                     int num);
-    void legacyEncodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &item, uint8_t *&encoded_buffer,
-                     size_t &buffer_len);
-    void encodeDownsampleJPEG(struct jpeg_compress_struct &cinfo,
-                              EncodeItem &source,
-                              uint8_t *&encoded_buffer,
-                              size_t &buffer_len,
-                              int num);
     void CreateExifData(libcamera::ControlList metadata,
                         uint8_t *&exif_buffer,
                         unsigned int &exif_len);
