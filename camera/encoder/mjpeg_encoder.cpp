@@ -226,21 +226,6 @@ void MjpegEncoder::initDownSampleInfo(EncodeItem &source) {
         cropBuffer_[ii] = (uint8_t *) malloc(crop_size_);
     }
 
-//    oldHalfStride_ = source.stride / 2;
-//    newStride_ = oldHalfStride_ - (oldHalfStride_ % 8) + 8;
-//    newHeight_ = (source.height / 2);
-//    newSize_ = newStride_ * newHeight_;
-//
-////    uint32_t crop_width = 4056;
-////    unsigned int crop_height = 3040;
-//
-//    for (int ii = 0; ii < NUM_ENC_THREADS; ii += 1) {
-//        unsigned int crop_width = 3840;
-//        unsigned int crop_height = 1728;
-//
-//        newBuffer_[ii] = (uint8_t *) malloc(crop_width * crop_height);
-//    }
-
     didInitDSI_ = true;
 }
 

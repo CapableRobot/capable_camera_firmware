@@ -25,5 +25,6 @@
       "vflip": false,
       "rotation": 180
     }
-  }
+  },
+  "version": "cb.0.0.1"
 }
