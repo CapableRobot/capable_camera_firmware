@@ -209,20 +209,37 @@ void MjpegEncoder::initDownSampleInfo(EncodeItem &source) {
         std::cout << "Initializing downsample structures" << std::endl;
     }
 
-    oldHalfStride_ = source.stride / 2;
-    newStride_ = oldHalfStride_ - (oldHalfStride_ % 8) + 8;
-    newHeight_ = (source.height / 2);
-    newSize_ = newStride_ * newHeight_;
+    crop_width_ = options_->crop_width;
+    crop_height_ = options_->crop_height;
 
-//    uint32_t crop_width = 4056;
-//    unsigned int crop_height = 3040;
+    crop_stride_ = crop_width_;
+
+    crop_half_height_ = (crop_height_ + 1) / 2;
+    crop_stride2_ = crop_width_ / 2;
+
+    crop_y_size_ = crop_stride_ * crop_height_;
+    crop_uv_size_ = crop_stride2_ * crop_half_height_;
+
+    crop_size_ = crop_y_size_ + crop_uv_size_ * 2;
 
     for (int ii = 0; ii < NUM_ENC_THREADS; ii += 1) {
-        unsigned int crop_width = 3840;
-        unsigned int crop_height = 1728;
-
-        newBuffer_[ii] = (uint8_t *) malloc(crop_width * crop_height);
+        cropBuffer_[ii] = (uint8_t *) malloc(crop_size_);
     }
+
+//    oldHalfStride_ = source.stride / 2;
+//    newStride_ = oldHalfStride_ - (oldHalfStride_ % 8) + 8;
+//    newHeight_ = (source.height / 2);
+//    newSize_ = newStride_ * newHeight_;
+//
+////    uint32_t crop_width = 4056;
+////    unsigned int crop_height = 3040;
+//
+//    for (int ii = 0; ii < NUM_ENC_THREADS; ii += 1) {
+//        unsigned int crop_width = 3840;
+//        unsigned int crop_height = 1728;
+//
+//        newBuffer_[ii] = (uint8_t *) malloc(crop_width * crop_height);
+//    }
 
     didInitDSI_ = true;
 }
@@ -291,74 +308,6 @@ void MjpegEncoder::CreateExifData(libcamera::ControlList metadata,
     }
 }
 
-
-//void MjpegEncoder::encodeDownsampleJPEG(struct jpeg_compress_struct &cinfo,
-//                                        EncodeItem &source,
-//                                        uint8_t *&encoded_buffer,
-//                                        size_t &buffer_len,
-//                                        int num)
-//{
-//    (void)num;
-//
-//    uint8_t *Y_src = (uint8_t *)source.mem;
-//    uint8_t *U_src = (uint8_t *)Y_src + source.stride * source.height;
-//    uint8_t *V_src = (uint8_t *)U_src + oldHalfStride_  * newHeight_;
-//
-//    libyuv::ScalePlane(Y_src, source.stride, source.width, source.height, newBuffer_[num],
-//                       newStride_, source.width / 2, newHeight_, libyuv::kFilterBox);
-//
-//    uint8_t *Y_max = newBuffer_[num] + (newStride_ * (newHeight_ - 1));
-//    uint8_t *U_max = V_src - oldHalfStride_;
-//    uint8_t *V_max = U_max + oldHalfStride_ * newHeight_;
-//
-//    cinfo.image_width = source.width / 2;
-//    cinfo.image_height = newHeight_;
-//    cinfo.input_components = 3;
-//    cinfo.in_color_space = JCS_YCbCr;
-//    cinfo.jpeg_color_space = JCS_YCbCr;
-//    cinfo.restart_interval = 0;
-//
-//    jpeg_set_defaults(&cinfo);
-//    cinfo.raw_data_in = TRUE;
-//    cinfo.comp_info[0].h_samp_factor = 1;
-//    cinfo.comp_info[0].v_samp_factor = 1;
-//    cinfo.comp_info[1].h_samp_factor = 1;
-//    cinfo.comp_info[1].v_samp_factor = 1;
-//    cinfo.comp_info[2].h_samp_factor = 1;
-//    cinfo.comp_info[2].v_samp_factor = 1;
-//
-//    jpeg_set_quality(&cinfo, options_->qualityDwn, TRUE);
-//    buffer_len = 0;
-//    jpeg_mem_len_t jpeg_mem_len;
-//    jpeg_mem_dest(&cinfo, &encoded_buffer, &jpeg_mem_len);
-//
-//    JSAMPROW y_rows[8];
-//    JSAMPROW u_rows[8];
-//    JSAMPROW v_rows[8];
-//
-//    jpeg_start_compress(&cinfo, TRUE);
-//    for (uint8_t *Y_row = newBuffer_[num], *U_row = U_src, *V_row = V_src; cinfo.next_scanline < newHeight_;)
-//    {
-//        unsigned int linesToWrite = 0;
-//        for (; linesToWrite < 8 && (linesToWrite + cinfo.next_scanline < newHeight_); linesToWrite+=1)
-//        {
-//            y_rows[linesToWrite] = std::min(Y_row, Y_max);
-//            u_rows[linesToWrite] = std::min(U_row, U_max);
-//            v_rows[linesToWrite] = std::min(V_row, V_max);
-//            Y_row += newStride_;
-//            U_row += oldHalfStride_;
-//            V_row += oldHalfStride_;
-//        }
-//        if (linesToWrite > 0)
-//        {
-//            JSAMPARRAY rows[] = {y_rows, u_rows, v_rows};
-//            jpeg_write_raw_data(&cinfo, rows, linesToWrite);
-//        }
-//    }
-//    jpeg_finish_compress(&cinfo);
-//    buffer_len = jpeg_mem_len;
-//}
-
 void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &item, uint8_t *&encoded_buffer,
                               size_t &buffer_len, int num)
 {
@@ -400,72 +349,55 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     //3840 x 2160 — UHD (Ultra HD) is 4K 2160p
     //4056 x 3040 - Cam Raw
 
+    int crop_U_stride = crop_stride2_;
+    int crop_V_stride = crop_stride2_;
 
-    unsigned int crop_width = options_->crop_width;
-    unsigned int crop_height = options_->crop_height;
-
-    unsigned int crop_stride = crop_width;
-
-
-    unsigned int crop_half_height = (crop_height + 1) / 2;
-    unsigned int crop_stride2 = item.stride / 2;
-
-    unsigned int crop_y_size = crop_stride * crop_height;
-    unsigned int crop_uv_size = crop_stride2 * crop_half_height;
-
-    unsigned int crop_size = crop_y_size + crop_uv_size * 2;
-
-    uint8_t* crop_i420_c = (uint8_t *) malloc(crop_size);
-//    uint8_t* crop_i420_c = newBuffer_[];
-
-    int crop_U_stride = crop_stride2;
-    int crop_V_stride = crop_stride2;
-
-    uint8_t *crop_Y = (uint8_t *)crop_i420_c;
-    uint8_t *crop_U = (uint8_t *)crop_Y + crop_y_size;
-    uint8_t *crop_V = (uint8_t *)crop_U + crop_uv_size;
+    uint8_t *crop_Y = (uint8_t *)cropBuffer_[num];
+    uint8_t *crop_U = (uint8_t *)crop_Y + crop_y_size_;
+    uint8_t *crop_V = (uint8_t *)crop_U + crop_uv_size_;
 
     //----------------------------------------------
     //----------------------------------------------
     // OUT
     //----------------------------------------------
     //----------------------------------------------
-    uint8_t *out_Y = (uint8_t *)crop_i420_c;
-    unsigned int out_stride = crop_stride;
-    int out_half_stride = crop_stride2;
+    uint8_t *out_Y = (uint8_t *)cropBuffer_[num];
+    unsigned int out_stride = crop_stride_;
+    int out_half_stride = crop_stride2_;
 
-    uint8_t *out_U = (uint8_t *)out_Y + crop_y_size;
-    uint8_t *out_V = (uint8_t *)out_U + crop_uv_size;
+    uint8_t *out_U = (uint8_t *)out_Y + crop_y_size_;
+    uint8_t *out_V = (uint8_t *)out_U + crop_uv_size_;
 
-    uint8_t *Y_max = out_Y + crop_y_size - 1;
-    uint8_t *U_max = out_U + crop_uv_size - 1;
-    uint8_t *V_max = out_V + crop_uv_size - 1;
+    uint8_t *Y_max = out_Y + crop_y_size_ - 1;
+    uint8_t *U_max = out_U + crop_uv_size_ - 1;
+    uint8_t *V_max = out_V + crop_uv_size_ - 1;
 
 
     unsigned int skip_lines_offset = (options_->crop_offset_from_top) * src_stride;
 //    unsigned int skip_lines_offset = 0;
     unsigned int skip_lines_offset_UV = skip_lines_offset /4;
-    unsigned int crop_y_src_offset = (src_width - crop_width) / 2;
+    unsigned int crop_y_src_offset = (src_width - crop_width_) / 2;
     unsigned int crop_uv_src_offset = crop_y_src_offset / 2;
 
 //    if (options_->verbose) {
-//        std::cout << "I420Rotate: " << sizeof(crop_i420_c) << std::endl;
+//        std::cout << "I420Rotate: " << num <<" : " << sizeof(cropBuffer_[num]) << std::endl;
 //    }
+
     libyuv::I420Rotate(
             src_i420 + skip_lines_offset + crop_y_src_offset, src_stride,
             src_U + skip_lines_offset_UV + crop_uv_src_offset, src_U_stride,
             src_V + skip_lines_offset_UV + crop_uv_src_offset, src_V_stride,
-            crop_i420_c, crop_stride,
+            cropBuffer_[num], crop_stride_,
             crop_U, crop_U_stride,
             crop_V, crop_V_stride,
-            crop_width, crop_height, libyuv::kRotate0);
+            crop_width_, crop_height_, libyuv::kRotate0);
 
 //    if (options_->verbose) {
 //        std::cout << "I420Rotate done! " << std::endl;
 //    }
 
-    cinfo.image_width = crop_width;
-    cinfo.image_height = crop_height;
+    cinfo.image_width = crop_width_;
+    cinfo.image_height = crop_height_;
     cinfo.input_components = 3;
     cinfo.in_color_space = JCS_YCbCr;
     cinfo.restart_interval = 0;
@@ -484,7 +416,7 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
     JSAMPROW v_rows[8];
 
 
-    for (uint8_t *Y_row = out_Y, *U_row = out_U, *V_row = out_V; cinfo.next_scanline < crop_height;)
+    for (uint8_t *Y_row = out_Y, *U_row = out_U, *V_row = out_V; cinfo.next_scanline < crop_height_;)
     {
         for (int i = 0; i < 16; i++, Y_row += out_stride)
             y_rows[i] = std::min(Y_row, Y_max);
@@ -497,29 +429,22 @@ void MjpegEncoder::encodeJPEG(struct jpeg_compress_struct &cinfo, EncodeItem &it
 
     jpeg_finish_compress(&cinfo);
     buffer_len = jpeg_mem_len;
-    free(crop_i420_c);
+//    free(crop_i420_c);
 }
 
 
 void MjpegEncoder::encodeThread(int num) {
     struct jpeg_compress_struct cinfoMain;
-    struct jpeg_compress_struct cinfoPrev;
     struct jpeg_error_mgr jerr;
 
     cinfoMain.err = jpeg_std_error(&jerr);
-    cinfoPrev.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfoMain);
-    jpeg_create_compress(&cinfoPrev);
     typedef std::chrono::duration<float, std::milli> duration;
 
     duration encode_time(0);
     uint32_t frames = 0;
 
     EncodeItem encode_item;
-
-//    uint64_t per_sec_count = 0;
-//    typedef std::chrono::duration<float, std::milli> duration;
-//    auto start_time = std::chrono::high_resolution_clock::now();
 
     while (true) {
         {
@@ -532,7 +457,6 @@ void MjpegEncoder::encodeThread(int num) {
                                   << encode_time.count() * 1000 / frames << std::endl;
                     }
                     jpeg_destroy_compress(&cinfoMain);
-                    jpeg_destroy_compress(&cinfoPrev);
                     return;
                 }
                 if (!encode_queue_.empty()) {
@@ -586,7 +510,7 @@ void MjpegEncoder::encodeThread(int num) {
 
 
         free(output_item.mem);
-        free(output_item.preview_mem);
+//        free(output_item.preview_mem);
 //        stat_mutex_.lock();
 //        std::cout << "stat_mutex_ lock in ++"  << std::endl;
 //        frame_second_ += 1;

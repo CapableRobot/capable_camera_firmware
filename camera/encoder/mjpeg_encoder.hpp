@@ -61,11 +61,24 @@ private:
     bool didInitDSI_;
 
     uint32_t frame_second_;
-    uint32_t oldHalfStride_;
-    uint32_t newStride_;
-    uint32_t newHeight_;
-    uint32_t newSize_;
-    uint8_t* newBuffer_[NUM_ENC_THREADS];
+
+    unsigned int crop_width_;
+    unsigned int crop_height_;
+
+    unsigned int crop_stride_;
+
+
+    unsigned int crop_half_height_;
+    unsigned int crop_stride2_;
+
+    unsigned int crop_y_size_;
+    unsigned int crop_uv_size_;
+
+    unsigned int crop_size_;
+
+    uint8_t* crop_i420_c_;
+
+    uint8_t* cropBuffer_[NUM_ENC_THREADS];
 
     void initDownSampleInfo(EncodeItem &source);
 
